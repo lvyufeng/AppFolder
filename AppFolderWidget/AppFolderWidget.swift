@@ -12,20 +12,15 @@ import WidgetKit
 ///
 /// ## Appearance
 ///
-/// There is no background drawn here, and that is the whole visual design. On
-/// iOS 26 and later the system gives every widget a container — the Liquid Glass
-/// plate — and what an app supplies through `containerBackground` is composited
-/// *behind* it. Returning `Color.clear` asks for no fill of our own, which is
-/// what lets the system's material be the widget's entire chrome: it picks up
-/// the wallpaper's colour, blurs it, and matches whatever the user has chosen
-/// for their Home Screen (default, tinted, or clear icons). Drawing a gradient
-/// or a solid here would sit underneath that and turn the glass into a slightly
-/// foggy window onto a rectangle.
+/// The widget draws no background of its own, and that is the whole design. What
+/// sits behind the content is the plate the system puts under every widget, and
+/// whether that plate is glass is the user's choice — Home Screen → 编辑 → 自定 →
+/// 图标外观 — not ours. See the measured table on the `containerBackground` call
+/// below for what an app can and cannot do here.
 ///
-/// On iOS 18–25 the same empty background means the widget shows the Home Screen
-/// wallpaper, because that is what an unfilled widget region did before the
-/// container existed. Neither behaviour is wrong, and neither is a colour we
-/// chose — which is the point.
+/// On iOS 18–25 there is no such plate and an unfilled widget region shows the
+/// Home Screen wallpaper, which is what it did before the container existed.
+/// Neither behaviour is a colour we chose, which is the point.
 struct AppFolderWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
@@ -34,28 +29,44 @@ struct AppFolderWidget: Widget {
             provider: FolderTimelineProvider()
         ) { entry in
             FolderWidgetView(entry: entry)
-                // No fill of our own, so the system's container is the chrome.
+                // No fill of our own: the plate under a widget is the system's to
+                // draw, and this is the lever that asks it not to.
                 //
-                // iOS 26+: widgets are composited onto a Liquid Glass plate that
-                // the system draws, and `containerBackground` renders *behind*
-                // it. `Color.clear` therefore asks for nothing, and the plate is
-                // the whole background — wallpaper-tinted, blurred, and matching
-                // whatever the user picked for their Home Screen icons. Any fill
-                // given here would sit under the glass and defeat it. Measured:
-                // in dark appearance this region reads #19192A against a #2C2F4A
-                // wallpaper, i.e. the wallpaper showing through a dark material,
-                // while an app that ships its own opaque background (日历) stays
-                // white in the same frame.
+                // Measured on iOS 27, against a brown #B59989 wallpaper, in light
+                // appearance. Four separate attempts to get something translucent
+                // into a widget, and what each actually rendered:
                 //
-                // iOS 18–25: an unfilled widget region shows the wallpaper,
-                // which is what it did before the container existed.
+                // | `containerBackground` | rendered | reads wallpaper? |
+                // |---|---|---|
+                // | pure red | #FF4A4D | n/a — the fill lands, so this *is* the hook |
+                // | `Color.black.opacity(0.45)` | #969696 | **no** — perfectly neutral R=G=B |
+                // | `.ultraThinMaterial` | #F4F4F5 | no — flat |
+                // | `.glassEffect(.regular, in:)` | #FCFCFC | no — flat |
+                //
+                // The second row is the one that settles it. A 45% black over that
+                // wallpaper would be #64544B if the two were ever composited; the
+                // result is #969696, which is black blended against *white*. So a
+                // widget's snapshot has an opaque white backdrop and no access to
+                // the wallpaper, and **an app cannot make a widget translucent by
+                // drawing**. Materials and `glassEffect` degrade to flat fills for
+                // the same reason.
+                //
+                // Where the plate comes from is the user's 图标外观 setting (long
+                // press the Home Screen → 编辑 → 自定), whose 透明 option is what
+                // makes widgets glass. Apps do not participate in that; the widget
+                // drawn here is the same content either way. That is also why this
+                // reader is a `Color.clear` rather than a look-alike: anything we
+                // drew would sit under that plate and fight it.
+                //
+                // iOS 18–25: an unfilled widget region shows the wallpaper, which
+                // is what it did before the container existed.
                 .containerBackground(for: .widget) { Color.clear }
         }
-        // Lets the system drop our container entirely under the Home Screen's
-        // 透明 icon appearance, so the folder melts into the wallpaper instead of
-        // sitting on a plate. The app draws nothing that needs a backing — the
-        // icons are opaque artwork, not text on a fill — so there is nothing to
-        // lose by allowing it.
+        // Lets the system drop the plate entirely under 透明. This is exactly the
+        // hook the finding above is about: requesting it moves the background to a
+        // glass material on a device that has the hardware. The simulator renders
+        // none of that — it has no Liquid Glass pipeline — so this line is here on
+        // the strength of the API contract, not on a screenshot.
         .containerBackgroundRemovable(true)
         .configurationDisplayName("大文件夹")
         .description("在桌面上平铺显示一个文件夹里的 App，点一下直接打开。")
