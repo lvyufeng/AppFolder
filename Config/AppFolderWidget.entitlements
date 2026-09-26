@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Not a permission and not a capability that grants data access: both
+	     processes only need to agree on one container path. Personal-team
+	     signing cannot provision App Groups, which is why `FolderStore` has a
+	     documented non-shared fallback — see `isSharedStorageAvailable`. -->
+	<!-- Widget side of the same shared container. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.lvyufeng.appfolder</string>
+	</array>
+</dict>
+</plist>

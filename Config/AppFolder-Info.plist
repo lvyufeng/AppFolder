@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh-Hans</string>
+	<key>CFBundleDisplayName</key>
+	<string>AppFolder</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh-Hans</string>
+		<string>en</string>
+	</array>
+
+	<!-- The app's own scheme. Tiles created by this app point at other apps;
+	     this one exists so a tile can link back into AppFolder, and so a
+	     shortcut can hand control back after launching. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.lvyufeng.appfolder</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>appfolder</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- iOS has no API that lists installed apps. The only sanctioned way to
+	     learn whether a given app is present is `canOpenURL(url)`, and iOS
+	     answers `false` for any scheme not declared here — even when the app
+	     is installed. So this array is the discovery mechanism, not a
+	     permission: it grants no access, it only lets us ask the question.
+
+	     Generated from AppCatalog.queriedSchemes by
+	     `tools/generate-queried-schemes.swift`. Keep the two in sync. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>weixin</string>
+		<string>wechat</string>
+		<string>mqq</string>
+		<string>alipay</string>
+		<string>taobao</string>
+		<string>tmall</string>
+		<string>snssdk1128</string>
+		<string>sinaweibo</string>
+		<string>xhsdiscover</string>
+		<string>bilibili</string>
+		<string>openapp.jdmobile</string>
+		<string>pinduoduo</string>
+		<string>imeituan</string>
+		<string>eleme</string>
+		<string>dianping</string>
+		<string>iosamap</string>
+		<string>baidumap</string>
+		<string>baidu</string>
+		<string>orpheus</string>
+		<string>qqmusic</string>
+		<string>kugou</string>
+		<string>youku</string>
+		<string>iqiyi</string>
+		<string>tenvideo</string>
+		<string>wemeet</string>
+		<string>dingtalk</string>
+		<string>lark</string>
+		<string>wxwork</string>
+		<string>zhihu</string>
+		<string>douban</string>
+		<string>kwai</string>
+		<string>weread</string>
+		<string>ximalaya</string>
+		<string>ctrip</string>
+		<string>goofish</string>
+		<string>instagram</string>
+		<string>whatsapp</string>
+		<string>fb</string>
+		<string>twitter</string>
+		<string>youtube</string>
+		<string>googlegmail</string>
+		<string>comgooglemaps</string>
+		<string>googlechrome</string>
+		<string>spotify</string>
+		<string>nflx</string>
+		<string>tg</string>
+		<string>slack</string>
+		<string>discord</string>
+		<string>reddit</string>
+		<string>snapchat</string>
+		<string>linkedin</string>
+		<string>uber</string>
+		<string>airbnb</string>
+		<string>msteams</string>
+		<string>notion</string>
+		<string>github</string>
+		<string>figma</string>
+		<string>zoomus</string>
+		<string>obsidian</string>
+		<string>shortcuts</string>
+	</array>
+
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string></string>
+	</dict>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>
