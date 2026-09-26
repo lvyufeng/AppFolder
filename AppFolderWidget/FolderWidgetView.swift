@@ -28,6 +28,11 @@ private struct FolderGrid: View {
     let entry: FolderEntry
     let family: WidgetFamily
 
+    /// How many icons fit across, per widget size.
+    ///
+    /// Three for the two wide families rather than four: at four the icons come
+    /// out smaller than a Home Screen icon, and the point of a 大文件夹 is that
+    /// its contents look like the real things.
     private var columns: Int {
         switch family {
         case .systemSmall: 2
@@ -49,32 +54,40 @@ private struct FolderGrid: View {
         // which reads as a broken image rather than as an app. Until the app has
         // cached artwork for it, leave it out.
         let tiles = drawable.isEmpty ? entry.tiles : drawable
-        let rows = (tiles.count + columns - 1) / max(columns, 1)
-        VStack(spacing: 0) {
-            HStack(spacing: 4) {
-                Text(entry.folder?.name ?? "文件夹")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-            }
-            .padding(.bottom, 4)
 
-            Grid(horizontalSpacing: 8, verticalSpacing: 8) {
-                ForEach(0..<rows, id: \.self) { row in
+        GeometryReader { proxy in
+            let metrics = FolderGridMetrics(
+                tileCount: tiles.count,
+                columns: columns,
+                in: proxy.size,
+                // Icons are round in the corner, so the gap between two of them
+                // reads wider than the same number of points between two
+                // squares. A twelfth is roughly a standard Home Screen gutter.
+                spacing: proxy.size.width / 12
+            )
+
+            Grid(horizontalSpacing: metrics.spacing, verticalSpacing: metrics.spacing) {
+                ForEach(0..<metrics.rows, id: \.self) { row in
                     GridRow {
-                        ForEach(0..<columns, id: \.self) { column in
-                            let index = row * columns + column
+                        ForEach(0..<metrics.columns, id: \.self) { column in
+                            let index = row * metrics.columns + column
                             if tiles.indices.contains(index) {
                                 TileButton(tile: tiles[index])
+                                    .frame(width: metrics.iconSide, height: metrics.iconSide)
                             } else {
+                                // A grid that is not full needs the empty cells
+                                // to exist, or the icons left-align and the whole
+                                // folder reads as off-centre.
                                 Color.clear
+                                    .frame(width: metrics.iconSide, height: metrics.iconSide)
                             }
                         }
                     }
                 }
             }
-            .frame(maxHeight: .infinity, alignment: .top)
+            // Centred: the grid is the whole widget now that there is no header,
+            // so slack belongs around it rather than under it.
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
     }
 }
@@ -128,18 +141,21 @@ private struct TileButton: View {
     }
 }
 
+/// The icon alone.
+///
+/// No title underneath, by request. It costs the one thing the label was good
+/// for — telling two entries apart when the artwork is missing or wrong — so the
+/// fallback below carries that weight instead: a tile with no image draws its SF
+/// Symbol *large*, in the middle of its square, rather than as a small glyph
+/// with a name under it.
+///
+/// The geometry is shared with the app's editor preview (``FolderGridMetrics``),
+/// so what the user arranges is what they get.
 private struct TileLabel: View {
     let tile: FolderTile
 
     var body: some View {
-        VStack(spacing: 3) {
-            WidgetIcon(tile: tile)
-            Text(tile.title)
-                .font(.system(size: 9))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .foregroundStyle(.secondary)
-        }
+        WidgetIcon(tile: tile)
     }
 }
 
@@ -160,7 +176,12 @@ private struct WidgetIcon: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(.fill.tertiary)
                     .overlay {
-                        Image(systemName: symbol).foregroundStyle(.secondary)
+                        // Large, because there is no label to read any more.
+                        Image(systemName: symbol)
+                            .resizable()
+                            .scaledToFit()
+                            .padding(6)
+                            .foregroundStyle(.secondary)
                     }
             } else {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -247,24 +268,6 @@ private struct EmptyWidgetView: View {
                 .multilineTextAlignment(.center)
         }
         .foregroundStyle(.secondary)
-    }
-}
-
-/// Theme colours, kept as gradients rather than flat fills so tiles read as
-/// sitting on a surface instead of floating.
-struct WidgetBackground: View {
-    let entry: FolderEntry
-
-    var body: some View {
-        if let hex = entry.folder?.colorHex, !hex.isEmpty, let color = Color(hex: hex) {
-            LinearGradient(
-                colors: [color.opacity(0.35), color.opacity(0.12)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        } else {
-            Color.clear
-        }
     }
 }
 

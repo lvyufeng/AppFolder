@@ -4,13 +4,9 @@ import SwiftUI
 /// The grid of app icons — the "big folder" itself.
 ///
 /// Used in three places with the same look: the widget on the Home Screen, the
-/// folder list thumbnail, and the editor preview. Layout is derived from the
-/// number of tiles rather than fixed, because the same folder has to read
-/// correctly at every widget size:
-///
-/// * 1–4 tiles → 2 columns
-/// * 5–9 tiles → 3 columns (the classic 大文件夹 square)
-/// * 10+ tiles → 4 columns, which is only reachable in the Extra Large widget
+/// folder list thumbnail, and the editor preview. The cell maths lives in
+/// ``FolderGridMetrics`` so the preview and the widget cannot disagree about
+/// where the icons go.
 ///
 /// Icons are rounded rectangles masked to the system's icon shape rather than
 /// plain circles, so a third-party app's artwork reads correctly next to real
@@ -18,22 +14,15 @@ import SwiftUI
 struct FolderPreviewGrid: View {
     let tiles: [FolderTile]
     var showsTitles: Bool = false
-    var iconSize: CGFloat?
 
-    private var columns: Int {
-        switch tiles.count {
-        case 0...4: 2
-        case 5...9: 3
-        default: 4
-        }
-    }
+    private var columns: Int { FolderGridMetrics.columns(forTileCount: tiles.count) }
 
     var body: some View {
         GeometryReader { proxy in
             let count = max(columns, 1)
             let spacing = max(2, proxy.size.width * 0.055)
-            let side = (proxy.size.width - spacing * CGFloat(count - 1)) / CGFloat(count)
             let rows = (tiles.count + count - 1) / count
+            let side = (proxy.size.width - spacing * CGFloat(count - 1)) / CGFloat(count)
             let totalHeight = side * CGFloat(rows) + spacing * CGFloat(max(0, rows - 1))
 
             VStack(spacing: spacing) {
