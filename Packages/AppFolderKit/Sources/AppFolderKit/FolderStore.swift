@@ -42,7 +42,7 @@ public struct FolderStore: Sendable {
             return fallbackLoad()
         }
         do {
-            return try JSONDecoder().decode(FolderLibrary.self, from: data)
+            return try FolderCoding.makeDecoder().decode(FolderLibrary.self, from: data)
         } catch {
             // A library we cannot decode is worse than no library: keep the
             // unreadable bytes around so the failure is diagnosable, and start
@@ -58,7 +58,7 @@ public struct FolderStore: Sendable {
         guard let data = UserDefaults.standard.data(forKey: AppFolderShared.fallbackDefaultsKey) else {
             return .empty
         }
-        return (try? JSONDecoder().decode(FolderLibrary.self, from: data)) ?? .empty
+        return (try? FolderCoding.makeDecoder().decode(FolderLibrary.self, from: data)) ?? .empty
     }
 
     // MARK: - Writing
@@ -69,7 +69,7 @@ public struct FolderStore: Sendable {
         var library = library
         library.schemaVersion = FolderLibrary.currentSchemaVersion
 
-        let encoded = try? JSONEncoder().encode(library)
+        let encoded = try? FolderCoding.makeEncoder().encode(library)
 
         if let fileURL, let encoded {
             do {

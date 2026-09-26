@@ -3,8 +3,44 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(LibraryModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var router = BounceRouter()
 
     var body: some View {
+        Group {
+            if router.isHandingOff {
+                // The bounce is in flight. Draw nothing: see ``BounceRouter`` for
+                // why this is what makes the hand-off invisible rather than a
+                // visible detour through the launcher.
+                Color(.systemBackground)
+                    .ignoresSafeArea()
+            } else {
+                launcher
+            }
+        }
+        // The second half of the bounce route. A widget tile that cannot reach
+        // its target directly opens AppFolder with the target in the URL; this is
+        // where that hand-off is completed.
+        .onOpenURL { url in
+            router.handle(url)
+        }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            router.scenePhaseChanged(to: phase)
+        }
+        .alert(
+            "打不开",
+            isPresented: Binding(
+                get: { router.failure != nil },
+                set: { if !$0 { router.failure = nil } }
+            )
+        ) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(router.failure ?? "")
+        }
+    }
+
+    private var launcher: some View {
         TabView {
             LibraryView()
                 .tabItem { Label("文件夹", systemImage: "square.grid.2x2") }
@@ -14,17 +50,6 @@ struct RootView: View {
 
             AboutView()
                 .tabItem { Label("关于", systemImage: "info.circle") }
-        }
-        // The second half of the bounce route. A widget tile that cannot reach
-        // its target directly opens AppFolder with the target in the URL; this is
-        // where that hand-off is completed.
-        //
-        // Speed is the whole point: every millisecond here is a millisecond the
-        // user stares at AppFolder instead of the app they asked for. So this
-        // does the open immediately and does not touch the model or the store.
-        .onOpenURL { url in
-            guard let target = LaunchLink.targetURL(from: url) else { return }
-            UIApplication.shared.open(target)
         }
     }
 }

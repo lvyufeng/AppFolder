@@ -33,13 +33,11 @@ extension AppCatalog {
         KnownApp(id: "kuaishou", name: "快手", englishName: "Kuaishou",
                  scheme: "kwai://", appStoreID: 440948110, category: "社交"),
         KnownApp(id: "dingtalk", name: "钉钉", englishName: "DingTalk",
-                 scheme: "dingtalk://", appStoreID: 930434564, category: "办公"),
+                 scheme: "dingtalk://", appStoreID: 930368978, category: "办公"),
         KnownApp(id: "wework", name: "企业微信", englishName: "WeCom",
-                 scheme: "wxwork://", appStoreID: 1084398354, category: "办公"),
+                 scheme: "wxwork://", appStoreID: 1087897068, category: "办公"),
         KnownApp(id: "feishu", name: "飞书", englishName: "Feishu",
-                 scheme: "lark://", appStoreID: 1401723545, category: "办公"),
-        KnownApp(id: "tencent-meeting", name: "腾讯会议", englishName: "Tencent Meeting",
-                 scheme: "wemeet://", appStoreID: 1478568808, category: "办公"),
+                 scheme: "lark://", appStoreID: 1401729613, category: "办公"),
 
         // MARK: 支付 / 购物
         KnownApp(id: "alipay", name: "支付宝", englishName: "Alipay",
@@ -47,17 +45,15 @@ extension AppCatalog {
         KnownApp(id: "taobao", name: "淘宝", englishName: "Taobao",
                  scheme: "taobao://", appStoreID: 387682726, category: "购物"),
         KnownApp(id: "tmall", name: "天猫", englishName: "Tmall",
-                 scheme: "tmall://", appStoreID: 1010047000, category: "购物"),
+                 scheme: "tmall://", appStoreID: 518966501, category: "购物"),
         KnownApp(id: "jd", name: "京东", englishName: "JD",
                  scheme: "openapp.jdmobile://", appStoreID: 414245413, category: "购物"),
         KnownApp(id: "pinduoduo", name: "拼多多", englishName: "Pinduoduo",
                  scheme: "pinduoduo://", appStoreID: 1044283059, category: "购物"),
-        KnownApp(id: "goofish", name: "闲鱼", englishName: "Goofish",
-                 scheme: "goofish://", appStoreID: 510909996, category: "购物"),
 
         // MARK: 出行 / 生活
         KnownApp(id: "amap", name: "高德地图", englishName: "Amap",
-                 scheme: "iosamap://", appStoreID: 461632622, category: "出行"),
+                 scheme: "iosamap://", appStoreID: 461703208, category: "出行"),
         KnownApp(id: "baidu-map", name: "百度地图", englishName: "Baidu Maps",
                  scheme: "baidumap://", appStoreID: 452186370, category: "出行"),
         KnownApp(id: "meituan", name: "美团", englishName: "Meituan",
@@ -67,7 +63,7 @@ extension AppCatalog {
         KnownApp(id: "dianping", name: "大众点评", englishName: "Dianping",
                  scheme: "dianping://", appStoreID: 351091731, category: "生活"),
         KnownApp(id: "ctrip", name: "携程", englishName: "Trip.com",
-                 scheme: "ctrip://", appStoreID: 379395979, category: "出行"),
+                 scheme: "CtripWireless://", appStoreID: 379395415, category: "出行"),
 
         // MARK: 影音 / 阅读
         KnownApp(id: "bilibili", name: "哔哩哔哩", englishName: "Bilibili",
@@ -77,21 +73,21 @@ extension AppCatalog {
         KnownApp(id: "qqmusic", name: "QQ音乐", englishName: "QQ Music",
                  scheme: "qqmusic://", appStoreID: 414603431, category: "影音"),
         KnownApp(id: "kugou", name: "酷狗音乐", englishName: "Kugou",
-                 scheme: "kugou://", appStoreID: 472525316, category: "影音"),
+                 scheme: "kugouURL://", appStoreID: 472208016, category: "影音"),
         KnownApp(id: "youku", name: "优酷", englishName: "Youku",
-                 scheme: "youku://", appStoreID: 488674797, category: "影音"),
+                 scheme: "youku://", appStoreID: 336141475, category: "影音"),
         KnownApp(id: "iqiyi", name: "爱奇艺", englishName: "iQIYI",
-                 scheme: "iqiyi://", appStoreID: 393765873, category: "影音"),
+                 scheme: "qiyi-iphone://", appStoreID: 393765873, category: "影音"),
         KnownApp(id: "tencent-video", name: "腾讯视频", englishName: "Tencent Video",
                  scheme: "tenvideo://", appStoreID: 458318329, category: "影音"),
         KnownApp(id: "weread", name: "微信读书", englishName: "WeRead",
-                 scheme: "weread://", appStoreID: 952891865, category: "阅读"),
-        KnownApp(id: "ximalaya", name: "喜马拉雅", englishName: "Ximalaya",
-                 scheme: "ximalaya://", appStoreID: 441094543, category: "影音"),
+                 scheme: "weread://", appStoreID: 952059546, category: "阅读"),
         KnownApp(id: "zhihu", name: "知乎", englishName: "Zhihu",
                  scheme: "zhihu://", appStoreID: 432274380, category: "阅读"),
         KnownApp(id: "douban", name: "豆瓣", englishName: "Douban",
-                 scheme: "douban://", appStoreID: 333819584, category: "阅读"),
+                 scheme: "douban://", appStoreID: 907002334, category: "阅读"),
+        KnownApp(id: "toutiao", name: "今日头条", englishName: "Toutiao",
+                 scheme: "snssdk141://", appStoreID: 529092160, category: "阅读"),
 
         // MARK: 国际
         KnownApp(id: "instagram", name: "Instagram", englishName: "Instagram",
@@ -137,7 +133,7 @@ extension AppCatalog {
         KnownApp(id: "figma", name: "Figma", englishName: "Figma",
                  scheme: "figma://", appStoreID: 1152747299, category: "效率"),
         KnownApp(id: "obsidian", name: "Obsidian", englishName: "Obsidian",
-                 scheme: "obsidian://", appStoreID: 1557171596, category: "效率"),
+                 scheme: "obsidian://", appStoreID: 1557175442, category: "效率"),
         KnownApp(id: "uber", name: "Uber", englishName: "Uber",
                  scheme: "uber://", appStoreID: 368677368, category: "出行"),
         KnownApp(id: "airbnb", name: "Airbnb", englishName: "Airbnb",
@@ -147,10 +143,25 @@ extension AppCatalog {
         KnownApp(id: "shortcuts", name: "快捷指令", englishName: "Shortcuts",
                  scheme: "shortcuts://", appStoreID: nil, category: "系统"),
 
-        // MARK: 目录外
-        // Not an app. Used by the "custom link" tile type so a user can point a
-        // tile at an app we have never heard of; the URL is edited by hand.
-        KnownApp(id: "custom", name: "自定义链接", englishName: "Custom Link",
+        // MARK: 待验证
+        // Real apps whose scheme we have only from a single unverified source.
+        // Kept out of the default picker (`Confidence.unverified`), and excluded
+        // from the query budget, but available if a user searches for them —
+        // adding a tile for one of these is a bet, and the editor is where the
+        // user finds out whether it paid off.
+        KnownApp(id: "ximalaya", name: "喜马拉雅", englishName: "Ximalaya",
+                 scheme: "ximalaya.mainapp://", appStoreID: 876336838, category: "影音",
+                 confidence: .unverified),
+        KnownApp(id: "goofish", name: "闲鱼", englishName: "Goofish",
+                 scheme: "fleamarket://", appStoreID: 510909506, category: "购物",
+                 confidence: .unverified),
+        KnownApp(id: "tencent-meeting", name: "腾讯会议", englishName: "Tencent Meeting",
+                 scheme: "wemeet://", appStoreID: 1484048379, category: "办公",
+                 confidence: .unverified),
+        KnownApp(id: "baidu", name: "百度", englishName: "Baidu",
+                 scheme: "baiduboxapp://", appStoreID: 382201985, category: "效率",
+                 confidence: .unverified),
+        KnownApp(id: "xianyu-custom", name: "自定义链接", englishName: "Custom Link",
                  scheme: "https://", appStoreID: nil, category: "系统",
                  confidence: .unverified),
     ]

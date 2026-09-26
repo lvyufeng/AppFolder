@@ -39,6 +39,9 @@ final class LibraryModel {
     var installedSchemes: Set<String> { prober.installedSchemes }
     var isProbing: Bool { prober.isProbing }
 
+    /// How many catalogue apps look installed on this device.
+    var installedAppCount: Int { prober.installedSchemes.count }
+
     func start() async {
         library = store.load()
         isSharedStorageAvailable = store.hasSharedContainer
@@ -47,10 +50,12 @@ final class LibraryModel {
 
     /// Re-probes which apps are installed and persists the result for the widget.
     func refreshInstalledApps() async {
-        await prober.probe()
-        library.installedSchemes = prober.installedSchemes
-        library.lastProbeAt = .now
-        persist()
+        let result = await prober.probe()
+        var next = library
+        next.installedSchemes = result.installed
+        next.probedSchemes = result.probed
+        next.lastProbeAt = .now
+        apply(next)
     }
 
     func upsert(_ folder: Folder) {

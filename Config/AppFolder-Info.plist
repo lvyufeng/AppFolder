@@ -54,65 +54,30 @@
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>weixin</string>
-		<string>wechat</string>
 		<string>mqq</string>
+		<string>sinaweibo</string>
+		<string>xhsdiscover</string>
+		<string>snssdk1128</string>
+		<string>kwai</string>
+		<string>dingtalk</string>
+		<string>wxwork</string>
+		<string>lark</string>
 		<string>alipay</string>
 		<string>taobao</string>
 		<string>tmall</string>
-		<string>snssdk1128</string>
-		<string>sinaweibo</string>
-		<string>xhsdiscover</string>
-		<string>bilibili</string>
 		<string>openapp.jdmobile</string>
 		<string>pinduoduo</string>
+		<string>iosamap</string>
+		<string>baidumap</string>
 		<string>imeituan</string>
 		<string>eleme</string>
 		<string>dianping</string>
-		<string>iosamap</string>
-		<string>baidumap</string>
-		<string>baidu</string>
+		<string>CtripWireless</string>
+		<string>bilibili</string>
 		<string>orpheus</string>
 		<string>qqmusic</string>
-		<string>kugou</string>
+		<string>kugouURL</string>
 		<string>youku</string>
-		<string>iqiyi</string>
-		<string>tenvideo</string>
-		<string>wemeet</string>
-		<string>dingtalk</string>
-		<string>lark</string>
-		<string>wxwork</string>
-		<string>zhihu</string>
-		<string>douban</string>
-		<string>kwai</string>
-		<string>weread</string>
-		<string>ximalaya</string>
-		<string>ctrip</string>
-		<string>goofish</string>
-		<string>instagram</string>
-		<string>whatsapp</string>
-		<string>fb</string>
-		<string>twitter</string>
-		<string>youtube</string>
-		<string>googlegmail</string>
-		<string>comgooglemaps</string>
-		<string>googlechrome</string>
-		<string>spotify</string>
-		<string>nflx</string>
-		<string>tg</string>
-		<string>slack</string>
-		<string>discord</string>
-		<string>reddit</string>
-		<string>snapchat</string>
-		<string>linkedin</string>
-		<string>uber</string>
-		<string>airbnb</string>
-		<string>msteams</string>
-		<string>notion</string>
-		<string>github</string>
-		<string>figma</string>
-		<string>zoomus</string>
-		<string>obsidian</string>
-		<string>shortcuts</string>
 	</array>
 
 	<key>UIApplicationSceneManifest</key>

@@ -108,34 +108,59 @@ public struct FolderLibrary: Codable, Sendable {
 
     public var schemaVersion: Int
     public var folders: [Folder]
-    /// Schemes that `canOpenURL` confirmed are installed, refreshed by the app.
+    /// Schemes the app asked the system about and got a yes for.
     ///
-    /// The widget cannot call `canOpenURL` (no `UIApplication` in an extension),
-    /// so the app probes and leaves the answer here for the widget to read.
+    /// The widget cannot call `canOpenURL` — there is no `UIApplication` in an
+    /// extension — so the app probes and leaves the answers here.
     public var installedSchemes: Set<String>
+    /// Every scheme the app asked about, regardless of the answer.
+    ///
+    /// This is what makes ``isReachable(_:)`` honest. Without it, "not in
+    /// `installedSchemes`" would conflate two very different things: *we asked
+    /// and the app isn't there* versus *we never asked*. Only the first is a
+    /// reason to hide a tile, and only a few dozen schemes can ever be asked
+    /// about — see ``AppCatalog/queryBudget``.
+    public var probedSchemes: Set<String>
     public var lastProbeAt: Date?
 
     public init(
         schemaVersion: Int = FolderLibrary.currentSchemaVersion,
         folders: [Folder] = [],
         installedSchemes: Set<String> = [],
+        probedSchemes: Set<String> = [],
         lastProbeAt: Date? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.folders = folders
         self.installedSchemes = installedSchemes
+        self.probedSchemes = probedSchemes
         self.lastProbeAt = lastProbeAt
+    }
+
+    /// Decodes leniently so a field added in a later version doesn't discard the
+    /// user's folders. Synthesized `Codable` ignores property defaults when a key
+    /// is absent, which would make every schema addition a data loss event.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
+            ?? FolderLibrary.currentSchemaVersion
+        folders = try container.decodeIfPresent([Folder].self, forKey: .folders) ?? []
+        installedSchemes = try container.decodeIfPresent(Set<String>.self, forKey: .installedSchemes) ?? []
+        probedSchemes = try container.decodeIfPresent(Set<String>.self, forKey: .probedSchemes) ?? []
+        lastProbeAt = try container.decodeIfPresent(Date.self, forKey: .lastProbeAt)
     }
 
     public static let empty = FolderLibrary()
 
     /// Whether a tile's target is known to be reachable on this device.
     ///
-    /// Unknown schemes are treated as installed: a stale negative would hide a
-    /// working tile, whereas a stale positive just fails at launch.
+    /// Conservative in one direction only: a scheme we never asked about is
+    /// treated as reachable, because hiding a working tile is worse than showing
+    /// one that fails. Only a scheme we positively asked about and got a no for
+    /// is considered unreachable.
     public func isReachable(_ tile: FolderTile) -> Bool {
-        guard lastProbeAt != nil else { return true }
-        guard let scheme = tile.url?.scheme else { return false }
+        guard let scheme = tile.url?.scheme?.lowercased() else { return false }
+        guard probedSchemes.contains(scheme) else { return true }
         return installedSchemes.contains(scheme)
     }
 }
