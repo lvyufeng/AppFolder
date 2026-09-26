@@ -32,9 +32,8 @@ struct AppFolderWidget: Widget {
                 // No fill of our own: the plate under a widget is the system's to
                 // draw, and this is the lever that asks it not to.
                 //
-                // Measured on iOS 27, against a brown #B59989 wallpaper, in light
-                // appearance. Four separate attempts to get something translucent
-                // into a widget, and what each actually rendered:
+                // Four separate attempts to get something translucent into a widget,
+                // and what each actually rendered against a brown #B59989 wallpaper:
                 //
                 // | `containerBackground` | rendered | reads wallpaper? |
                 // |---|---|---|
@@ -45,34 +44,39 @@ struct AppFolderWidget: Widget {
                 //
                 // The second row is the one that settles it. A 45% black over that
                 // wallpaper would be #64544B if the two were ever composited; the
-                // result is #969696, which is black blended against *white*. So a
-                // widget's snapshot has an opaque white backdrop and no access to
-                // the wallpaper, and **an app cannot make a widget translucent by
-                // drawing**. Materials and `glassEffect` degrade to flat fills for
-                // the same reason.
+                // result is #969696, which is black blended against *white*, and the
+                // plate measures a literal #FFFFFF even where the wallpaper behind it
+                // is dark. So a widget's snapshot has an opaque plate under it and no
+                // access to the wallpaper, and **an app cannot make a widget
+                // translucent by drawing**. Materials and `glassEffect` degrade to
+                // flat fills for the same reason.
                 //
-                // Where the plate comes from is the user's 图标外观 setting (long
-                // press the Home Screen → 编辑 → 自定), whose 透明 option is what
-                // makes widgets glass. Apps do not participate in that; the widget
-                // drawn here is the same content either way. That is also why this
-                // reader is a `Color.clear` rather than a look-alike: anything we
-                // drew would sit under that plate and fight it.
+                // Apple's own widgets are the control: on one screen, Maps and
+                // Calendar both measure perfectly flat #FFFFFF inside, while the iOS
+                // folder a few rows below them — two apps dragged together —
+                // transmits the wallpaper behind it (#967060, #9D7762, following what
+                // is underneath). The glass renderer is demonstrably running; it is
+                // simply not offered to a widget's own content.
                 //
-                // Either way the plate is not ours to draw. Apple's own widgets are
-                // flat opaque white inside (the Maps and Calendar widgets both
-                // measure #FFFFFF with a hard edge against the wallpaper), so a
-                // widget surface is white-on-white by design; the glass, if any,
-                // is added around all of them at mount time, by the system, under
-                // the user's 图标外观 setting.
+                // So where the plate comes from is the user's 图标外观 setting (long
+                // press the Home Screen → 编辑 → 自定), and the system draws it around
+                // the content either way. That is why this reader is a `Color.clear`
+                // rather than a look-alike: anything we drew would sit under that
+                // plate and fight it.
                 .containerBackground(for: .widget) { Color.clear }
         }
-        // Lets the system drop the plate entirely under 透明. This is exactly the
-        // hook the measurement above is about: the plate is the system's, drawn
-        // when it mounts the widget, so asking for no fill is the only way to get
-        // out of its way. Not verifiable here — not because the simulator lacks a
-        // glass pipeline (it has one: the dock's luminance tracks the wallpaper
-        // behind it at r = +0.997, with a lit rim along its edge) but because
-        // nothing can open 编辑 → 自定 on this machine to switch the appearance.
+        // Lets the system drop the plate in contexts that prefer no background —
+        // the user's 透明 icon appearance is one, and it is the one being asked
+        // for. Apple's own words for this modifier: mark the background removable
+        // "to allow people to place the widget in as many contexts as possible",
+        // and "the system always displays the background container" if you do not;
+        // they also warn the container "may render differently; for example, it can
+        // appear faded or desaturated" when it is not removable. So the plate is
+        // the system's, and this is the switch that tells it we have not built our
+        // layout around one — the prerequisite for 透明, not the cause of it.
+        //
+        // No effect before iOS 17, and the app targets 18, so there is no
+        // conditional needed here.
         .containerBackgroundRemovable(true)
         .configurationDisplayName("大文件夹")
         .description("在桌面上平铺显示一个文件夹里的 App，点一下直接打开。")
