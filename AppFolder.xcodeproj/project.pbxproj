@@ -39,6 +39,11 @@
 /* Begin PBXFileReference section */
 		A1B2C3D4E5F60718293A4B08 /* AppFolder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppFolder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D4E5F60718293A4B09 /* AppFolderWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AppFolderWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D4E5F60718293A4B24 /* AppFolder-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AppFolder-Info.plist"; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B25 /* AppFolderWidget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AppFolderWidget-Info.plist"; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B26 /* AppFolder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AppFolder.entitlements; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B27 /* AppFolderWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AppFolderWidget.entitlements; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B29 /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -122,14 +127,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
-
-/* Begin PBXFileReference section (config) */
-		A1B2C3D4E5F60718293A4B24 /* AppFolder-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AppFolder-Info.plist"; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B25 /* AppFolderWidget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AppFolderWidget-Info.plist"; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B26 /* AppFolder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AppFolder.entitlements; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B27 /* AppFolderWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AppFolderWidget.entitlements; sourceTree = "<group>"; };
-		A1B2C3D4E5F60718293A4B29 /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
-/* End PBXFileReference section */
 
 /* Begin PBXNativeTarget section */
 		A1B2C3D4E5F60718293A4B06 /* AppFolder */ = {
@@ -401,9 +398,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Config/AppFolder.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9WX5LSSM59;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 9WX5LSSM59;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/AppFolder-Info.plist";
@@ -413,6 +410,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -433,9 +431,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Config/AppFolder.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9WX5LSSM59;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 9WX5LSSM59;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/AppFolder-Info.plist";
@@ -445,6 +443,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -465,8 +464,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Config/AppFolderWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9WX5LSSM59;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9WX5LSSM59;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/AppFolderWidget-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = AppFolder;
@@ -493,8 +492,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Config/AppFolderWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9WX5LSSM59;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9WX5LSSM59;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/AppFolderWidget-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = AppFolder;

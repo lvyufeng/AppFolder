@@ -12,23 +12,17 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh-Hans</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>CFBundleLocalizations</key>
-	<array>
-		<string>zh-Hans</string>
-		<string>en</string>
-	</array>
-
-	<!-- The app's own scheme. Tiles created by this app point at other apps;
-	     this one exists so a tile can link back into AppFolder, and so a
-	     shortcut can hand control back after launching. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -42,15 +36,8 @@
 			</array>
 		</dict>
 	</array>
-
-	<!-- iOS has no API that lists installed apps. The only sanctioned way to
-	     learn whether a given app is present is `canOpenURL(url)`, and iOS
-	     answers `false` for any scheme not declared here — even when the app
-	     is installed. So this array is the discovery mechanism, not a
-	     permission: it grants no access, it only lets us ask the question.
-
-	     Generated from AppCatalog.queriedSchemes by
-	     `tools/generate-queried-schemes.swift`. Keep the two in sync. -->
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>weixin</string>
@@ -79,7 +66,6 @@
 		<string>kugouURL</string>
 		<string>youku</string>
 	</array>
-
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
