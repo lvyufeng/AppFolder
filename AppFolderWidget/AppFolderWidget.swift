@@ -58,15 +58,21 @@ struct AppFolderWidget: Widget {
                 // reader is a `Color.clear` rather than a look-alike: anything we
                 // drew would sit under that plate and fight it.
                 //
-                // iOS 18–25: an unfilled widget region shows the wallpaper, which
-                // is what it did before the container existed.
+                // Either way the plate is not ours to draw. Apple's own widgets are
+                // flat opaque white inside (the Maps and Calendar widgets both
+                // measure #FFFFFF with a hard edge against the wallpaper), so a
+                // widget surface is white-on-white by design; the glass, if any,
+                // is added around all of them at mount time, by the system, under
+                // the user's 图标外观 setting.
                 .containerBackground(for: .widget) { Color.clear }
         }
         // Lets the system drop the plate entirely under 透明. This is exactly the
-        // hook the finding above is about: requesting it moves the background to a
-        // glass material on a device that has the hardware. The simulator renders
-        // none of that — it has no Liquid Glass pipeline — so this line is here on
-        // the strength of the API contract, not on a screenshot.
+        // hook the measurement above is about: the plate is the system's, drawn
+        // when it mounts the widget, so asking for no fill is the only way to get
+        // out of its way. Not verifiable here — not because the simulator lacks a
+        // glass pipeline (it has one: the dock's luminance tracks the wallpaper
+        // behind it at r = +0.997, with a lit rim along its edge) but because
+        // nothing can open 编辑 → 自定 on this machine to switch the appearance.
         .containerBackgroundRemovable(true)
         .configurationDisplayName("大文件夹")
         .description("在桌面上平铺显示一个文件夹里的 App，点一下直接打开。")
