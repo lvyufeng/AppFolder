@@ -8,6 +8,19 @@ import SwiftUI
 /// display: the App Store artwork is served from Apple's public iTunes Search
 /// API and the app is describing apps the user already has. It is cached on disk
 /// because a widget timeline can't afford a network round-trip per tile.
+///
+/// ## Where the cache lives, and why that matters more than it looks
+///
+/// The cache is the shared container, because that is the only place the widget
+/// can read from — an extension cannot see the app's sandbox. On a build without
+/// an App Group (a free Apple ID, say) this falls back to the app's temporary
+/// directory, where the widget will never find it.
+///
+/// That failure is invisible in the worst way: the icons in the *app* are all
+/// correct, because the app can read its own temporary directory. Everything
+/// looks right until the widget is placed, and then the tiles come out as blank
+/// squares with a symbol in them. ``cachedIconCount`` exists so the 排查 screen
+/// can say which of the two worlds the icons actually ended up in.
 actor IconStore {
     static let shared = IconStore()
 
@@ -15,13 +28,32 @@ actor IconStore {
     private var inFlight: [Int: Task<Data?, Never>] = [:]
     private let directory: URL
 
+    /// Whether the cache is somewhere the widget can reach.
+    private let isShared: Bool
+
     init() {
-        let base = FileManager.default
+        let container = FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: AppFolderShared.appGroupIdentifier)
-            ?? FileManager.default.temporaryDirectory
-        directory = base.appending(path: "Icons", directoryHint: .isDirectory)
+        isShared = container != nil
+        directory = (container ?? FileManager.default.temporaryDirectory)
+            .appending(path: "Icons", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
+
+    /// How many icons are on disk.
+    ///
+    /// Not `async` on purpose: it is read from a `View` body, and it is a
+    /// directory listing that takes microseconds.
+    nonisolated var cachedIconCount: Int {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        return names.count
+    }
+
+    /// Whether the on-disk cache is in the shared container.
+    ///
+    /// The count above is only meaningful next to this: a healthy-looking number
+    /// in a private temporary directory means a widget that draws nothing.
+    nonisolated var isCacheSharedWithWidget: Bool { isShared }
 
     /// Cached icon bytes for an App Store id, fetching them if needed.
     func icon(forAppStoreID id: Int) async -> Data? {

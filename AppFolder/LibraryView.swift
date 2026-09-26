@@ -48,8 +48,77 @@ struct RootView: View {
             AddToHomeScreenView()
                 .tabItem { Label("放到桌面", systemImage: "plus.app") }
 
+            TroubleshootingView()
+                .tabItem { Label("排查", systemImage: "stethoscope") }
+
             AboutView()
                 .tabItem { Label("关于", systemImage: "info.circle") }
+        }
+    }
+}
+
+/// Everything a tap on the Home Screen needs and cannot ask about.
+///
+/// A widget has no console, no error surface, and no way for the app to reach it
+/// once it is placed. So when a tile does nothing, the user's only recourse is to
+/// guess — and the guesses that matter, "is the widget seeing my folders" and
+/// "would it even draw a background", are both answerable from here. This screen
+/// is what turns a silent failure into a diagnosis.
+struct TroubleshootingView: View {
+    @Environment(LibraryModel.self) private var model
+
+    /// What a widget would find if it looked right now.
+    ///
+    /// Read through the same ``FolderStore`` the widget uses rather than from the
+    /// model's in-memory copy, because the gap between those two is exactly the
+    /// failure this screen exists to expose.
+    private var widgetVisible: FolderLibrary = FolderStore().load()
+
+    private var widgetTileCount: Int {
+        widgetVisible.folders.reduce(0) { $0 + $1.tiles.count }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    LabeledContent("共享容器") {
+                        Text(model.isSharedStorageAvailable ? "可用" : "不可用")
+                            .foregroundStyle(model.isSharedStorageAvailable ? .green : .orange)
+                    }
+                    LabeledContent("这个 App 里的文件夹") { Text("\(model.folders.count)") }
+                    LabeledContent("小组件能读到的文件夹") { Text("\(widgetVisible.folders.count)") }
+                    LabeledContent("小组件能读到的图块") { Text("\(widgetTileCount)") }
+                    LabeledContent("已缓存图标") {
+                        Text("\(IconStore.shared.cachedIconCount) 个")
+                            .foregroundStyle(
+                                IconStore.shared.isCacheSharedWithWidget ? Color.primary : Color.orange
+                            )
+                    }
+                    if !IconStore.shared.isCacheSharedWithWidget {
+                        // Said outright, because the symptom is a blank widget with
+                        // perfectly good icons in the app, which reads as a widget
+                        // bug rather than a storage one.
+                        Text("图标缓存在 App 自己的目录里，小组件读不到，桌面上会显示成空方块。")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                } header: {
+                    Text("小组件能看到什么")
+                } footer: {
+                    // The two "小组件能读到" lines come through the same code path
+                    // the widget uses. If they are zero while the lines above are
+                    // not, the widget will draw an empty box, and the cause is
+                    // storage rather than the folder.
+                    Text("下面两行走的是小组件完全相同的读取路径。如果它们比上面的数字少，桌面上的小组件就是空的——问题在共享存储，不在文件夹。")
+                }
+
+                Section("小组件点不动的时候") {
+                    Text("图块点下去没反应，只有三种可能：目标 App 没装、链接写错了、或者这个图块选了「直接打开」但目标 App 没有通用链接。")
+                    Text("回到文件夹点开那个图块，用「试一下」逐个排除。第三种编辑器会直接标出来。")
+                }
+            }
+            .navigationTitle("排查")
         }
     }
 }
