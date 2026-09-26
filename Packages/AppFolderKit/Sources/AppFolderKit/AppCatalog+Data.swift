@@ -140,8 +140,58 @@ extension AppCatalog {
                  scheme: "airbnb://", appStoreID: 401626263, category: "出行"),
 
         // MARK: 系统
+        //
+        // Apple's own apps, and they are here for a reason that is the opposite
+        // of the rest of the catalogue.
+        //
+        // Two things make them worth listing even though the real audience for a
+        // big folder is third-party apps. First, a brand-new iPhone's Home Screen
+        // is *nothing but* these — and a launcher that can't hold the apps you
+        // actually have is a launcher you delete on day one. Second, and more
+        // usefully: `canOpenURL` enforces `LSApplicationQueriesSchemes` against
+        // third-party apps and not against Apple's, so every entry below can be
+        // detected as installed **without spending a single slot of the 25-entry
+        // budget**. Measured; see ``AppCatalog/queriedSchemes``.
+        //
+        // Every scheme here was verified by opening it on iOS 27 — `simctl` errors
+        // out when nothing handles a URL, which makes this checkable rather than
+        // guessable. Several plausible-looking ones did not survive that test and
+        // are deliberately absent: `camera://`, `weather://`, `clock-alarm://`,
+        // `podcasts://`, `music://`, `mobilenotes://`, `stocks://`, `password://`,
+        // `calc://`, `facetime://`, `tel://`. Some of those do open an app on a
+        // real device with different internals, but a verification that passes on
+        // the simulator and fails on the device is worse than an omission: the
+        // tile renders, the tap does nothing, and there is nothing to debug.
+        //
+        // No `appStoreID` on any of them — they ship with the OS, so there is no
+        // store listing to fetch artwork from. They draw as SF Symbols, which for
+        // the built-in apps is arguably more correct anyway.
         KnownApp(id: "shortcuts", name: "快捷指令", englishName: "Shortcuts",
-                 scheme: "shortcuts://", appStoreID: nil, category: "系统"),
+                 scheme: "shortcuts://", category: "系统", isSystemApp: true),
+        KnownApp(id: "maps", name: "地图", englishName: "Maps",
+                 scheme: "maps://", category: "系统", isSystemApp: true),
+        KnownApp(id: "photos", name: "照片", englishName: "Photos",
+                 scheme: "photos-redirect://", category: "系统", isSystemApp: true),
+        KnownApp(id: "calendar", name: "日历", englishName: "Calendar",
+                 scheme: "calshow://", category: "系统", isSystemApp: true),
+        KnownApp(id: "messages", name: "信息", englishName: "Messages",
+                 scheme: "sms://", category: "系统", isSystemApp: true),
+        KnownApp(id: "health", name: "健康", englishName: "Health",
+                 scheme: "x-apple-health://", category: "系统", isSystemApp: true),
+        KnownApp(id: "reminders", name: "提醒事项", englishName: "Reminders",
+                 scheme: "x-apple-reminderkit://", category: "系统", isSystemApp: true),
+        KnownApp(id: "files", name: "文件", englishName: "Files",
+                 scheme: "shareddocuments://", category: "系统", isSystemApp: true),
+        KnownApp(id: "wallet", name: "钱包", englishName: "Wallet",
+                 scheme: "shoebox://", category: "系统", isSystemApp: true),
+        KnownApp(id: "safari", name: "Safari", englishName: "Safari",
+                 scheme: "x-web-search://", category: "系统", isSystemApp: true),
+        KnownApp(id: "news", name: "新闻", englishName: "News",
+                 scheme: "applenews://", category: "系统", isSystemApp: true),
+        KnownApp(id: "fitness", name: "健身", englishName: "Fitness",
+                 scheme: "fitnessapp://", category: "系统", isSystemApp: true),
+        KnownApp(id: "settings", name: "设置", englishName: "Settings",
+                 scheme: "App-prefs://", category: "系统", isSystemApp: true),
 
         // MARK: 待验证
         // Real apps whose scheme we have only from a single unverified source.

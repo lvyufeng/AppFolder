@@ -98,11 +98,15 @@ struct TileEditorRow: View {
             return
         }
         isTesting = true
-        let isDeclared = AppCatalog.queriedSchemes.contains { scheme in
+        // Only a declared scheme (or one of Apple's, which need no declaration)
+        // gets a trustworthy answer from `canOpenURL`. For anything else a `false`
+        // would be the declaration rule talking, not the device, so the honest
+        // report is "sent, go look".
+        let isProbeable = AppCatalog.probeableSchemes.contains { scheme in
             target.scheme?.lowercased() == scheme.replacingOccurrences(of: "://", with: "").lowercased()
         }
 
-        if isDeclared, !UIApplication.shared.canOpenURL(target) {
+        if isProbeable, !UIApplication.shared.canOpenURL(target) {
             result = .noHandler
             isTesting = false
             return

@@ -48,20 +48,29 @@ public enum AppCatalog {
     /// or not something handles it — and that rule is what makes the declaration
     /// list the discovery mechanism rather than a permission.
     ///
-    /// Measured on iOS 27 against a purpose-built app registering `afprobe1`:
+    /// Measured on iOS 27 against a purpose-built app registering `afprobe1`, and
+    /// against system apps:
     ///
-    /// | declared? | handler exists? | `canOpenURL` |
-    /// |---|---|---|
-    /// | yes | yes | `true` |
-    /// | yes | no | `false` |
-    /// | no | yes | `false` |
-    /// | no | no | `false` |
+    /// | declared? | handler | kind | `canOpenURL` |
+    /// |---|---|---|---|
+    /// | yes | yes | third-party | `true` |
+    /// | yes | no | — | `false` |
+    /// | no | yes | third-party (`afprobe1`) | `false` |
+    /// | no | yes | Apple's own (`x-apple-health://`, `sms://`) | **`true`** |
+    /// | no | no | — | `false` |
     ///
-    /// The third row is the one that matters. `maps://` and `shortcuts://` came
-    /// back `true` only because they are declared; the same was true for the
-    /// probe app's scheme only while it was declared. There is no free lunch in
-    /// the undeclared case, which is why this list has to stay curated and
-    /// budgeted rather than attempted wholesale.
+    /// Two conclusions, and they point in opposite directions:
+    ///
+    /// * For **third-party** apps there is no free lunch. An app that was
+    ///   genuinely installed came back `false` because its scheme was not
+    ///   declared. Discovery requires declaration, which is why this list has to
+    ///   stay curated and budgeted rather than attempted wholesale.
+    /// * For **Apple's own** apps the declaration requirement is not enforced at
+    ///   all. `x-apple-health://`, `sms://`, `maps://`, `App-prefs://` and
+    ///   `photos-redirect://` all answered `true` while undeclared, because
+    ///   Apple's apps ship in a privileged trust class. So brand-new iPhone
+    ///   owners — the people whose Home Screen is nothing but system apps — can
+    ///   have their apps detected without spending any of the budget.
     ///
     /// (One incidental finding from the same experiment: this cap is not enforced
     /// by rejecting the over-budget entries. A build declaring 57 schemes probed
@@ -76,6 +85,22 @@ public enum AppCatalog {
             .prefix(queryBudget)
             .map(\.scheme)
             .filter { seen.insert($0).inserted }
+    }
+
+    /// Every scheme the probe should ask about, declared or not.
+    ///
+    /// Wider than ``queriedSchemes`` by exactly one group: Apple's own apps. They
+    /// answer `canOpenURL` without being declared, so declaring them would burn
+    /// budget slots to buy nothing. They are appended rather than filtered in, so
+    /// the declared prefix keeps its ranking and this stays a strict superset.
+    ///
+    /// Anything *not* in `queriedSchemes` and not a system app is unprobeable and
+    /// will come back unknown — which is what ``InstallationProber/status(of:)``
+    /// reports it as, rather than claiming it is absent.
+    public static var probeableSchemes: [String] {
+        var seen: Set<String> = []
+        return (queriedSchemes + all.filter(\.isSystemApp).map(\.scheme))
+            .filter { seen.insert($0.lowercased()).inserted }
     }
 
     /// Whether the catalogue fits in the query budget, and what happens if not.

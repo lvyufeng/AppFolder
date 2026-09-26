@@ -34,6 +34,13 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
     /// Grouping label shown in the picker, e.g. `社交`.
     public let category: String
     public let confidence: Confidence
+    /// Whether this is one of Apple's own apps rather than a third-party one.
+    ///
+    /// Not cosmetic — it changes what the probe can learn. `canOpenURL` enforces
+    /// `LSApplicationQueriesSchemes` against third-party apps and not against
+    /// Apple's, so a system app can be detected without spending any of the
+    /// budget. See ``AppCatalog/queriedSchemes`` for the measurements.
+    public let isSystemApp: Bool
 
     public init(
         id: String,
@@ -42,7 +49,8 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         scheme: String,
         appStoreID: Int? = nil,
         category: String,
-        confidence: Confidence = .verified
+        confidence: Confidence = .verified,
+        isSystemApp: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -51,6 +59,7 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         self.appStoreID = appStoreID
         self.category = category
         self.confidence = confidence
+        self.isSystemApp = isSystemApp
     }
 
     /// The scheme without `://`, which is the form `LSApplicationQueriesSchemes`

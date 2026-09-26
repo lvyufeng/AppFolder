@@ -70,7 +70,7 @@ public final class InstallationProber {
 
         var found: Set<String> = []
         var asked: Set<String> = []
-        let schemes = AppCatalog.queriedSchemes
+        let schemes = AppCatalog.probeableSchemes
 
         for (index, scheme) in schemes.enumerated() {
             // The catalogue stores launchable URLs (`weixin://`); `canOpenURL`
