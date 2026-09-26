@@ -42,6 +42,24 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
     /// budget. See ``AppCatalog/queriedSchemes`` for the measurements.
     public let isSystemApp: Bool
 
+    /// An `https://` URL that opens this app without AppFolder appearing, if one
+    /// is known to work.
+    ///
+    /// Separate from ``scheme`` because the two are not interchangeable. The
+    /// scheme is what `.bounce` needs — it is exact, and `open(_:)` routes it
+    /// straight to the app. This is what `.universalLink` needs, and it only
+    /// exists for apps that publish such a URL *and* that we have measured
+    /// landing in the app rather than in a browser.
+    ///
+    /// Being here is a claim backed by a measurement on a real runtime, not a
+    /// guess from a domain name. A wrong value produces a tile that opens Safari,
+    /// which looks like a working tap and is therefore worse than no entry.
+    ///
+    /// `nil` for almost everything. Very few apps publish a link whose whole
+    /// purpose is "open me", and a deep link into a specific screen is not a
+    /// substitute: a launcher tile should land where the Home Screen icon does.
+    public let universalLink: String?
+
     public init(
         id: String,
         name: String,
@@ -50,7 +68,8 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         appStoreID: Int? = nil,
         category: String,
         confidence: Confidence = .verified,
-        isSystemApp: Bool = false
+        isSystemApp: Bool = false,
+        universalLink: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -60,6 +79,7 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         self.category = category
         self.confidence = confidence
         self.isSystemApp = isSystemApp
+        self.universalLink = universalLink
     }
 
     /// The scheme without `://`, which is the form `LSApplicationQueriesSchemes`

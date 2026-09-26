@@ -91,6 +91,13 @@ private struct FolderGrid: View {
 /// * A `Button(intent:)` hands the URL to the system to open. The system is
 ///   allowed to route anywhere, but `OpenURLIntent` reaches apps through their
 ///   universal links, not custom schemes. That is `.universalLink`.
+///
+/// Both routes can come up empty — a tile edited down to a malformed URL, or a
+/// "直接打开" tile whose app has no link — and the answer is the same for both:
+/// draw the icon and make it inert. A `Link` to nothing, or an `OpenURLIntent`
+/// built from a scheme, would render as a *working* tile that does nothing when
+/// tapped, which is the failure mode this whole design is arranged around
+/// making impossible.
 private struct TileButton: View {
     let tile: FolderTile
 
@@ -101,9 +108,6 @@ private struct TileButton: View {
                 Button(intent: intent) { TileLabel(tile: tile) }
                     .buttonStyle(.plain)
             } else {
-                // The URL stopped being a universal link after the tile was
-                // configured. Render it inert rather than opening the wrong
-                // thing, and let the editor surface the problem.
                 TileLabel(tile: tile)
             }
 

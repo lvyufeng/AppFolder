@@ -166,10 +166,64 @@ extension AppCatalog {
         // No `appStoreID` on any of them — they ship with the OS, so there is no
         // store listing to fetch artwork from. They draw as SF Symbols, which for
         // the built-in apps is arguably more correct anyway.
+        //
+        // ## Universal links for Apple's apps: almost none, and that is the finding
+        //
+        // "直接打开" needs the target to publish a universal link, so the obvious
+        // move for a system app is to look for its `https://` twin. That was
+        // tried for each app whose name suggests a domain, on iOS 27, and the
+        // answer is mostly no:
+        //
+        // | app | URL tried | lands in |
+        // |---|---|---|
+        // | 地图 | `https://maps.apple.com/?q=coffee` | Maps |
+        // | 地图 | `https://maps.apple.com/?ll=37.331,-122.031` | Maps |
+        // | 新闻 | `https://apple.news/` | News |
+        // | 新闻 | `https://apple.news/ATestArticle123` | News |
+        // | 音乐 | `https://music.apple.com/library` | Safari |
+        // | 播客 | `https://podcasts.apple.com/` | Safari |
+        // | 图书 | `https://books.apple.com/` | Safari |
+        // | App Store | `https://apps.apple.com/cn` | Safari |
+        // | 备忘录 | `https://www.icloud.com/notes/` | Safari |
+        // | 日历 | `https://www.icloud.com/calendar/` | Safari |
+        // | 提醒事项 | `https://www.icloud.com/reminders/` | Safari |
+        // | 快捷指令 | `https://www.icloud.com/shortcuts/` | Safari |
+        // | 照片 | `https://www.icloud.com/photos/` | Safari |
+        // | 健康 | `https://www.icloud.com/health` | Safari |
+        //
+        // The pattern is not "Apple doesn't do universal links" — the store and
+        // the media apps do, deliberately, because those URLs are shareable links
+        // to a *thing* and the web page is the right destination for most of the
+        // people who tap them. It is that a universal link is a link to content,
+        // and a launcher tile wants a link to *an app*. Only 地图 and 新闻
+        // publish one shaped like the latter.
+        //
+        // Two incidental findings worth keeping:
+        //
+        // * The domain's AASA is not the authority. `www.icloud.com` serves a
+        //   valid association file, but it claims only `/directory/person/*` and
+        //   `/directory/group/*` — nothing the apps would want. `apple.news`
+        //   claims `"paths": ["*"]`, which is why any path at all reaches News.
+        //   So this cannot be inferred from a domain name; it has to be measured.
+        // * A universal link that reaches the app is not the same as one that
+        //   reaches it *cleanly*. `https://maps.apple.com/` opens Maps **and**
+        //   leaves Safari running behind it, and `https://apple.news/` has no
+        //   content behind it at all. Hence the specific URLs below.
+        //
+        // The bounce route stays the default for every other system app: a hop
+        // through AppFolder is a worse tap than a universal link, but a much
+        // better one than a tile that opens Safari.
         KnownApp(id: "shortcuts", name: "快捷指令", englishName: "Shortcuts",
                  scheme: "shortcuts://", category: "系统", isSystemApp: true),
         KnownApp(id: "maps", name: "地图", englishName: "Maps",
-                 scheme: "maps://", category: "系统", isSystemApp: true),
+                 scheme: "maps://", category: "系统", isSystemApp: true,
+                 // `?t=m` is the map-type parameter, set to its own default. Maps
+                 // reads the query and takes focus without changing anything the
+                 // user would notice — measured, against the alternatives:
+                 // `?ll=0,0` drops the camera in the Atlantic off Africa (the
+                 // screenshot is unambiguous), `?q=coffee` pins a search, and the
+                 // bare `?q=` / `?ll=` / `?t=` forms fall through to Safari.
+                 universalLink: "https://maps.apple.com/?t=m"),
         KnownApp(id: "photos", name: "照片", englishName: "Photos",
                  scheme: "photos-redirect://", category: "系统", isSystemApp: true),
         KnownApp(id: "calendar", name: "日历", englishName: "Calendar",
@@ -187,7 +241,8 @@ extension AppCatalog {
         KnownApp(id: "safari", name: "Safari", englishName: "Safari",
                  scheme: "x-web-search://", category: "系统", isSystemApp: true),
         KnownApp(id: "news", name: "新闻", englishName: "News",
-                 scheme: "applenews://", category: "系统", isSystemApp: true),
+                 scheme: "applenews://", category: "系统", isSystemApp: true,
+                 universalLink: "https://apple.news/"),
         KnownApp(id: "fitness", name: "健身", englishName: "Fitness",
                  scheme: "fitnessapp://", category: "系统", isSystemApp: true),
         KnownApp(id: "settings", name: "设置", englishName: "Settings",

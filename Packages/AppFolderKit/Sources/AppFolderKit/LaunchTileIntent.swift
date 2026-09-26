@@ -37,14 +37,16 @@ public struct OpenLinkIntent: AppIntent {
     /// Resolves the URL for a tile, refusing anything that cannot work.
     ///
     /// The check is worth having even though the strategy is stored: a universal
-    /// link tile whose URL was later edited to a custom scheme would otherwise
-    /// be a tile that silently does nothing when tapped.
+    /// link tile whose target app has no link — or whose link was hand-edited to
+    /// a custom scheme — would otherwise be a tile that silently does nothing
+    /// when tapped. Asking ``FolderTile/launchURL`` rather than ``FolderTile/url``
+    /// is what makes "直接打开" mean the app, and never the scheme.
     public init(tile: FolderTile) throws {
-        guard let url = tile.url else {
+        guard let url = tile.launchURL else {
             throw TileError.malformedURL(tile.urlString)
         }
         guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
-            throw TileError.notAUniversalLink(tile.urlString)
+            throw TileError.notAUniversalLink(url.absoluteString)
         }
         self.init(tileID: tile.id.uuidString, url: url)
     }
@@ -69,5 +71,25 @@ public enum TileError: Error, CustomLocalizedStringResourceConvertible {
         case .notAUniversalLink(let raw):
             "「\(raw)」不是 https 链接，无法直接打开，请改用中转方式"
         }
+    }
+}
+
+extension FolderTile {
+    /// Why "直接打开" cannot be used for this tile, or `nil` if it can.
+    ///
+    /// A cell of the picker's menu, not an error path: the answer is what the
+    /// user needs in order to choose, so it is phrased as the reason rather than
+    /// as a failure. The alternative — offering both routes for every app and
+    /// letting the broken one fail silently on the Home Screen — is how the 地图
+    /// bug happened in the first place.
+    public var universalLinkRefusal: String? {
+        guard strategy == .universalLink else { return nil }
+        guard let url = universalLink else {
+            return "这个 App 没有已知的通用链接，只能用「经 AppFolder 中转」"
+        }
+        guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+            return "「\(url.absoluteString)」不是 https 链接，只能用「经 AppFolder 中转」"
+        }
+        return nil
     }
 }

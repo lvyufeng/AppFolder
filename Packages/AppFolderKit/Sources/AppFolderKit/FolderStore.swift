@@ -39,10 +39,11 @@ public struct FolderStore: Sendable {
 
     public func load() -> FolderLibrary {
         guard let fileURL, let data = try? Data(contentsOf: fileURL) else {
-            return fallbackLoad()
+            return LibraryRepair.repair(fallbackLoad())
         }
         do {
-            return try FolderCoding.makeDecoder().decode(FolderLibrary.self, from: data)
+            let decoded = try FolderCoding.makeDecoder().decode(FolderLibrary.self, from: data)
+            return LibraryRepair.repair(decoded)
         } catch {
             // A library we cannot decode is worse than no library: keep the
             // unreadable bytes around so the failure is diagnosable, and start

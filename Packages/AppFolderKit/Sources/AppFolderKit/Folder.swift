@@ -40,6 +40,22 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
     /// custom scheme, and a custom scheme is what almost every app exposes.
     public var strategy: LaunchStrategy
 
+    /// The app's universal link, when it has one and the route above is
+    /// ``LaunchStrategy/universalLink``.
+    ///
+    /// Stored on the tile rather than looked up from ``catalogID`` at render
+    /// time, for two reasons. The widget would otherwise have to search the
+    /// catalogue on every draw, and — more importantly — a tile and the catalogue
+    /// entry it came from can disagree. The user may have edited the URL, the
+    /// tile may have been created before the catalogue learned the link, or the
+    /// app may have been removed from the catalogue entirely. What is on the tile
+    /// is what gets opened; that is the property worth preserving.
+    ///
+    /// Kept separate from ``urlString`` for the same reason ``LaunchStrategy``
+    /// exists: the two routes need different URLs, and one tile carries both so
+    /// switching routes in the editor does not destroy the other one.
+    public var universalLinkString: String?
+
     public init(
         id: UUID = UUID(),
         kind: Kind = .app,
@@ -49,7 +65,8 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
         catalogID: String? = nil,
         customIconName: String? = nil,
         symbolName: String? = nil,
-        strategy: LaunchStrategy = .bounce
+        strategy: LaunchStrategy = .bounce,
+        universalLinkString: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -60,18 +77,58 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
         self.customIconName = customIconName
         self.symbolName = symbolName
         self.strategy = strategy
+        self.universalLinkString = universalLinkString
     }
 
     /// The tile's target, or `nil` if the stored string is not a URL.
     public var url: URL? { URL(string: urlString) }
 
-    public init(app: KnownApp, isInstalled: Bool = true) {
+    /// The app's universal link, or `nil` if it has none.
+    public var universalLink: URL? { universalLinkString.flatMap(URL.init(string:)) }
+
+    /// The URL the widget will actually hand to the system.
+    ///
+    /// One place decides, so the widget cannot draw a button that opens something
+    /// other than what the editor showed. Note what happens when a
+    /// ``LaunchStrategy/universalLink`` tile has no link: the answer is `nil`, not
+    /// the scheme. Falling back to ``url`` would be the easy thing to write and
+    /// the wrong thing to ship — `OpenURLIntent` ignores custom schemes, so the
+    /// tile would look live and do nothing, which is the exact bug this whole
+    /// type exists to prevent.
+    public var launchURL: URL? {
+        switch strategy {
+        case .universalLink: universalLink
+        case .bounce, .systemShortcut: url
+        }
+    }
+
+    /// Whether tapping this tile can reach its target at all.
+    ///
+    /// False for the one configuration that cannot work — "直接打开" on an app
+    /// with no universal link — so the widget's silence is a decision the app
+    /// made rather than a mystery the user has to debug by tapping.
+    public var canLaunch: Bool {
+        switch strategy {
+        case .universalLink: universalLink != nil
+        case .bounce: url != nil
+        case .systemShortcut: false
+        }
+    }
+
+    /// A tile for a catalogue entry, carrying both routes the entry offers.
+    ///
+    /// The link is a property of the app, not of the route, so it survives the
+    /// user switching between 直接打开 and 中转. Dropping it when the route
+    /// changes would make a tile lose its artwork as a side effect of a setting
+    /// the user thinks of as unrelated.
+    public init(app: KnownApp) {
         self.init(
             kind: .app,
             title: app.name,
             urlString: app.scheme,
             appStoreID: app.appStoreID,
-            catalogID: app.id
+            catalogID: app.id,
+            universalLinkString: app.universalLink
         )
     }
 }
