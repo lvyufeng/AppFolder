@@ -81,10 +81,22 @@ struct FolderEditorView: View {
     }
 }
 
-/// Picks tiles from the catalog, split into "installed" and "everything else".
+/// Picks tiles from the catalog, split by what the probe knows.
 ///
-/// Ordering installed apps first is the whole point of the probe: it turns a
-/// 300-entry list into a short one the user recognises.
+/// Three sections rather than two, because there are three answers and the app
+/// can only give one of them honestly:
+///
+/// * **已安装** — asked, and the system said yes. This is the section the picker
+///   exists for; it turns the whole catalogue into a short list of apps the user
+///   is actually looking at on their Home Screen.
+/// * **未安装** — asked, and the system said no.
+/// * **其他** — never asked. `LSApplicationQueriesSchemes` is capped (see
+///   ``AppCatalog/queryBudget``), so most of the catalogue can never be checked.
+///   These are *not* known to be absent, and the app says so instead of guessing.
+///
+/// In the simulator nothing third-party is installed, so every declared scheme
+/// lands in 未安装 and the list looks like a failure. On a real device the first
+/// section is the useful one.
 struct TilePickerView: View {
     @Environment(LibraryModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -93,18 +105,15 @@ struct TilePickerView: View {
     @State private var selection: Set<String> = []
     let onDone: ([FolderTile]) -> Void
 
-    private var installed: [KnownApp] {
-        filtered.filter { model.installedSchemes.contains($0.scheme) }
-    }
-
-    private var others: [KnownApp] {
-        filtered.filter { !model.installedSchemes.contains($0.scheme) }
-    }
+    private var installed: [KnownApp] { filtered.filter { model.installStatus($0) == .installed } }
+    private var absent: [KnownApp] { filtered.filter { model.installStatus($0) == .absent } }
+    private var unknown: [KnownApp] { filtered.filter { model.installStatus($0) == .unknown } }
 
     private var filtered: [KnownApp] {
-        guard !query.isEmpty else { return AppCatalog.all }
+        let pool = AppCatalog.selectable
+        guard !query.isEmpty else { return pool }
         let needle = query.lowercased()
-        return AppCatalog.all.filter {
+        return pool.filter {
             $0.name.lowercased().contains(needle)
                 || $0.englishName.lowercased().contains(needle)
                 || $0.scheme.lowercased().contains(needle)
@@ -125,13 +134,35 @@ struct TilePickerView: View {
                 }
 
                 if !installed.isEmpty {
-                    Section("已安装") {
+                    Section {
                         ForEach(installed) { row($0) }
+                    } header: {
+                        Text("已安装")
+                    } footer: {
+                        Text("这些 App 在当前设备上装了，可以放心添加。")
                     }
                 }
 
-                Section(installed.isEmpty ? "全部" : "其他") {
-                    ForEach(others) { row($0) }
+                if !unknown.isEmpty {
+                    Section {
+                        ForEach(unknown) { row($0) }
+                    } header: {
+                        Text("其他")
+                    } footer: {
+                        // Said plainly, because the alternative is the user
+                        // wondering why an app they have isn't in the list above.
+                        Text("系统只允许 App 检查约 \(AppCatalog.queryBudget) 个 App 是否安装，其余的在这里。它们能用，只是没法自动判断装没装。")
+                    }
+                }
+
+                if !absent.isEmpty {
+                    Section {
+                        ForEach(absent) { row($0) }
+                    } header: {
+                        Text("未安装")
+                    } footer: {
+                        Text("当前设备上没有检测到这些 App。")
+                    }
                 }
             }
             .searchable(text: $query, prompt: "搜索 App")
@@ -158,7 +189,7 @@ struct TilePickerView: View {
 
     private func row(_ app: KnownApp) -> some View {
         let isPicked = selection.contains(app.id)
-        let isInstalled = model.installedSchemes.contains(app.scheme)
+        let status = model.installStatus(app)
 
         return Button {
             if isPicked { selection.remove(app.id) } else { selection.insert(app.id) }
@@ -176,8 +207,8 @@ struct TilePickerView: View {
 
                 Spacer()
 
-                if isInstalled {
-                    Text("已安装")
+                if status != .unknown {
+                    Text(status.label)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

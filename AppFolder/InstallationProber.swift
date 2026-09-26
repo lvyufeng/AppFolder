@@ -27,6 +27,22 @@ import UIKit
 @Observable
 @MainActor
 public final class InstallationProber {
+    /// What the probe can say about one catalog entry.
+    public enum InstallStatus: Equatable, Sendable {
+        case installed
+        case absent
+        /// We never asked. Nothing is known either way.
+        case unknown
+
+        public var label: String {
+            switch self {
+            case .installed: "已安装"
+            case .absent: "未安装"
+            case .unknown: ""
+            }
+        }
+    }
+
     /// The result of one full sweep.
     public struct Result: Sendable {
         /// Schemes the system said yes to.
@@ -79,6 +95,17 @@ public final class InstallationProber {
 
     /// Whether a catalog entry appears to be installed.
     public func isInstalled(_ app: KnownApp) -> Bool {
-        installedSchemes.contains(app.schemeName.lowercased())
+        status(of: app) == .installed
+    }
+
+    /// What the probe can say about a catalogue entry.
+    ///
+    /// The distinction that matters is between ``absent`` and ``unknown``: only
+    /// the first is a reason to tell the user an app isn't there. See
+    /// ``LibraryModel/InstallStatus`` for why the UI needs both.
+    public func status(of app: KnownApp) -> InstallStatus {
+        let name = app.schemeName.lowercased()
+        guard probedSchemes.contains(name) else { return .unknown }
+        return installedSchemes.contains(name) ? .installed : .absent
     }
 }

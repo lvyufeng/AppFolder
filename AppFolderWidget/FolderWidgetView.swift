@@ -37,8 +37,19 @@ private struct FolderGrid: View {
         }
     }
 
+    /// Tiles that actually have artwork, so a sparse folder doesn't leave gaps.
+    private var drawable: [FolderTile] {
+        entry.tiles.filter { tile in
+            tile.appStoreID != nil || tile.customIconName != nil || tile.symbolName != nil
+        }
+    }
+
     var body: some View {
-        let rows = (entry.tiles.count + columns - 1) / max(columns, 1)
+        // A tile with nothing to draw is a blank rounded rectangle with a label,
+        // which reads as a broken image rather than as an app. Until the app has
+        // cached artwork for it, leave it out.
+        let tiles = drawable.isEmpty ? entry.tiles : drawable
+        let rows = (tiles.count + columns - 1) / max(columns, 1)
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 Text(entry.folder?.name ?? "文件夹")
@@ -54,8 +65,8 @@ private struct FolderGrid: View {
                     GridRow {
                         ForEach(0..<columns, id: \.self) { column in
                             let index = row * columns + column
-                            if entry.tiles.indices.contains(index) {
-                                TileButton(tile: entry.tiles[index])
+                            if tiles.indices.contains(index) {
+                                TileButton(tile: tiles[index])
                             } else {
                                 Color.clear
                             }
@@ -130,13 +141,16 @@ private struct TileLabel: View {
 
 /// Icons inside a widget must come from a file the widget can reach, so artwork
 /// is read from the App Group container that ``IconStore`` writes into.
+///
+/// Three sources, in the order the tile prefers them: user-chosen artwork, App
+/// Store artwork, and an SF Symbol. The load is synchronous on purpose — see
+/// ``WidgetIconCache/image(for:)``.
 private struct WidgetIcon: View {
     let tile: FolderTile
-    @State private var image: UIImage?
 
     var body: some View {
         Group {
-            if let image {
+            if let image = tile.cachedIcon {
                 Image(uiImage: image).resizable().scaledToFit()
             } else if let symbol = tile.symbolName {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -150,17 +164,25 @@ private struct WidgetIcon: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .task(id: tile.id) {
-            image = await WidgetIconCache.shared.image(for: tile)
-        }
     }
 }
 
 /// Reads pre-downloaded icon data. The widget does not do its own networking:
 /// a timeline refresh has a tight budget and artwork is the app's job.
-actor WidgetIconCache {
+///
+/// Reading is **synchronous**, which is unusual for a file read and deliberate.
+/// The alternative — `Image(uiImage:)` arriving a frame late from a `.task` —
+/// renders one frame of placeholder and is not obviously wrong until you look at
+/// a screenshot. Widget rendering has a budget measured in milliseconds and the
+/// app keeps the artwork in its own cache, so by the time a widget draws, the
+/// bytes are already in the page cache and this is a `memcpy`.
+///
+/// The cache is a plain class with a lock rather than an actor: an actor's
+/// methods are `async`, which is the thing being avoided.
+final class WidgetIconCache: @unchecked Sendable {
     static let shared = WidgetIconCache()
 
+    private let lock = NSLock()
     private var cache: [String: UIImage] = [:]
     private let directory: URL?
 
@@ -170,26 +192,44 @@ actor WidgetIconCache {
             .appending(path: "Icons", directoryHint: .isDirectory)
     }
 
-    func image(for tile: FolderTile) async -> UIImage? {
-        if let cached = cache[tile.id.uuidString] { return cached }
+    /// The tile's artwork, or nil if there is none cached on disk.
+    func image(for tile: FolderTile) -> UIImage? {
+        let key = tile.id.uuidString
 
-        if let name = tile.customIconName,
-           let directory,
-           let data = try? Data(contentsOf: directory.appending(path: name)),
-           let image = UIImage(data: data) {
-            cache[tile.id.uuidString] = image
-            return image
+        lock.lock()
+        if let cached = cache[key] {
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+
+        guard let directory else { return nil }
+
+        var read: URL?
+        if let name = tile.customIconName {
+            read = directory.appending(path: name)
+        } else if let id = tile.appStoreID {
+            read = directory.appending(path: "\(id).png")
+        }
+        guard let read, let data = try? Data(contentsOf: read), let image = UIImage(data: data) else {
+            return nil
         }
 
-        if let id = tile.appStoreID,
-           let directory,
-           let data = try? Data(contentsOf: directory.appending(path: "\(id).png")),
-           let image = UIImage(data: data) {
-            cache[tile.id.uuidString] = image
-            return image
-        }
+        lock.lock()
+        cache[key] = image
+        lock.unlock()
+        return image
+    }
+}
 
-        return nil
+extension FolderTile {
+    /// Artwork cached by the app, for the widget to draw.
+    var cachedIcon: UIImage? {
+        #if canImport(UIKit)
+        WidgetIconCache.shared.image(for: self)
+        #else
+        nil
+        #endif
     }
 }
 

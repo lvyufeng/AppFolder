@@ -25,14 +25,21 @@ struct AddToHomeScreenView: View {
                     Text("iOS 不允许 App 自己往桌面放东西，这一步只能手动完成，系统每次都会这样。")
                 }
 
-                Section("当前存储状态") {
+                Section {
                     LabeledContent("App Group") {
                         Text(model.isSharedStorageAvailable ? "可用" : "不可用")
                             .foregroundStyle(model.isSharedStorageAvailable ? .green : .orange)
                     }
                     LabeledContent("已识别 App") {
-                        Text("\(model.installedSchemes.count) 个")
+                        Text("\(model.installedAppCount) 个")
                     }
+                    LabeledContent("可检查的 App") {
+                        Text("\(model.probedSchemeCount) / \(AppCatalog.queryBudget)")
+                    }
+                } header: {
+                    Text("当前存储状态")
+                } footer: {
+                    Text("iOS 不允许 App 读取已安装列表，只能逐个问「这个 scheme 有人处理吗」。系统对能问多少个有上限，所以只有一部分 App 能自动识别，其余的仍然可以添加和使用。")
                 }
             }
             .navigationTitle("放到桌面")

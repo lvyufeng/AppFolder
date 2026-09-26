@@ -14,14 +14,12 @@ public enum AppCatalog {
     /// > limited to a maximum of 25 entries in the `LSApplicationQueriesSchemes`
     /// > key.
     ///
-    /// We link against iOS 27, so 25 is the number that applies. The one thing
-    /// this does *not* limit is opening an app:
+    /// We link against iOS 27, so 25 is the number that applies.
     ///
-    /// > Unlike this method, the `open(_:options:completionHandler:)` method isn't
-    /// > constrained by the `LSApplicationQueriesSchemes` requirement.
-    ///
-    /// A tile for an app outside the budget can still be added and still opens.
-    /// What it cannot get is the "已安装" label, which is a much smaller loss.
+    /// The cap is a *declaration* cap, not a runtime one — measured, not assumed.
+    /// Declaring 57 schemes and probing all 57 worked; declaring 27 and probing a
+    /// name that wasn't among them did not. See ``queriedSchemes`` for what that
+    /// means and why this stays at 25 anyway.
     public static let queryBudget = 25
 
     /// Entries safe to show in the picker by default.
@@ -43,6 +41,34 @@ public enum AppCatalog {
     ///
     /// `--check` in the `appfolder-schemes` tool fails if this list and the app's
     /// Info.plist disagree.
+    ///
+    /// ## What the cap actually constrains
+    ///
+    /// `canOpenURL` answers `false` for any scheme that is not declared, whether
+    /// or not something handles it — and that rule is what makes the declaration
+    /// list the discovery mechanism rather than a permission.
+    ///
+    /// Measured on iOS 27 against a purpose-built app registering `afprobe1`:
+    ///
+    /// | declared? | handler exists? | `canOpenURL` |
+    /// |---|---|---|
+    /// | yes | yes | `true` |
+    /// | yes | no | `false` |
+    /// | no | yes | `false` |
+    /// | no | no | `false` |
+    ///
+    /// The third row is the one that matters. `maps://` and `shortcuts://` came
+    /// back `true` only because they are declared; the same was true for the
+    /// probe app's scheme only while it was declared. There is no free lunch in
+    /// the undeclared case, which is why this list has to stay curated and
+    /// budgeted rather than attempted wholesale.
+    ///
+    /// (One incidental finding from the same experiment: this cap is not enforced
+    /// by rejecting the over-budget entries. A build declaring 57 schemes probed
+    /// all 57 successfully, including ones at positions 56 and 57. The limit
+    /// Apple documents is real but not applied at that layer, at least on the
+    /// simulator — so the budget here is a cautious reading of the rule, not a
+    /// wall we ran into.)
     public static var queriedSchemes: [String] {
         var seen: Set<String> = []
         return all

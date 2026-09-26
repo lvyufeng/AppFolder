@@ -39,8 +39,15 @@ final class LibraryModel {
     var installedSchemes: Set<String> { prober.installedSchemes }
     var isProbing: Bool { prober.isProbing }
 
-    /// How many catalogue apps look installed on this device.
+    /// How many catalogue apps the probe found on this device.
     var installedAppCount: Int { prober.installedSchemes.count }
+
+    /// How many catalogue entries the probe was able to ask about at all.
+    ///
+    /// Out of ``AppCatalog/queryBudget``, and the reason the picker's "其他" list
+    /// exists: an app we never asked about is not the same as an app we know is
+    /// absent, and the UI must not blur the two.
+    var probedSchemeCount: Int { prober.probedSchemes.count }
 
     func start() async {
         library = store.load()
@@ -97,5 +104,24 @@ final class LibraryModel {
     /// Whether a tile's target looks reachable right now.
     func isReachable(_ tile: FolderTile) -> Bool {
         library.isReachable(tile)
+    }
+
+    /// What we know about whether a catalogue entry is on this device.
+    ///
+    /// Three answers, and the third one is the point. `TilePickerView` used to
+    /// treat "not in `installedSchemes`" as "not installed", which lumps together
+    /// two unrelated situations — *we asked and the app isn't there* and *we were
+    /// never allowed to ask*. A scheme we cannot check (see
+    /// ``AppCatalog/queryBudget``) would then be shown under "其他", quietly
+    /// telling the user their app is missing when it is probably right there on
+    /// their Home Screen.
+    typealias InstallStatus = InstallationProber.InstallStatus
+
+    func installStatus(_ app: KnownApp) -> InstallStatus {
+        prober.status(of: app)
+    }
+
+    func isInstalled(_ app: KnownApp) -> Bool {
+        installStatus(app) == .installed
     }
 }
