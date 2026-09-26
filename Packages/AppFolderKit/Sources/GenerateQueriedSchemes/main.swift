@@ -15,6 +15,16 @@ import Foundation
 ///
 /// Pass `--verify-ids` to check every `appStoreID` against the iTunes Search
 /// API. That mode needs the network, so CI keeps it out of the default run.
+///
+/// ## Why the explanation lives here and not in the plist
+///
+/// `LSApplicationQueriesSchemes` used to carry a comment saying it is a
+/// *discovery mechanism and not a permission* — iOS has no API that lists
+/// installed apps, and `canOpenURL` answers `false` for any scheme the plist
+/// does not declare, so this array is the only way to ask the question. Xcode's
+/// plist editor silently deletes comments the first time the file is opened, so
+/// the note was moved here: this is the thing that generates the list, so it is
+/// where someone about to change it will be looking.
 @main
 struct GenerateQueriedSchemes {
     static func main() {
