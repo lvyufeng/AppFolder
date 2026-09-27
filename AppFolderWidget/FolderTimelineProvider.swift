@@ -70,7 +70,12 @@ struct FolderEntry: TimelineEntry {
     let folder: Folder?
     let tiles: [FolderTile]
     let installedSchemes: Set<String>
-    let showsTitles: Bool
+    /// How the plate and the labels should be drawn.
+    ///
+    /// Resolved here rather than in the view so that a folder whose `colorHex` is
+    /// empty or malformed has already been given a usable tint by the time
+    /// anything draws it — see ``FolderStyle/init(_:)``.
+    let style: FolderStyle
 }
 
 struct FolderTimelineProvider: AppIntentTimelineProvider {
@@ -80,7 +85,7 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
             folder: Folder(name: "常用"),
             tiles: FolderEntry.placeholderTiles,
             installedSchemes: [],
-            showsTitles: false
+            style: FolderStyle()
         )
     }
 
@@ -115,7 +120,7 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
             folder: folder,
             tiles: tiles,
             installedSchemes: library.installedSchemes,
-            showsTitles: false
+            style: folder.map(FolderStyle.init) ?? FolderStyle()
         )
     }
 

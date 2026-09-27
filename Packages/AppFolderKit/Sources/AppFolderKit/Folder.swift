@@ -139,8 +139,17 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
     public var name: String
     /// Ordered; the widget lays these out row-major.
     public var tiles: [FolderTile]
-    /// Tint for the widget chrome, as `#RRGGBB`. Empty means "follow the system".
+    /// The colour this folder's plate is drawn in, as `#RRGGBB`.
+    ///
+    /// Empty means "no colour chosen", which is why it stays a `String` rather
+    /// than becoming a ``FolderTint``: that is what every library on disk already
+    /// holds, and a missing colour is a real state — see
+    /// ``FolderTint/defaultTint``.
     public var colorHex: String
+    /// How the widget fills the plate under the icons. See ``FolderPlate``.
+    public var plate: FolderPlate
+    /// Whether each icon in the widget carries its name underneath.
+    public var showsTitles: Bool
     public var updatedAt: Date
 
     public init(
@@ -148,13 +157,46 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
         name: String,
         tiles: [FolderTile] = [],
         colorHex: String = "",
+        plate: FolderPlate = .default,
+        showsTitles: Bool = false,
         updatedAt: Date = .now
     ) {
         self.id = id
         self.name = name
         self.tiles = tiles
         self.colorHex = colorHex
+        self.plate = plate
+        self.showsTitles = showsTitles
         self.updatedAt = updatedAt
+    }
+
+    /// Decodes leniently, for the same reason ``FolderLibrary`` does: synthesized
+    /// `Codable` ignores property defaults when a key is absent, so adding
+    /// `plate` and `showsTitles` would have failed the decode of every library
+    /// written before them — and a failed decode is not a warning here, it is
+    /// ``FolderStore`` moving the whole file aside as `.corrupt` and starting
+    /// empty. A schema addition would have cost the user every folder they had.
+    ///
+    /// `colorHex` is tolerant in the other direction too: it has never been
+    /// written by any UI — the field has been declared since the first commit and
+    /// nothing ever set it — so an absent key is the normal case, not the edge.
+    ///
+    /// The `try?` around `plate` covers the *other* half of the same bargain, and
+    /// it is not the same thing as `decodeIfPresent`: that one tolerates an
+    /// absent key and still throws on a present-but-unrecognised value. A
+    /// `"plate": "holographic"` — written by a newer build, or by hand — would
+    /// take the library down exactly like a missing key would have. Same
+    /// reasoning as ``FolderCoding/makeDecoder()``'s two date shapes, and it has
+    /// the same blast radius if it is got wrong.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        tiles = try container.decodeIfPresent([FolderTile].self, forKey: .tiles) ?? []
+        colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
+        plate = (try? container.decodeIfPresent(FolderPlate.self, forKey: .plate)) ?? .default
+        showsTitles = try container.decodeIfPresent(Bool.self, forKey: .showsTitles) ?? false
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 }
 

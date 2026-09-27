@@ -13,11 +13,65 @@ struct FolderEditorView: View {
         _folder = State(initialValue: folder)
     }
 
+    /// The preview's job: everything the folder looks like, resolved the way the
+    /// widget resolves it.
+    ///
+    /// Built through ``FolderStyle/init(_:)`` rather than from the draft's fields
+    /// directly, so that a folder with no colour yet is previewed with the same
+    /// substituted tint the widget would use — otherwise switching 底板 to 纯色
+    /// would preview an invisible plate and then draw a blue one on the Home
+    /// Screen.
+    private var style: FolderStyle { FolderStyle(folder) }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     TextField("名称", text: $folder.name)
+                }
+
+                Section {
+                    FolderPlateView(
+                        style: style,
+                        content: AnyView(
+                            FolderPreviewGrid(
+                                tiles: Array(folder.tiles.prefix(9)),
+                                showsTitles: folder.showsTitles
+                            )
+                        )
+                    )
+                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+
+                    Picker("底板", selection: $folder.plate) {
+                        ForEach(FolderPlate.allCases, id: \.self) { plate in
+                            Text(plate.localizedName).tag(plate)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    FolderPlateFootnote(plate: folder.plate)
+
+                    if folder.plate.usesTint {
+                        // Written as a `Color`, read as a `#RRGGBB` string: the
+                        // library has stored `colorHex` since the first commit
+                        // and the on-disk shape is a contract, so the picker
+                        // converts at the boundary rather than the schema
+                        // changing under libraries already written.
+                        ColorPicker(
+                            "颜色",
+                            selection: Binding(
+                                get: { FolderTint(hex: folder.colorHex)?.color ?? FolderTint.defaultTint.color },
+                                set: { folder.colorHex = FolderTint($0).hex }
+                            ),
+                            supportsOpacity: false
+                        )
+                    }
+
+                    Toggle("显示图标名称", isOn: $folder.showsTitles)
+                } header: {
+                    Text("外观")
+                } footer: {
+                    Text("桌面上的小组件就是这个样子。")
                 }
 
                 Section("图块") {
@@ -37,14 +91,6 @@ struct FolderEditorView: View {
                     } label: {
                         Label("添加图块", systemImage: "plus.circle")
                     }
-                }
-
-                Section("预览") {
-                    FolderPreviewGrid(tiles: Array(folder.tiles.prefix(9)), showsTitles: true)
-                        .frame(maxWidth: 220)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(.background.secondary, in: .rect(cornerRadius: 20))
                 }
 
                 if !model.isSharedStorageAvailable {

@@ -11,6 +11,7 @@ import WidgetKit
 /// a `Link` in a widget can only open the containing app.
 struct FolderWidgetView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetContentMargins) private var contentMargins
     let entry: FolderEntry
 
     var body: some View {
@@ -19,6 +20,12 @@ struct FolderWidgetView: View {
                 EmptyWidgetView()
             } else {
                 FolderGrid(entry: entry, family: family)
+                    // The widget disables the system's content margins so a
+                    // painted plate can reach the widget's edge — see
+                    // `AppFolderWidget.swift`. The grid still needs the inset, so
+                    // it puts it back itself, from the value the system would
+                    // have used rather than a number of our own.
+                    .padding(contentMargins)
             }
         }
     }
@@ -60,10 +67,7 @@ private struct FolderGrid: View {
                 tileCount: tiles.count,
                 columns: columns,
                 in: proxy.size,
-                // Icons are round in the corner, so the gap between two of them
-                // reads wider than the same number of points between two
-                // squares. A twelfth is roughly a standard Home Screen gutter.
-                spacing: proxy.size.width / 12
+                showsTitles: entry.style.showsTitles
             )
 
             Grid(horizontalSpacing: metrics.spacing, verticalSpacing: metrics.spacing) {
@@ -72,14 +76,14 @@ private struct FolderGrid: View {
                         ForEach(0..<metrics.columns, id: \.self) { column in
                             let index = row * metrics.columns + column
                             if tiles.indices.contains(index) {
-                                TileButton(tile: tiles[index])
-                                    .frame(width: metrics.iconSide, height: metrics.iconSide)
+                                TileButton(tile: tiles[index], style: entry.style, metrics: metrics)
+                                    .frame(width: metrics.iconSide, height: metrics.cellHeight)
                             } else {
                                 // A grid that is not full needs the empty cells
                                 // to exist, or the icons left-align and the whole
                                 // folder reads as off-centre.
                                 Color.clear
-                                    .frame(width: metrics.iconSide, height: metrics.iconSide)
+                                    .frame(width: metrics.iconSide, height: metrics.cellHeight)
                             }
                         }
                     }
@@ -113,49 +117,71 @@ private struct FolderGrid: View {
 /// making impossible.
 private struct TileButton: View {
     let tile: FolderTile
+    let style: FolderStyle
+    let metrics: FolderGridMetrics
 
     var body: some View {
         switch tile.strategy {
         case .universalLink:
             if let intent = try? OpenLinkIntent(tile: tile) {
-                Button(intent: intent) { TileLabel(tile: tile) }
+                Button(intent: intent) { TileLabel(tile: tile, style: style, metrics: metrics) }
                     .buttonStyle(.plain)
             } else {
-                TileLabel(tile: tile)
+                TileLabel(tile: tile, style: style, metrics: metrics)
             }
 
         case .bounce:
             if let target = tile.url, let bounce = LaunchLink.bounceURL(for: target) {
-                Link(destination: bounce) { TileLabel(tile: tile) }
+                Link(destination: bounce) { TileLabel(tile: tile, style: style, metrics: metrics) }
                     .buttonStyle(.plain)
             } else {
-                TileLabel(tile: tile)
+                TileLabel(tile: tile, style: style, metrics: metrics)
             }
 
         case .systemShortcut:
             // Configured by hand in the QuickLaunch widget, not here. A tile in
             // a folder grid cannot carry one, because the user picks a shortcut
             // per configuration slot and a grid has nine of them.
-            TileLabel(tile: tile)
+            TileLabel(tile: tile, style: style, metrics: metrics)
         }
     }
 }
 
-/// The icon alone.
+/// The icon, and the name under it when the folder asks for one.
 ///
-/// No title underneath, by request. It costs the one thing the label was good
-/// for — telling two entries apart when the artwork is missing or wrong — so the
-/// fallback below carries that weight instead: a tile with no image draws its SF
-/// Symbol *large*, in the middle of its square, rather than as a small glyph
-/// with a name under it.
+/// The label is off by default and was removed deliberately — it costs the one
+/// thing it was good for, telling two entries apart when the artwork is missing
+/// or wrong, so the fallback carries that weight instead: a tile with no image
+/// draws its SF Symbol *large*, in the middle of its square. What brings it back
+/// is a plate the user painted, because a name is legible on a colour we chose
+/// and merely decorative on the system's.
 ///
 /// The geometry is shared with the app's editor preview (``FolderGridMetrics``),
-/// so what the user arranges is what they get.
+/// so what the user arranges is what they get — including how much of a cell the
+/// name is allowed to take, which is why ``FolderGridMetrics/labelHeight``
+/// exists rather than a font size written here.
 private struct TileLabel: View {
     let tile: FolderTile
+    let style: FolderStyle
+    let metrics: FolderGridMetrics
 
     var body: some View {
-        WidgetIcon(tile: tile)
+        VStack(spacing: metrics.titleSpacing) {
+            WidgetIcon(tile: tile, cornerRadius: metrics.cornerRadius)
+                .frame(width: metrics.iconSide, height: metrics.iconSide)
+
+            if style.showsTitles {
+                Text(tile.title)
+                    .font(.system(size: metrics.titleFontSize))
+                    .lineLimit(1)
+                    // Shrinks rather than truncates: a name is worth reading, and
+                    // "微信" cut to "微…" tells the user nothing. The floor is
+                    // where it stops shrinking and starts eliding.
+                    .minimumScaleFactor(0.75)
+                    .foregroundStyle(style.titleStyle)
+                    .frame(width: metrics.iconSide)
+            }
+        }
     }
 }
 
@@ -167,13 +193,14 @@ private struct TileLabel: View {
 /// ``WidgetIconCache/image(for:)``.
 private struct WidgetIcon: View {
     let tile: FolderTile
+    var cornerRadius: CGFloat = 8
 
     var body: some View {
         Group {
             if let image = tile.cachedIcon {
                 Image(uiImage: image).resizable().scaledToFit()
             } else if let symbol = tile.symbolName {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.fill.tertiary)
                     .overlay {
                         // Large, because there is no label to read any more.
@@ -184,11 +211,11 @@ private struct WidgetIcon: View {
                             .foregroundStyle(.secondary)
                     }
             } else {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.fill.tertiary)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 

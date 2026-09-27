@@ -96,6 +96,82 @@ struct FolderCodingTests {
         #expect(library.lastProbeAt == nil)
     }
 
+    /// The same guarantee one level down, and the one that is easy to lose.
+    ///
+    /// `FolderLibrary` has hand-written lenient decoding and always will; `Folder`
+    /// had *synthesized* `Codable` until `plate` and `showsTitles` were added to
+    /// it. Synthesized decoding ignores property defaults when a key is absent,
+    /// so `plate` — a non-optional enum — would have failed the whole decode of
+    /// any library written before it existed. That is not a missing setting: it is
+    /// ``FolderStore`` moving the file aside as `.corrupt` and starting empty, on
+    /// every device that had ever used the app.
+    ///
+    /// Written as the literal bytes an older version would have produced, rather
+    /// than by encoding a `Folder` and stripping keys, so the test cannot be
+    /// satisfied by the encoder and decoder drifting together.
+    @Test("A folder written before the plate existed still decodes")
+    func folderToleratesAbsentAppearanceKeys() throws {
+        let json = """
+        {
+          "folders": [
+            {
+              "id": "\(UUID().uuidString)",
+              "name": "常用",
+              "colorHex": "",
+              "updatedAt": 812104549.6,
+              "tiles": [
+                {"id":"\(UUID().uuidString)","kind":"app","title":"微信","urlString":"weixin://","strategy":"bounce"}
+              ]
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let library = try FolderCoding.makeDecoder().decode(FolderLibrary.self, from: json)
+        let folder = try #require(library.folders.first)
+
+        #expect(folder.name == "常用")
+        #expect(folder.tiles.count == 1, "the tiles are the thing that would be lost")
+        #expect(folder.plate == .automatic, "an unset plate must mean the system's")
+        #expect(folder.showsTitles == false, "labels were off before this field existed")
+    }
+
+    /// A field the *encoder* writes has to survive the decoder, and the reverse.
+    @Test("The appearance fields round-trip")
+    func roundTripsAppearance() throws {
+        let original = FolderLibrary(folders: [
+            Folder(
+                name: "工作",
+                tiles: [FolderTile(title: "微信", urlString: "weixin://")],
+                colorHex: "#3478F6",
+                plate: .gradient,
+                showsTitles: true
+            )
+        ])
+
+        let data = try FolderCoding.makeEncoder().encode(original)
+        let decoded = try FolderCoding.makeDecoder().decode(FolderLibrary.self, from: data)
+        let folder = try #require(decoded.folders.first)
+
+        #expect(folder.colorHex == "#3478F6")
+        #expect(folder.plate == .gradient)
+        #expect(folder.showsTitles == true)
+    }
+
+    /// An unknown plate name — a folder written by a *newer* build, or hand-edited
+    /// — must not take the library with it either. Falling back to `automatic` is
+    /// the conservative direction: it draws nothing, so the worst case is a folder
+    /// that looks like it always did.
+    @Test("An unrecognised plate falls back rather than failing")
+    func unknownPlateFallsBack() throws {
+        let json = #"{"folders":[{"id":"\#(UUID().uuidString)","name":"工作","colorHex":"","plate":"holographic","updatedAt":0,"tiles":[]}]}"#
+            .data(using: .utf8)!
+
+        let library = try FolderCoding.makeDecoder().decode(FolderLibrary.self, from: json)
+
+        #expect(library.folders.first?.plate == .automatic)
+    }
+
     // MARK: - Reachability
 
     /// The whole point of tracking `probedSchemes` separately: never hide a tile
