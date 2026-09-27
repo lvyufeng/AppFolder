@@ -21,8 +21,14 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 
-	<!-- WidgetKit extensions declare no principal class: the system finds the
-	     `@main WidgetBundle` itself. -->
+	<!-- No `NSExtensionPrincipalClass` here, and adding one is not a no-op:
+	     the extension point `com.apple.widgetkit-extension` rejects any bundle
+	     that declares it ("defines either an NSExtensionMainStoryboard or
+	     NSExtensionPrincipalClass key, which is not allowed"), and the failure
+	     reads as a generic 无法安装 with no hint about which key is at fault.
+	     A WidgetKit extension has no principal class to name — the system finds
+	     the `@main WidgetBundle` itself. Tried 2026-09-27 while adding a second
+	     widget to the bundle; the second widget needed no such key. -->
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
