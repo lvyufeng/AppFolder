@@ -12,13 +12,24 @@ import SwiftUI
 /// `docs/research/04-实现笔记.md`.
 ///
 /// So the honest set is these three, and ``automatic`` is the one that matters:
-/// it declines to paint, which leaves the plate to the system — the same plate
-/// that turns to glass when the user picks 透明 under 桌面 → 编辑 → 自定 →
-/// 图标外观. An app-side "transparent" switch would be a claim it cannot keep;
-/// pointing the user at the switch that works is the nearest true thing.
+/// it declines to paint, which leaves the plate to the system — and the plate
+/// the system draws *is* the liquid-glass one. That is the whole of this app's
+/// glass story, and it is also the reference product's: WidgetLoft's Style
+/// picker is Solid / Gradient / Transparent, and its "Transparent" is the same
+/// thing as this case. Nothing has to be switched on, cropped or enabled; a
+/// widget that paints nothing gets the system's own treatment, at whatever
+/// 图标外观 (默认 / 浅色 / 深色 / 透明) the user has chosen.
+///
+/// What the app *cannot* do is make a plate of its own see-through, and an
+/// earlier version of this comment overstated that into "you have to go and
+/// switch the system to 透明", which the user rightly pushed back on. The
+/// distinction that survives measurement: we choose between *the system's
+/// plate* and *one we paint*, not between opaque and transparent.
 public enum FolderPlate: String, Codable, Sendable, CaseIterable {
-    /// Draw nothing. The plate is whatever the system puts under a widget, which
-    /// is the only arrangement that reacts to the user's 图标外观 setting.
+    /// Draw nothing and let the system put its own plate under the widget.
+    ///
+    /// This is where glass comes from, and the only arrangement that reacts to
+    /// the user's 图标外观 setting at all.
     case automatic
     /// One flat colour, ``FolderTint``.
     case solid
@@ -58,7 +69,7 @@ public enum FolderPlate: String, Codable, Sendable, CaseIterable {
     public var localizedExplanation: String {
         switch self {
         case .automatic:
-            "不画底板，交给系统。想要真正透明的效果，长按桌面 → 编辑 → 自定 → 图标外观，选「透明」——那是唯一能透出壁纸的开关，App 自己做不到。"
+            "不自己画底板，交给系统——iOS 26 起系统给小组件画的底板本身就是液态玻璃，会跟着桌面的「图标外观」（默认 / 浅色 / 深色 / 透明）和壁纸变。想透出壁纸只能靠这一档：App 自己画的半透明色会被系统先合到底板上，合出来是一块灰，不是壁纸。"
         case .solid:
             "用下面选的颜色铺满小组件底板。"
         case .gradient:

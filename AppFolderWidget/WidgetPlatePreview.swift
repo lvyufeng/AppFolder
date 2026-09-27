@@ -17,10 +17,12 @@ import SwiftUI
 /// where an iOS folder transmits its wallpaper). See `AppFolderWidget.swift`
 /// for the full table.
 ///
-/// The unanswered half is what `containerBackgroundRemovable(true)` does to
-/// that plate under the 透明 icon appearance — the one context none of this
-/// machine can reach, because switching it needs a long-press on the Home
-/// Screen and nothing here can send a touch.
+/// The unanswered half is what the system puts under a widget on a **real
+/// device** at the default 图标外观. The simulator draws a flat white plate there
+/// while its own dock, search pill and folders transmit the wallpaper, and there
+/// is no way to reach the customization menu from here to check another
+/// appearance — the setting lives in the Home Screen poster store and an
+/// unchanged value is never written down. That part needs a device.
 ///
 /// Previews are where that gets checked next: `#Preview` runs the real view
 /// builder, and Xcode renders it against a wallpaper instead of a white sheet,

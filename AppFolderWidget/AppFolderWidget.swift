@@ -14,18 +14,19 @@ import WidgetKit
 ///
 /// The folder decides what this plate is — see ``FolderPlate``. There are three
 /// settings and no fourth: 跟随系统 paints nothing and lets the system draw the
-/// plate, which is the one arrangement that turns to glass when the user picks
-/// 透明 under 桌面 → 编辑 → 自定 → 图标外观. 纯色 and 渐变 paint a colour the user
-/// picked, and are honest about what that costs: a plate we draw is a plate the
-/// system's appearance setting no longer reaches.
+/// plate, which is also the only arrangement that reacts to the user's 图标外观
+/// (默认 / 浅色 / 深色 / 透明). 纯色 and 渐变 paint a colour the user picked, and
+/// are honest about what that costs: a plate we draw is a plate the system's
+/// appearance setting no longer reaches.
 ///
-/// There is deliberately no in-app "transparent". An app cannot make a widget's
-/// plate translucent — measured seven ways, four inside the content and three in
-/// `containerBackground`, none of which let the wallpaper through. The full table
-/// is on the `containerBackground` call below. What 跟随系统 does is *decline to
-/// paint*, which leaves the system's own plate in place; what the user is asking
-/// for when they ask for transparent is a switch only they can flip, and the
-/// editor says so in as many words.
+/// There is deliberately no in-app "transparent", but not because glass needs
+/// switching on — 跟随系统 *is* the glass setting, and it is the default. The
+/// distinction is the one that survived measurement: an app chooses between *the
+/// system's plate* and *one it paints*, and it has no lever on glass itself. A
+/// plate of our own cannot be made to show the wallpaper through — measured seven
+/// ways, four inside the content and three in `containerBackground`, and the full
+/// table is on the `containerBackground` call below — because the widget is
+/// composited onto the system's plate before it ever meets a wallpaper.
 struct AppFolderWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
@@ -83,14 +84,15 @@ struct AppFolderWidget: Widget {
                 .containerBackground(for: .widget) { Color.clear }
         }
         // Lets the system drop the plate in contexts that prefer no background —
-        // the user's 透明 icon appearance is one, and it is the one being asked
-        // for. Apple's own words for this modifier: mark the background removable
-        // "to allow people to place the widget in as many contexts as possible",
-        // and "the system always displays the background container" if you do not;
-        // they also warn the container "may render differently; for example, it can
-        // appear faded or desaturated" when it is not removable. So the plate is
-        // the system's, and this is the switch that tells it we have not built our
-        // layout around one — the prerequisite for 透明, not the cause of it.
+        // the user's 透明 icon appearance is one. Apple's own words for this
+        // modifier: mark the background removable "to allow people to place the
+        // widget in as many contexts as possible", and "the system always displays
+        // the background container" if you do not; they also warn the container
+        // "may render differently; for example, it can appear faded or
+        // desaturated" when it is not removable. So the plate is the system's
+        // either way, and this switch only tells it we have not built our layout
+        // around one — a prerequisite for the system's own treatment to show, not
+        // the cause of any glass.
         //
         // Note where this modifier lives: on `WidgetConfiguration`, not on the
         // view inside it. It is therefore one setting for the whole widget and

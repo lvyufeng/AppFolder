@@ -19,9 +19,11 @@ import SwiftUI
 /// wallpaper, neither of which the app can read.
 ///
 /// So it draws the absence instead: an empty outline at the exact size the plate
-/// will be, plus the sentence the user actually needs — which switch changes it,
-/// and where that switch lives. A promise the app cannot keep is worse than a
-/// pointer to the one that works.
+/// will be, plus the sentence the user actually needs — that the system draws
+/// this one, that it is the glass one, and that it follows 图标外观 and the
+/// wallpaper. A preview that invented a plausible glass would be promising a
+/// colour the app does not control; naming who does control it is the honest
+/// version of the same reassurance.
 struct FolderPlateView: View {
     let style: FolderStyle
     /// What sits on the plate.
