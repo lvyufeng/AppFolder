@@ -12,24 +12,31 @@ import SwiftUI
 /// `docs/research/04-实现笔记.md`.
 ///
 /// So the honest set is these three, and ``automatic`` is the one that matters:
-/// it declines to paint, which leaves the plate to the system — and the plate
-/// the system draws *is* the liquid-glass one. That is the whole of this app's
-/// glass story, and it is also the reference product's: WidgetLoft's Style
-/// picker is Solid / Gradient / Transparent, and its "Transparent" is the same
-/// thing as this case. Nothing has to be switched on, cropped or enabled; a
-/// widget that paints nothing gets the system's own treatment, at whatever
-/// 图标外观 (默认 / 浅色 / 深色 / 透明) the user has chosen.
+/// it declines to paint, which leaves the plate to the system. That is also the
+/// whole of the reference product's glass story. WidgetLoft's Style picker is
+/// Solid / Gradient / Transparent, its App Store copy says "Glass *look* or your
+/// own color", and its "Transparent" is the same thing as this case. Nothing has
+/// to be switched on, cropped or enabled; a widget that paints nothing gets
+/// whatever the system puts there, at whatever 图标外观 (默认 / 浅色 / 深色 /
+/// 透明) the user has chosen.
 ///
 /// What the app *cannot* do is make a plate of its own see-through, and an
 /// earlier version of this comment overstated that into "you have to go and
 /// switch the system to 透明", which the user rightly pushed back on. The
 /// distinction that survives measurement: we choose between *the system's
 /// plate* and *one we paint*, not between opaque and transparent.
+///
+/// The UI name and the stored name have drifted apart on purpose. On disk this
+/// case is still `automatic`, because that is what libraries already written
+/// hold; in the picker it reads 透明, because that is what the reference product
+/// calls the same option and a user comparing the two pickers should not have to
+/// work out that they are the same thing.
 public enum FolderPlate: String, Codable, Sendable, CaseIterable {
     /// Draw nothing and let the system put its own plate under the widget.
     ///
-    /// This is where glass comes from, and the only arrangement that reacts to
-    /// the user's 图标外观 setting at all.
+    /// This is the only arrangement that reacts to the user's 图标外观 setting at
+    /// all — including the 透明 one, where the system drops the plate and the
+    /// wallpaper shows through.
     case automatic
     /// One flat colour, ``FolderTint``.
     case solid
@@ -57,7 +64,7 @@ public enum FolderPlate: String, Codable, Sendable, CaseIterable {
 
     public var localizedName: String {
         switch self {
-        case .automatic: "跟随系统"
+        case .automatic: "透明"
         case .solid: "纯色"
         case .gradient: "渐变"
         }
@@ -66,10 +73,20 @@ public enum FolderPlate: String, Codable, Sendable, CaseIterable {
     /// A one-line explanation for the editor, in the same spirit as
     /// ``LaunchStrategy/localizedExplanation``: a setting the user cannot see the
     /// effect of from inside the app has to say what it will do.
+    ///
+    /// Written from measurements, not from the API's names. An earlier draft
+    /// promised that the system's plate "本身就是液态玻璃，会跟着壁纸变"; a
+    /// screenshot of three widgets on one Home Screen does not support that —
+    /// Apple's own Maps and Calendar widgets measure the same flat `#FFFFFF` ours
+    /// does, while the iOS folders and the Dock beside them transmit. So this
+    /// says what the app does (paints nothing), what that gets the user (the
+    /// system's treatment, at whatever 图标外观 they chose), and what the app
+    /// cannot do (paint its own see-through plate), without promising a material
+    /// it does not control.
     public var localizedExplanation: String {
         switch self {
         case .automatic:
-            "不自己画底板，交给系统——iOS 26 起系统给小组件画的底板本身就是液态玻璃，会跟着桌面的「图标外观」（默认 / 浅色 / 深色 / 透明）和壁纸变。想透出壁纸只能靠这一档：App 自己画的半透明色会被系统先合到底板上，合出来是一块灰，不是壁纸。"
+            "不自己画底板，整块交给系统。桌面上那块板是系统画的，跟着「图标外观」（默认 / 浅色 / 深色 / 透明）走——切到透明档时它会被撤掉，壁纸就透出来了。App 自己画的半透明色做不到这件事：它会被系统先合到那块板上，合出来是一块灰。"
         case .solid:
             "用下面选的颜色铺满小组件底板。"
         case .gradient:
@@ -120,7 +137,7 @@ public struct FolderTint: Sendable, Equatable, Hashable {
 
     /// What a folder with no colour of its own uses once one is needed.
     ///
-    /// Reachable in practice: a folder saved while the plate was 跟随系统 has an
+    /// Reachable in practice: a folder saved while the plate was 透明 has an
     /// empty `colorHex`, and switching it to 纯色 has to produce *something*.
     /// ``FolderStyle/init(plate:tint:showsTitles:)`` substitutes this, so a plate
     /// is never invisible because a colour was missing.

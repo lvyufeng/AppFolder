@@ -13,20 +13,23 @@ import WidgetKit
 /// ## Appearance
 ///
 /// The folder decides what this plate is — see ``FolderPlate``. There are three
-/// settings and no fourth: 跟随系统 paints nothing and lets the system draw the
+/// settings and no fourth: 透明 paints nothing and lets the system draw the
 /// plate, which is also the only arrangement that reacts to the user's 图标外观
 /// (默认 / 浅色 / 深色 / 透明). 纯色 and 渐变 paint a colour the user picked, and
 /// are honest about what that costs: a plate we draw is a plate the system's
 /// appearance setting no longer reaches.
 ///
-/// There is deliberately no in-app "transparent", but not because glass needs
-/// switching on — 跟随系统 *is* the glass setting, and it is the default. The
-/// distinction is the one that survived measurement: an app chooses between *the
-/// system's plate* and *one it paints*, and it has no lever on glass itself. A
-/// plate of our own cannot be made to show the wallpaper through — measured seven
-/// ways, four inside the content and three in `containerBackground`, and the full
-/// table is on the `containerBackground` call below — because the widget is
-/// composited onto the system's plate before it ever meets a wallpaper.
+/// 透明 is not a second, weaker glass setting — it *is* the glass setting, and it
+/// is the default. The distinction is the one that survived measurement: an app
+/// chooses between *the system's plate* and *one it paints*, and it has no lever
+/// on the material itself. A plate of our own cannot be made to show the
+/// wallpaper through — measured seven ways, four inside the content and three in
+/// `containerBackground`, and the full table is on the `containerBackground` call
+/// below — because the widget is composited onto the system's plate before it
+/// ever meets a wallpaper. A screenshot of one Home Screen makes the same point
+/// from the other side: Apple's own Maps and Calendar widgets measure the same
+/// flat `#FFFFFF` ours does, while the iOS folders and the Dock beside them
+/// transmit the wallpaper.
 struct AppFolderWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
@@ -65,9 +68,10 @@ struct AppFolderWidget: Widget {
                 //
                 // What `containerBackground` keeps is the case where the app
                 // should not paint: `Color.clear` leaves the plate to the system,
-                // which is ``FolderPlate/automatic`` and the only setting that
-                // reacts to the user's 图标外观. A widget with no container
-                // background at all is not drawn correctly, so this call stays.
+                // which is ``FolderPlate/automatic`` — 透明 in the picker — and the
+                // only setting that reacts to the user's 图标外观. A widget with no
+                // container background at all is not drawn correctly, so this call
+                // stays.
                 .background {
                     if let fill = entry.style.plateFill {
                         // No `ignoresSafeArea` here, because it does not escape
@@ -98,7 +102,7 @@ struct AppFolderWidget: Widget {
         // view inside it. It is therefore one setting for the whole widget and
         // cannot be made to follow ``FolderPlate`` — a folder that painted a
         // colour would still be droppable in a context that prefers no
-        // background. That is a real edge, and it is the reason 跟随系统 is the
+        // background. That is a real edge, and it is the reason 透明 is the
         // default rather than something a user has to find: the plate the system
         // draws is the one this switch was written for.
         //

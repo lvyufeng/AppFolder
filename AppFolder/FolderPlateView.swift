@@ -9,21 +9,21 @@ import SwiftUI
 /// plate has a case (``FolderPlate/automatic``) where the honest thing to draw is
 /// *nothing at all*, and a view that draws nothing needs somewhere to say so.
 ///
-/// ## What the 跟随系统 case shows, and why it is a dashed outline
+/// ## What the 透明 case shows, and why it is a dashed outline
 ///
 /// An app cannot draw the system's plate. It is composited around a snapshot the
 /// extension already handed over, on the far side of a process boundary, so a
 /// preview claiming to show it would be inventing a colour — and the invented
 /// colour would be wrong in the one case that matters, because the whole point of
-/// 跟随系统 is that the plate depends on the user's 图标外观 setting and their
+/// this case is that the plate depends on the user's 图标外观 setting and their
 /// wallpaper, neither of which the app can read.
 ///
 /// So it draws the absence instead: an empty outline at the exact size the plate
 /// will be, plus the sentence the user actually needs — that the system draws
-/// this one, that it is the glass one, and that it follows 图标外观 and the
-/// wallpaper. A preview that invented a plausible glass would be promising a
-/// colour the app does not control; naming who does control it is the honest
-/// version of the same reassurance.
+/// this one, and that it follows 图标外观 and the wallpaper. A preview that
+/// invented a plausible glass would be promising a colour the app does not
+/// control; naming who does control it is the honest version of the same
+/// reassurance.
 struct FolderPlateView: View {
     let style: FolderStyle
     /// What sits on the plate.
@@ -93,7 +93,7 @@ struct FolderPlateFootnote: View {
 
 #Preview("三档底板") {
     VStack(spacing: 16) {
-        plate("跟随系统", FolderStyle(plate: .automatic))
+        plate("透明", FolderStyle(plate: .automatic))
         plate("纯色", FolderStyle(plate: .solid, tint: FolderTint(hex: "#3478F6")!))
         plate("渐变", FolderStyle(plate: .gradient, tint: FolderTint(hex: "#F2A03D")!))
     }
