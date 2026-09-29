@@ -11,11 +11,21 @@ target of 18 can reference it — verified by compiling it (see
 `docs/research/04-实现笔记.md`). So the only way to *see* the style in action is
 to write it where the system reads it.
 
-Measured on the simulator: flipping 0 -> 2 turned the plate from a flat
-`(255,255,255)` / `(239,239,240)` into a blurred copy of the wallpaper —
-paired regression against the wallpaper at the same coordinate, gain +0.613,
-r +0.939; against a σ=4 blur of it, gain +0.670, r +0.970, r² 0.940. That is
-the same cell WidgetLoft occupies on the real phone (0.612 / +0.988).
+Measured on the simulator, paired regression against the bare wallpaper at the
+same coordinate (the plate region x 110-1100 / y 1520-1950, corner rim excluded):
+
+    0   flat (255,255,255)          gain -0.056, r -0.069   — no wallpaper in it
+    1   gain +0.998, r +0.996       vs the *unblurred* wallpaper; 4.5% of plate
+                                    pixels differ from bare by more than 1
+    2   gain +0.613, r +0.970       vs the wallpaper blurred by sigma 4, r² 0.940
+
+Value 2 is the cell WidgetLoft occupies on the real phone (0.612 / +0.988).
+Value 1 is what "liquid glass" looks like when it is not frosted.
+
+**This is the only knob.** It is a per-widget, per-device decision made when the
+widget is added, cached in the descriptor; nothing an app ships changes it. On a
+phone the DB is on the system partition and unreachable from the host — see the
+2026-09-29 device section of `04-实现笔记.md` for what was tried.
 
 Where the system reads it
 -------------------------
@@ -65,10 +75,14 @@ def database_path(udid: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("style", nargs="?", type=int, default=2,
-                        help="new backgroundStyle: 0 is what our widget ships with "
-                             "(the flat plate), 2 is what Apple's own extensions carry "
-                             "(the glass plate); 1 is untested")
+    parser.add_argument("style", nargs="?", type=int, default=1,
+                        help="new backgroundStyle, measured in the simulator: "
+                             "0 = flat white plate (what our widget ships with); "
+                             "1 = clear glass — a 1:1 copy of the wallpaper at the same "
+                             "coordinate, pair-regressed gain +0.998 / r +0.996, only "
+                             "4.5%% of plate pixels off the bare wallpaper by more than 1; "
+                             "2 = frosted glass, gain +0.613 / r +0.970 against the "
+                             "wallpaper blurred by sigma 4, r^2 0.940")
     parser.add_argument("--device", default=DEFAULT_UDID)
     parser.add_argument("--bundle", default=DEFAULT_BUNDLE_SUBSTR,
                         help="substring of the extension's bundle identifier")
