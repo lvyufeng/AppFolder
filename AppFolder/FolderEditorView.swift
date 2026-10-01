@@ -297,7 +297,7 @@ struct FolderContentEditorView: View {
                     Button {
                         isPickingTiles = true
                     } label: {
-                        Label("添加图块", systemImage: "plus.circle")
+                        Label("选择 App", systemImage: "plus.circle")
                     }
                 } header: {
                     Text("图块")
@@ -339,8 +339,8 @@ struct FolderContentEditorView: View {
                 }
             }
             .sheet(isPresented: $isPickingTiles) {
-                TilePickerView { picked in
-                    folder.tiles.append(contentsOf: picked)
+                TilePickerView(currentTiles: folder.tiles) { picked in
+                    folder.tiles = picked
                 }
             }
         }
@@ -363,12 +363,38 @@ struct FolderContentEditorView: View {
 /// In the simulator nothing third-party is installed, so every declared scheme
 /// lands in 未安装 and the list looks like a failure. On a real device the first
 /// section is the useful one.
+///
+/// ## Why the folder's own apps come in selected
+///
+/// This screen answers "which apps are in this folder", and the honest way to ask
+/// that is to show the folder as it is — every app it holds already checked — and
+/// let the user change their mind. The alternative, a blank list that accumulates
+/// picks, makes the same gesture mean *add* here and *remove* in
+/// ``FolderContentEditorView``, one screen away, with nothing on screen to say
+/// which it is. Arriving pre-filled also makes the list's first state a true
+/// answer to "what is in here", which is worth more than an empty slate.
+///
+/// The list is seeded when the sheet appears rather than in `init`, because the
+/// probe runs in a `.task` and the tiles it would prefill from are the model's,
+/// not a snapshot taken before the user could have looked.
 struct TilePickerView: View {
     @Environment(LibraryModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     @State private var query = ""
-    @State private var selection: Set<String> = []
+    /// The apps the folder will end up holding: seeded from the folder's own
+    /// tiles, then toggled. A set of catalogue ids for catalogue entries, plus the
+    /// tiles that never had one.
+    @State private var selectedIDs: Set<String> = []
+    /// Hand-added tiles, which have no catalogue id to be keyed by — see
+    /// ``FolderTile/catalogID``. Kept whole rather than reduced to an id, because
+    /// the tile itself is the only record of its name and scheme.
+    @State private var extraTiles: [FolderTile] = []
+    @State private var didSeed = false
+    let currentTiles: [FolderTile]
+    /// The folder's apps after the user is done, in catalogue order with any
+    /// hand-added tiles kept at the front.
+    let onDone: ([FolderTile]) -> Void
     /// Results from the App Store, or `nil` if the search has not run or failed.
     @State private var storeResults: [AppStoreLookup]?
     /// Set when the search could not be made at all — distinct from "found
@@ -377,7 +403,6 @@ struct TilePickerView: View {
     @State private var storeSearching = false
     /// The result awaiting a scheme.
     @State private var pendingLookup: AppStoreLookup?
-    let onDone: ([FolderTile]) -> Void
 
     private var installed: [KnownApp] { filtered.filter { model.installStatus($0) == .installed } }
     private var absent: [KnownApp] { filtered.filter { model.installStatus($0) == .absent } }
@@ -416,6 +441,36 @@ struct TilePickerView: View {
                     }
                 }
 
+                if !extraTiles.isEmpty {
+                    Section {
+                        ForEach(extraTiles) { tile in
+                            Button {
+                                extraTiles.removeAll { $0.id == tile.id }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    AsyncTileIcon(appStoreID: tile.appStoreID, symbolName: "app.dashed")
+                                        .frame(width: 32, height: 32)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(tile.title)
+                                        Text(tile.urlString)
+                                            .font(.caption.monospaced())
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    } header: {
+                        Text("手动添加的")
+                    } footer: {
+                        Text("这些 App 不在目录里，链接是你自己填的。点一下可以移出文件夹。")
+                    }
+                }
+
                 if !installed.isEmpty {
                     Section {
                         ForEach(installed) { row($0) }
@@ -451,7 +506,7 @@ struct TilePickerView: View {
                 storeSection
             }
             .searchable(text: $query, prompt: "搜索 App")
-            .navigationTitle("添加图块")
+            .navigationTitle("选择 App")
             .navigationBarTitleDisplayMode(.inline)
             // Debounced on the query, so a five-letter word is one request rather
             // than five. `task(id:)` cancels the previous one on every keystroke,
@@ -477,16 +532,16 @@ struct TilePickerView: View {
                     Button("取消") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成（\(selection.count)）") {
-                        let chosen = AppCatalog.all.filter { selection.contains($0.id) }
-                        onDone(chosen.map { FolderTile(app: $0) })
-                        dismiss()
-                    }
-                    .disabled(selection.isEmpty)
+                    Button("完成") { onDone(resolvedTiles); dismiss() }
                 }
             }
             .task {
                 await model.refreshInstalledApps()
+            }
+            .task {
+                guard !didSeed else { return }
+                didSeed = true
+                seedFromCurrentTiles()
             }
         }
     }
@@ -544,6 +599,11 @@ struct TilePickerView: View {
                 Text("App Store")
             } footer: {
                 Text("上面找不到的 App，在这里搜。iOS 不让 App 读你装了哪些 App，所以只能按名字找。")
+            }
+        } else if query.trimmingCharacters(in: .whitespaces).isEmpty, !hasSelection {
+            Section {
+                Text("这个文件夹还是空的。勾一个 App 就加进去。")
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -603,12 +663,35 @@ struct TilePickerView: View {
         storeResults = results ?? []
     }
 
+    /// Splits the folder's current tiles into the two things this screen tracks.
+    ///
+    /// A tile made from a catalogue entry carries that entry's id and is fully
+    /// described by it, so it reduces to a checkmark. A hand-added tile carries a
+    /// scheme the user worked out — a fact that exists nowhere else — so it is
+    /// kept whole and always travels back, whether or not it appears in any list
+    /// here.
+    private func seedFromCurrentTiles() {
+        selectedIDs = Set(currentTiles.compactMap(\.catalogID))
+        extraTiles = currentTiles.filter { $0.catalogID == nil }
+    }
+
+    /// The folder's apps as they stand, catalogue entries restored from their
+    /// fresh entries (so recent repairs and renames land) with hand-added tiles
+    /// kept as they are.
+    private var resolvedTiles: [FolderTile] {
+        extraTiles + AppCatalog.all.filter { selectedIDs.contains($0.id) }.map { FolderTile(app: $0) }
+    }
+
+    /// Whether anything is picked, so the screen can tell "you removed them all"
+    /// apart from "this folder was already empty".
+    private var hasSelection: Bool { !selectedIDs.isEmpty || !extraTiles.isEmpty }
+
     private func row(_ app: KnownApp) -> some View {
-        let isPicked = selection.contains(app.id)
+        let isPicked = selectedIDs.contains(app.id)
         let status = model.installStatus(app)
 
         return Button {
-            if isPicked { selection.remove(app.id) } else { selection.insert(app.id) }
+            if isPicked { selectedIDs.remove(app.id) } else { selectedIDs.insert(app.id) }
         } label: {
             HStack(spacing: 12) {
                 AsyncTileIcon(appStoreID: app.appStoreID, symbolName: "app.dashed")

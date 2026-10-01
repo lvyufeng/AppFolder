@@ -16,10 +16,17 @@ public enum AppCatalog {
     ///
     /// We link against iOS 27, so 25 is the number that applies.
     ///
-    /// The cap is a *declaration* cap, not a runtime one — measured, not assumed.
-    /// Declaring 57 schemes and probing all 57 worked; declaring 27 and probing a
-    /// name that wasn't among them did not. See ``queriedSchemes`` for what that
-    /// means and why this stays at 25 anyway.
+    /// The cap is enforced at runtime, and it counts *honored* schemes, not just
+    /// declarations — measured on iOS 27.0.1 on device, not assumed. A build
+    /// declaring 133 valid schemes was asked about all 133: positions 1–25 were
+    /// answered, and every one after them came back
+    /// `"This app is not allowed to query for scheme …"`. 133 − 108 rejected = 25.
+    ///
+    /// So the cap is real and this number is a hard wall. An earlier note here
+    /// recorded the opposite — that a 57-scheme build had probed all 57 — but
+    /// that was measured on the simulator, which does not enforce the limit. The
+    /// device does. See ``queriedSchemes`` for why the list is curated rather
+    /// than merely truncated.
     public static let queryBudget = 25
 
     /// Entries safe to show in the picker by default.
@@ -72,12 +79,13 @@ public enum AppCatalog {
     ///   owners — the people whose Home Screen is nothing but system apps — can
     ///   have their apps detected without spending any of the budget.
     ///
-    /// (One incidental finding from the same experiment: this cap is not enforced
-    /// by rejecting the over-budget entries. A build declaring 57 schemes probed
-    /// all 57 successfully, including ones at positions 56 and 57. The limit
-    /// Apple documents is real but not applied at that layer, at least on the
-    /// simulator — so the budget here is a cautious reading of the rule, not a
-    /// wall we ran into.)
+    /// (A note on how the cap is enforced, from the device measurement behind
+    /// ``queryBudget``: it does **not** reject the overflow with an error at
+    /// launch, and it does not fail the build. It simply answers the first 25
+    /// declarations and refuses the rest, per call, at the moment `canOpenURL`
+    /// runs. That is the dangerous shape — the app launches, the sweep completes,
+    /// and the only symptom is that the apps past position 25 are quietly
+    /// reported 未安装. There is nothing to catch; the list has to be right.)
     public static var queriedSchemes: [String] {
         var seen: Set<String> = []
         return all
@@ -99,8 +107,31 @@ public enum AppCatalog {
     /// reports it as, rather than claiming it is absent.
     public static var probeableSchemes: [String] {
         var seen: Set<String> = []
-        return (queriedSchemes + all.filter(\.isSystemApp).map(\.scheme))
+        return (queriedSchemes + all.filter(\.isSystemApp).map(\.scheme) + declaredSchemes)
             .filter { seen.insert($0.lowercased()).inserted }
+    }
+
+    /// Every scheme the app actually declares in its `Info.plist`, in declaration
+    /// order.
+    ///
+    /// Read from the bundle rather than assumed to equal ``queriedSchemes``,
+    /// because the two can differ and the difference is dangerous in one
+    /// direction: a scheme that is declared but never probed is a wasted
+    /// declaration, while a scheme that is probed but not declared always reports
+    /// `false` — so an app the user has installed is labelled 未安装, which is
+    /// exactly the kind of confident wrong answer this whole file exists to avoid.
+    ///
+    /// Deriving the probe list from the declaration list makes that impossible by
+    /// construction, and it is what lets the declaration list be widened without
+    /// a matching code change.
+    ///
+    /// Empty when there is no bundle plist (the test host, a command-line tool),
+    /// which is why the other two terms above stay.
+    public static var declaredSchemes: [String] {
+        guard
+            let declared = Bundle.main.object(forInfoDictionaryKey: "LSApplicationQueriesSchemes") as? [String]
+        else { return [] }
+        return declared.map { "\($0)://" }
     }
 
     /// Whether the catalogue fits in the query budget, and what happens if not.

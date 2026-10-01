@@ -75,7 +75,13 @@ public final class InstallationProber {
         for (index, scheme) in schemes.enumerated() {
             // The catalogue stores launchable URLs (`weixin://`); `canOpenURL`
             // and `URL.scheme` both want the bare form.
-            let name = scheme.replacingOccurrences(of: "://", with: "")
+            // Lowercased, because `status(of:)` compares against
+            // `KnownApp.schemeName.lowercased()` and `URL.scheme` is
+            // case-insensitive. Storing the catalogue's own casing here meant any
+            // entry written with a capital — `CtripWireless://` — was recorded and
+            // then never matched, so its status fell through to `unknown` and the
+            // picker lost the one signal it exists to give.
+            let name = scheme.replacingOccurrences(of: "://", with: "").lowercased()
             guard let url = URL(string: scheme) else { continue }
             asked.insert(name)
             if UIApplication.shared.canOpenURL(url) {
