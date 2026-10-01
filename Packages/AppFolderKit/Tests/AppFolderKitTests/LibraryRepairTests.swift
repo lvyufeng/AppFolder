@@ -19,6 +19,53 @@ struct LibraryRepairTests {
         try #require(library.folders.first?.tiles.first)
     }
 
+    /// The guarantee that makes it safe to let users add apps the catalogue has
+/// never heard of.
+///
+/// ``LibraryRepair`` rewrites tiles that cannot launch, and it decides which
+/// catalogue entry a tile belongs to. A hand-added tile has no `catalogID` and a
+/// scheme no entry shares, so the entry lookup returns nothing — and the repair
+/// must then leave the tile completely alone rather than "fixing" it toward a
+/// route it cannot support.
+    ///
+    /// The failure this prevents is silent and total: every user-added app in
+    /// every folder would be rewritten on the next launch, and because the repair
+    /// runs on read, there would be nothing on disk to point at afterwards.
+    @Test("A hand-added tile the catalogue does not know is left untouched")
+    func userAddedTilesSurviveRepair() throws {
+        let added = FolderTile(
+            title: "Keep",
+            scheme: "gotokeep://",
+            appStoreID: 952694580
+        )
+        #expect(added.catalogID == nil)
+
+        let tile = try onlyTile(LibraryRepair.repair(library(added)))
+
+        #expect(tile.title == "Keep")
+        #expect(tile.urlString == "gotokeep://")
+        #expect(tile.appStoreID == 952694580)
+        // No entry matched, so nothing was backfilled — and the user's own route
+        // stands, because it can launch.
+        #expect(tile.universalLinkString == nil)
+        #expect(tile.strategy == .bounce)
+        #expect(tile.canLaunch)
+    }
+
+    /// The same protection for a hand-added tile whose scheme happens to collide
+    /// with a catalogue entry's *name*. The lookup falls back to name-plus-scheme
+    /// matching, and a user typing a name onto a scheme they guessed wrong is the
+    /// exact case where that fallback could misfire.
+    @Test("A hand-added tile with a scheme no entry shares is not adopted")
+    func userAddedTileIsNotAdoptedByName() throws {
+        let added = FolderTile(title: "地图", scheme: "mycustom://", appStoreID: nil)
+        let tile = try onlyTile(LibraryRepair.repair(library(added)))
+
+        #expect(tile.urlString == "mycustom://")
+        #expect(tile.universalLinkString == nil)
+        #expect(tile.strategy == .bounce)
+    }
+
     @Test("A universal link tile with no link falls back to a route that works")
     func repairsTheShippedBug() throws {
         let broken = FolderTile(

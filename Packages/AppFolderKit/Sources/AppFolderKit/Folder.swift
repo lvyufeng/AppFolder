@@ -131,6 +131,33 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
             universalLinkString: app.universalLink
         )
     }
+
+    /// A tile for an app the catalogue does not know.
+    ///
+    /// The escape hatch. Every other construction path starts from a ``KnownApp``
+    /// and therefore from a scheme somebody verified; this one starts from a name
+    /// and a scheme the *user* supplied, which is the only way to reach an app
+    /// outside the catalogue at all.
+    ///
+    /// `catalogID` is deliberately left `nil` rather than set to something
+    /// synthetic. It means "this tile did not come from the catalogue", which is
+    /// exactly the truth, and ``LibraryRepair`` reads it that way — it will not
+    /// backfill a universal link onto a tile it cannot resolve. A made-up id would
+    /// make the repair code search for an entry that does not exist and, worse,
+    /// make a future catalogue entry with that id silently adopt this tile.
+    ///
+    /// The app keeps its App Store id, so artwork comes from the same
+    /// ``IconStore`` path as everything else with no special case.
+    public init(title: String, scheme: String, appStoreID: Int?, symbolName: String? = nil) {
+        self.init(
+            kind: .app,
+            title: title,
+            urlString: scheme,
+            appStoreID: appStoreID,
+            catalogID: nil,
+            symbolName: symbolName
+        )
+    }
 }
 
 /// A group of tiles shown as one Home Screen widget — the "big folder".

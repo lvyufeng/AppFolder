@@ -118,6 +118,28 @@ public enum AppCatalog {
     /// Ranks exact name matches ahead of prefix matches ahead of substring
     /// matches, because the picker is used by typing the name of an app the user
     /// is looking at on their Home Screen.
+    /// The catalogue entry for an App Store id, if we have one.
+    ///
+    /// ## Why this is the hinge the whole feature turns on
+    ///
+    /// A user who finds their app through App Store search has an App Store id
+    /// and nothing else — no scheme, and no way to discover one. But if the
+    /// catalogue already holds that app, this returns its entry, and the entry
+    /// carries a **verified** scheme. The user gets a working tile without ever
+    /// learning what a URL scheme is.
+    ///
+    /// That makes catalogue size a direct measure of how often the user is asked
+    /// to do something hard: every app added here is one fewer trip through
+    /// ``SchemeGuess`` and the "试一下" flow. It is the reason "扩大目录" is worth
+    /// doing as a separate, continuing effort rather than a one-off.
+    ///
+    /// Matches on the App Store id rather than the name because the id is exact
+    /// and the name is not — searching "Keep" returns three different apps, and
+    /// matching by name would hand the user the wrong one's scheme.
+    public static func entry(appStoreID: Int) -> KnownApp? {
+        all.first { $0.appStoreID == appStoreID }
+    }
+
     public static func search(_ query: String, includeUnverified: Bool = false) -> [KnownApp] {
         let pool = includeUnverified ? all : selectable
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()

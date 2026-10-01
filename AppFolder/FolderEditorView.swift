@@ -5,13 +5,36 @@ import SwiftUI
 // same table the widget does so the number it shows is the number the user gets.
 import WidgetKit
 
-/// Edits one folder: its name, tint, and the tiles inside it.
+/// Edits one folder's name and appearance.
+///
+/// ## Why this is separate from the tiles
+///
+/// This screen and ``FolderContentEditorView`` were one form, and the two halves
+/// answer different questions: *what does this folder look like* and *what is in
+/// it*. They are edited at different times by different impulses — the look is
+/// settled once and then left alone, the contents change whenever an app is
+/// installed or dropped — and stacking them meant scrolling past a live preview
+/// and six appearance controls to add an app.
+///
+/// The split is at the point where nothing is shared: appearance reads the tiles
+/// (the preview draws them, the grid capacity depends on how many there are) but
+/// never writes them, and the content screen never touches a field this one owns.
+///
+/// ## Why the name lives here
+///
+/// It is not obviously an appearance property, but it belongs with one: the name
+/// is what the folder is *called*, a fact about the folder as a whole, whereas the
+/// other screen is a list of the apps inside it. Giving it a third home would mean
+/// a screen with one field.
+///
+/// Each screen saves on its own, so neither can discard the other's edits: you
+/// cannot lose appearance changes by adding an app, which a shared draft with two
+/// entry points would have made routine.
 struct FolderEditorView: View {
     @Environment(LibraryModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     @State private var folder: Folder
-    @State private var isPickingTiles = false
 
     init(folder: Folder) {
         _folder = State(initialValue: folder)
@@ -192,10 +215,74 @@ struct FolderEditorView: View {
                 } header: {
                     Text("外观")
                 } footer: {
-                    Text("桌面上的小组件就是这个样子。")
+                    Text("桌面上的小组件就是这个样子。改的是它长什么样——里面放哪些 App 在「编辑图块」里。")
                 }
 
-                Section("图块") {
+                if !model.isSharedStorageAvailable {
+                    Section {
+                        Label {
+                            Text("当前签名没有 App Groups，小组件读不到这些文件夹。")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                        }
+                        .foregroundStyle(.orange)
+                    }
+                }
+            }
+            .navigationTitle("编辑外观")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        model.upsert(folder)
+                        dismiss()
+                    }
+                    .disabled(folder.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+    }
+}
+
+/// Edits which apps are in one folder, and in what order.
+///
+/// The other half of the split described on ``FolderEditorView``. This screen owns
+/// ``Folder/tiles`` and nothing else — no preview, no plate, no grid. It is the
+/// one that gets opened repeatedly over a folder's life, so it is the one that
+/// should be a plain, fast list.
+///
+/// It saves on its own rather than through a shared draft, so adding an app can
+/// never discard an appearance change the user made and did not yet save — and
+/// the two screens cannot be open at once, since each is a sheet from the folder
+/// list.
+struct FolderContentEditorView: View {
+    @Environment(LibraryModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var folder: Folder
+    @State private var isPickingTiles = false
+
+    init(folder: Folder) {
+        _folder = State(initialValue: folder)
+    }
+
+    /// How many of this folder's apps the Home Screen actually shows.
+    ///
+    /// The grid reserves its last cell for the "open the rest" door, so the
+    /// number is one below the cell count — see ``FolderGrid/capacity(for:)``.
+    /// Derived from the small widget because that is the tightest of the sizes and
+    /// the one a folder is judged on.
+    private var shownCount: Int {
+        folder.grid.capacity(for: .systemSmall)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
                     if folder.tiles.isEmpty {
                         Text("还没有图块，点下面的按钮添加。")
                             .foregroundStyle(.secondary)
@@ -212,6 +299,19 @@ struct FolderEditorView: View {
                     } label: {
                         Label("添加图块", systemImage: "plus.circle")
                     }
+                } header: {
+                    Text("图块")
+                } footer: {
+                    // The overflow is stated on this screen rather than only in
+                    // the appearance footnote, because this is where the user is
+                    // when they add the app that causes it. Silently dropping the
+                    // ninth app into a door they have to go and find is how a
+                    // folder reads as losing things.
+                    if folder.tiles.count > shownCount {
+                        Text("桌面上直接显示 \(shownCount) 个，另外 \(folder.tiles.count - shownCount) 个在最后一格的「更多」里，点它就能看到全部。")
+                    } else {
+                        Text("桌面上按顺序显示，多余的会收进最后一格的「更多」入口。")
+                    }
                 }
 
                 if !model.isSharedStorageAvailable {
@@ -225,7 +325,7 @@ struct FolderEditorView: View {
                     }
                 }
             }
-            .navigationTitle("编辑文件夹")
+            .navigationTitle(folder.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -236,7 +336,6 @@ struct FolderEditorView: View {
                         model.upsert(folder)
                         dismiss()
                     }
-                    .disabled(folder.name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
             .sheet(isPresented: $isPickingTiles) {
@@ -270,21 +369,38 @@ struct TilePickerView: View {
 
     @State private var query = ""
     @State private var selection: Set<String> = []
+    /// Results from the App Store, or `nil` if the search has not run or failed.
+    @State private var storeResults: [AppStoreLookup]?
+    /// Set when the search could not be made at all — distinct from "found
+    /// nothing", which is what it says.
+    @State private var storeFailed = false
+    @State private var storeSearching = false
+    /// The result awaiting a scheme.
+    @State private var pendingLookup: AppStoreLookup?
     let onDone: ([FolderTile]) -> Void
 
     private var installed: [KnownApp] { filtered.filter { model.installStatus($0) == .installed } }
     private var absent: [KnownApp] { filtered.filter { model.installStatus($0) == .absent } }
     private var unknown: [KnownApp] { filtered.filter { model.installStatus($0) == .unknown } }
 
+    /// The catalogue's matches for the current query.
+    ///
+    /// Through ``AppCatalog/search(_:includeUnverified:)`` rather than the local
+    /// substring filter this used to carry, because that function already ranks
+    /// exact matches ahead of prefixes ahead of substrings. The two had drifted —
+    /// the catalogue's version was the better one and nothing was calling it.
     private var filtered: [KnownApp] {
-        let pool = AppCatalog.selectable
-        guard !query.isEmpty else { return pool }
-        let needle = query.lowercased()
-        return pool.filter {
-            $0.name.lowercased().contains(needle)
-                || $0.englishName.lowercased().contains(needle)
-                || $0.scheme.lowercased().contains(needle)
-        }
+        AppCatalog.search(query)
+    }
+
+    /// Whether the App Store row should be offered at all.
+    ///
+    /// Only when the catalogue did not already answer. If the user typed a name
+    /// the catalogue knows, the entry is right there with a verified scheme, and
+    /// sending them to the App Store to re-find the same app is the WidgetLoft
+    /// detour this feature exists to avoid.
+    private var shouldOfferStoreSearch: Bool {
+        !query.trimmingCharacters(in: .whitespaces).isEmpty && filtered.isEmpty
     }
 
     var body: some View {
@@ -331,10 +447,31 @@ struct TilePickerView: View {
                         Text("当前设备上没有检测到这些 App。")
                     }
                 }
+
+                storeSection
             }
             .searchable(text: $query, prompt: "搜索 App")
             .navigationTitle("添加图块")
             .navigationBarTitleDisplayMode(.inline)
+            // Debounced on the query, so a five-letter word is one request rather
+            // than five. `task(id:)` cancels the previous one on every keystroke,
+            // including the sleep — which is what makes the delay a debounce and
+            // not just a slow request.
+            .task(id: query) {
+                guard shouldOfferStoreSearch else {
+                    storeResults = nil
+                    storeFailed = false
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(350))
+                guard !Task.isCancelled else { return }
+                await runStoreSearch()
+            }
+            .sheet(item: $pendingLookup) { lookup in
+                SchemeEntryView(lookup: lookup, title: lookup.name) { tile in
+                    onDone([tile])
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
@@ -352,6 +489,118 @@ struct TilePickerView: View {
                 await model.refreshInstalledApps()
             }
         }
+    }
+
+    /// The escape hatch: apps the catalogue does not hold.
+    ///
+    /// Offered only when the catalogue came up empty for this query, because
+    /// otherwise the answer is already on screen — and a second, slower, online
+    /// path to the same app is exactly the detour this feature was built to
+    /// remove.
+    @ViewBuilder
+    private var storeSection: some View {
+        if shouldOfferStoreSearch {
+            Section {
+                if storeSearching {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("正在搜索 App Store…")
+                            .foregroundStyle(.secondary)
+                    }
+                } else if storeFailed {
+                    Label {
+                        Text("连不上 App Store，检查一下网络。")
+                    } icon: {
+                        Image(systemName: "wifi.exclamationmark")
+                    }
+                    .foregroundStyle(.secondary)
+                } else if let storeResults {
+                    if storeResults.isEmpty {
+                        Text("App Store 里也没搜到。可以换个名字，或者用下面「手动添加」。")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(storeResults, id: \.trackID) { result in
+                            storeRow(result)
+                        }
+                    }
+                }
+
+                // Always reachable, network or not: a scheme typed by hand is the
+                // floor this whole screen rests on, and hiding it behind a failed
+                // request would make the one path that always works the one path
+                // that is missing.
+                Button {
+                    pendingLookup = AppStoreLookup(
+                        trackID: 0,
+                        bundleID: nil,
+                        name: query.trimmingCharacters(in: .whitespaces),
+                        sellerName: nil,
+                        artworkURL: nil
+                    )
+                } label: {
+                    Label("手动添加", systemImage: "keyboard")
+                }
+            } header: {
+                Text("App Store")
+            } footer: {
+                Text("上面找不到的 App，在这里搜。iOS 不让 App 读你装了哪些 App，所以只能按名字找。")
+            }
+        }
+    }
+
+    /// One App Store result.
+    ///
+    /// The seller is shown because it is the only thing that distinguishes the
+    /// apps sharing a name — searching "Keep" returns three — and the user is
+    /// looking for one specific icon they can already see on their Home Screen.
+    ///
+    /// Tapping resolves against the catalogue first. An app the catalogue holds
+    /// yields a verified scheme, so the user never sees the scheme screen; only a
+    /// genuine stranger reaches ``SchemeEntryView``.
+    private func storeRow(_ result: AppStoreLookup) -> some View {
+        Button {
+            if let entry = AppCatalog.entry(appStoreID: result.trackID) {
+                onDone([FolderTile(app: entry)])
+            } else {
+                pendingLookup = result
+            }
+        } label: {
+            HStack(spacing: 12) {
+                AsyncTileIcon(appStoreID: result.trackID, symbolName: "app.dashed")
+                    .frame(width: 32, height: 32)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(result.name)
+                    if let seller = result.sellerName {
+                        Text(seller)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "plus.circle")
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func runStoreSearch() async {
+        let term = query.trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty else { return }
+        storeSearching = true
+        defer { storeSearching = false }
+
+        let results = await AppStoreSearchClient.shared.search(term: term)
+        // The query may have moved on while this was in flight; a result for a
+        // term the user has since deleted would flash the wrong list.
+        guard term == query.trimmingCharacters(in: .whitespaces) else { return }
+
+        storeFailed = results == nil
+        storeResults = results ?? []
     }
 
     private func row(_ app: KnownApp) -> some View {

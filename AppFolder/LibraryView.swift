@@ -135,24 +135,72 @@ struct TroubleshootingView: View {
 }
 
 /// The folder list, and the entry point to creating one.
+///
+/// Each row offers two destinations, because a folder has two independent halves —
+/// see ``FolderEditorView`` for why they are separate screens. The row itself
+/// opens the *contents*, because that is what a folder is for and what changes
+/// most often; appearance is one long-press away.
 struct LibraryView: View {
     @Environment(LibraryModel.self) private var model
-    @State private var editing: Folder?
+
+    /// Which screen a row's tap or menu opens.
+    ///
+    /// One piece of state rather than two, so a row cannot end up presenting two
+    /// sheets at once — which is what two `@State var editing: X?` would allow,
+    /// and what SwiftUI resolves by silently dropping one of them.
+    ///
+    /// The folder is carried rather than looked up by id at presentation time, so
+    /// that "new folder" is the same shape as the other two and needs no special
+    /// case. Its `id` is a fresh `UUID` made once when the destination is set,
+    /// which is what keeps the sheet identity stable while it is open.
+    private struct Destination: Identifiable {
+        enum Mode { case content, appearance }
+
+        let folder: Folder
+        let mode: Mode
+
+        var id: String { "\(mode)-\(folder.id)" }
+    }
+
+    @State private var destination: Destination?
 
     var body: some View {
         NavigationStack {
             Group {
                 if model.folders.isEmpty {
-                    EmptyLibraryView { editing = Folder(name: "常用") }
+                    EmptyLibraryView {
+                        destination = Destination(
+                            folder: Folder(name: "常用"),
+                            mode: .appearance
+                        )
+                    }
                 } else {
                     List {
                         ForEach(model.folders) { folder in
                             Button {
-                                editing = folder
+                                destination = Destination(folder: folder, mode: .content)
                             } label: {
                                 FolderRow(folder: folder)
                             }
                             .buttonStyle(.plain)
+                            // The two entries ride on the row's own context menu
+                            // rather than a second tap target. A chevron plus a
+                            // disclosure button puts two competing affordances on
+                            // a row whose primary job is unambiguous — opening the
+                            // folder — and the context menu is where iOS users
+                            // already look for the second one.
+                            .contextMenu {
+                                Button {
+                                    destination = Destination(folder: folder, mode: .appearance)
+                                } label: {
+                                    Label("编辑外观", systemImage: "paintbrush")
+                                }
+                                Button(role: .destructive) {
+                                    model.delete(folder)
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                            }
                         }
                         .onMove(perform: model.moveFolders)
                         .onDelete { offsets in
@@ -167,14 +215,25 @@ struct LibraryView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        editing = Folder(name: "新文件夹")
+                        // Appearance first, because a new folder has no tiles to
+                        // arrange and two of its fields — the name and the grid —
+                        // decide what the user is about to put in it.
+                        destination = Destination(
+                            folder: Folder(name: "新文件夹"),
+                            mode: .appearance
+                        )
                     } label: {
                         Label("新建", systemImage: "plus")
                     }
                 }
             }
-            .sheet(item: $editing) { folder in
-                FolderEditorView(folder: folder)
+            .sheet(item: $destination) { destination in
+                switch destination.mode {
+                case .content:
+                    FolderContentEditorView(folder: destination.folder)
+                case .appearance:
+                    FolderEditorView(folder: destination.folder)
+                }
             }
         }
     }

@@ -26,19 +26,52 @@ struct TileEditorRow: View {
         case finished
     }
 
+    /// Whether this tile came from the catalogue.
+    ///
+    /// The catalogue's entries have an id, which is what ``LibraryRepair`` uses to
+    /// find them again; a hand-added tile has none. The distinction decides
+    /// whether this row shows an edit affordance: a catalogue entry's name and
+    /// scheme are facts about a real app, and letting them be edited would only
+    /// create a tile the repair pass no longer recognises.
+    private var isUserAdded: Bool { tile.catalogID == nil }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 TileIcon(tile: tile, side: 36)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(tile.title)
-                    Text(tile.urlString)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    // Editable only for a hand-added tile. The name came from an
+                    // App Store search that may have returned a same-named app,
+                    // and the scheme is a guess the device may have rejected —
+                    // without this the only remedy would be deleting the tile and
+                    // starting over.
+                    if isUserAdded {
+                        TextField("名称", text: $tile.title)
+                    } else {
+                        Text(tile.title)
+                    }
+
+                    if isUserAdded {
+                        TextField("链接", text: $tile.urlString)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    } else {
+                        Text(tile.urlString)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
                 Spacer()
+            }
+
+            if isUserAdded {
+                Text("这个 App 不在目录里，链接是你自己试出来的。打不开就在这里改。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Menu {
