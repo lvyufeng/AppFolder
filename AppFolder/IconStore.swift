@@ -75,9 +75,52 @@ actor IconStore {
         return data
     }
 
+    /// Storefronts to try when resolving artwork, in order. `nil` is the request
+    /// with no `country` parameter, which is what the device's own store resolves
+    /// to — the right first try for almost everyone.
+    private static let lookupCountries: [String?] = [nil, "us", "cn", "hk", "jp", "tw", "uk"]
+
     private static func fetch(appStoreID id: Int) async -> Data? {
+        // The lookup endpoint is region-scoped, and not in a way that reports
+        // itself: an app not sold in the storefront the request resolves to comes
+        // back as `"results": []` with a 200, indistinguishable from a bad id.
+        // Measured — `id=393765873` (爱奇艺) returns 0 results with no `country`
+        // and 1 with `country=cn`, while `id=414478124` (微信) returns WeChat
+        // without one and 微信 with `cn`.
+        //
+        // So a device signed into one store cannot fetch artwork for an app bought
+        // in another, which is exactly what happens once an account changes
+        // region: the app stays installed and its tile goes blank. Which
+        // storefront holds a given id cannot be asked for directly, so several are
+        // tried and the first answer wins.
+        //
+        // Concurrently, so the cost is one round trip rather than one per region,
+        // and the winner is written to disk by the caller — a success is never
+        // looked up again.
+        await withTaskGroup(of: Data?.self) { group in
+            for country in lookupCountries {
+                group.addTask { await fetchArtwork(appStoreID: id, country: country) }
+            }
+            for await result in group {
+                if let result {
+                    group.cancelAll()
+                    return result
+                }
+            }
+            return nil
+        }
+    }
+
+    /// One storefront's attempt at the artwork for `id`.
+    private static func fetchArtwork(appStoreID id: Int, country: String?) async -> Data? {
         // `lookup` is the documented public endpoint; no key, no auth.
-        guard let url = URL(string: "https://itunes.apple.com/lookup?id=\(id)") else { return nil }
+        var components = URLComponents(string: "https://itunes.apple.com/lookup")
+        components?.queryItems = [URLQueryItem(name: "id", value: String(id))]
+        if let country {
+            components?.queryItems?.append(URLQueryItem(name: "country", value: country))
+        }
+        guard let url = components?.url else { return nil }
+
         guard let (payload, _) = try? await URLSession.shared.data(from: url) else { return nil }
         guard
             let root = try? JSONSerialization.jsonObject(with: payload) as? [String: Any],

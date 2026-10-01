@@ -408,6 +408,9 @@ struct TilePickerView: View {
     @State private var storeSearching = false
     /// The result awaiting a scheme.
     @State private var pendingLookup: AppStoreLookup?
+    /// The storefront the App Store search runs against, or `nil` to use the
+    /// device's own. See ``storeCountry`` for why this is switchable.
+    @State private var storeCountryOverride: String?
 
     private var installed: [KnownApp] { filtered.filter { model.installStatus($0) == .installed } }
     /// Everything the probe could not confirm. Includes apps the system
@@ -434,6 +437,23 @@ struct TilePickerView: View {
     private var shouldOfferStoreSearch: Bool {
         !query.trimmingCharacters(in: .whitespaces).isEmpty && filtered.isEmpty
     }
+
+    /// Which storefront the App Store search runs against.
+    ///
+    /// Defaults to the device's own — the right answer for almost everyone — but
+    /// it is switchable because "the store I bought this app from" is not the
+    /// same question as "the store this device is signed into". One account can
+    /// span regions: an app bought years ago in one storefront stays installed
+    /// after the account moves to another, and searching only the current region
+    /// then finds either nothing or, worse, a *different* app with the same name.
+    /// 微信 / WeChat and Netflix are the clear cases — the same query in `cn` and
+    /// `us` returns different apps, so the wrong storefront does not merely miss,
+    /// it substitutes.
+    ///
+    /// The override is applied per search rather than resolved once, so switching
+    /// it re-runs immediately and the user sees the other store's results without
+    /// retyping.
+    private var storeCountry: String? { storeCountryOverride }
 
     var body: some View {
         NavigationStack {
@@ -513,7 +533,13 @@ struct TilePickerView: View {
             // than five. `task(id:)` cancels the previous one on every keystroke,
             // including the sleep — which is what makes the delay a debounce and
             // not just a slow request.
-            .task(id: query) {
+            //
+            // Keyed on the region as well as the query, so switching storefront
+            // re-issues the search rather than leaving the previous store's
+            // results on screen under a label that says otherwise. The id is a
+            // string because a tuple is not `Equatable` enough for `task(id:)` in
+            // the way this needs, and the separator cannot appear in either part.
+            .task(id: "\(storeCountry ?? "")|\(query)") {
                 guard shouldOfferStoreSearch else {
                     storeResults = nil
                     storeFailed = false
@@ -572,7 +598,7 @@ struct TilePickerView: View {
                     .foregroundStyle(.secondary)
                 } else if let storeResults {
                     if storeResults.isEmpty {
-                        Text("App Store 里也没搜到。可以换个名字，或者用下面「手动添加」。")
+                        Text("这个商店里没搜到。可以换个名字，或者换下面的地区试试。")
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(storeResults, id: \.trackID) { result in
@@ -580,6 +606,8 @@ struct TilePickerView: View {
                         }
                     }
                 }
+
+                storeRegionPicker
 
                 // Always reachable, network or not: a scheme typed by hand is the
                 // floor this whole screen rests on, and hiding it behind a failed
@@ -608,6 +636,43 @@ struct TilePickerView: View {
             }
         }
     }
+
+    /// The storefront the search runs against.
+    ///
+    /// Worth a row of its own rather than a buried setting: the device's store and
+    /// the store an app came from can be different regions, and when they are, the
+    /// default search is not merely empty — it returns a different app with the
+    /// same name. Nothing on screen would otherwise explain that, and the user
+    /// would conclude the app simply is not on the App Store.
+    ///
+    /// Only a few regions are offered. This is not a country list — it is the
+    /// cheap escape hatch for the case that actually happens, and a complete list
+    /// would be a worse picker for it. "跟随设备" is the default and the first
+    /// row, so the common path stays one tap away.
+    private var storeRegionPicker: some View {
+        Picker(selection: $storeCountryOverride) {
+            Text("跟随设备").tag(String?.none)
+            ForEach(Self.storeRegions, id: \.code) { region in
+                Text(region.label).tag(String?.some(region.code))
+            }
+        } label: {
+            Label("搜索地区", systemImage: "globe")
+        }
+    }
+
+    /// Storefronts worth offering, beyond the device's own.
+    ///
+    /// `us` and `cn` are the two this app's users actually straddle, and `hk` / `jp`
+    /// cover the neighbouring stores someone with a mixed purchase history is
+    /// likely to hold. Kept short on purpose — see ``storeRegionPicker``.
+    private static let storeRegions: [(code: String, label: String)] = [
+        ("us", "美国"),
+        ("cn", "中国大陆"),
+        ("hk", "香港"),
+        ("jp", "日本"),
+        ("tw", "台湾"),
+        ("uk", "英国"),
+    ]
 
     /// One App Store result.
     ///
@@ -655,10 +720,13 @@ struct TilePickerView: View {
         storeSearching = true
         defer { storeSearching = false }
 
-        let results = await AppStoreSearchClient.shared.search(term: term)
+        let country = storeCountry
+        let results = await AppStoreSearchClient.shared.search(term: term, country: country)
         // The query may have moved on while this was in flight; a result for a
-        // term the user has since deleted would flash the wrong list.
-        guard term == query.trimmingCharacters(in: .whitespaces) else { return }
+        // term the user has since deleted would flash the wrong list. The region
+        // is checked the same way — switching it mid-flight must not let the
+        // previous store's answer land under the new store's label.
+        guard term == query.trimmingCharacters(in: .whitespaces), country == storeCountry else { return }
 
         storeFailed = results == nil
         storeResults = results ?? []
