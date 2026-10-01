@@ -124,15 +124,7 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
         )
     }
 
-    static func capacity(for family: WidgetFamily) -> Int {
-        switch family {
-        case .systemSmall: 4
-        case .systemMedium: 6
-        case .systemLarge: 9
-        case .systemExtraLarge, .systemExtraLargePortrait: 12
-        default: 4
-        }
-    }
+    static func capacity(for family: WidgetFamily) -> Int { family.gridCapacity }
 }
 
 extension FolderEntry {

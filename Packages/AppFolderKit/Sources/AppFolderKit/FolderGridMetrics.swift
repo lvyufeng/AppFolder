@@ -1,4 +1,5 @@
 import CoreGraphics
+import WidgetKit
 
 /// Where the icons in a folder grid go.
 ///
@@ -19,6 +20,15 @@ public struct FolderGridMetrics: Sendable, Equatable {
     public let iconSide: CGFloat
     /// Gap between cells, in points.
     public let spacing: CGFloat
+
+    /// The outer margin the grid leaves on every side, in points.
+    ///
+    /// Derived rather than passed in, and derived *from the container it was
+    /// given*, which is the widget's width less this margin on both sides —
+    /// hence the division below rather than a straight multiplication. Callers
+    /// hand the grid the same inset container they always did; how much of the
+    /// widget that leaves unused is this type's decision now, not theirs.
+    public let margin: CGFloat
     /// Whether each icon carries its name underneath.
     public let showsTitles: Bool
 
@@ -60,6 +70,95 @@ public struct FolderGridMetrics: Sendable, Equatable {
     /// What fraction of a cell a name is allowed to take when titles are on.
     private static let labelShare: CGFloat = 0.26
 
+    /// The gap between cells at ``FolderGridMetrics/standardGapShare``, as a
+    /// share of the grid's width.
+    ///
+    /// This is the value the type has always used — it was written inline as
+    /// `available.width / 12`. It is named now because ``iconScale`` moves it and
+    /// the name is what makes "0.5 means unchanged" checkable rather than a
+    /// claim.
+    public static let standardGapShare: CGFloat = 1.0 / 12.0
+
+    /// Where the gap goes as ``iconScale`` runs from 0 to 1.
+    ///
+    /// The gap is the only lever on icon size, and it is the only one that needs
+    /// to exist: the outer margin is not spare room. It is what keeps the corner
+    /// cells clear of the widget's own corner radius — measured at 27.7 pt — so
+    /// spending it on bigger icons would clip the artwork the user is trying to
+    /// enlarge. The cells either side of a gap, by contrast, are ours to divide
+    /// up: cells and gaps together always add up to the grid's width, so no
+    /// amount of sliding this can change how many fit.
+    ///
+    /// The lower half moves slower than the upper half. Below the standard gap
+    /// the icons are shrinking and there is slack around the grid anyway, so the
+    /// control has little to do; above it, every point goes straight into the
+    /// icons, which is the direction a user reaching for this usually wants.
+    ///
+    /// - Returns: the gap as a share of the grid's width: 0.15 at scale 0 and
+    ///   ``standardGapShare`` at 0.5, falling to 0 at 1. In practice the floor
+    ///   in the initialiser holds the top end at 2 pt, so icons at the maximum
+    ///   setting sit close together without touching.
+    static func gapShare(forIconScale scale: Double) -> CGFloat {
+        let scale = CGFloat(min(max(scale, 0), 1))
+        if scale <= 0.5 {
+            let t = scale / 0.5
+            return Self.standardGapShare * (1 + 0.8 * (1 - t))
+        }
+        let t = (scale - 0.5) / 0.5
+        return Self.standardGapShare * (1 - t)
+    }
+
+    /// The outer margin the grid leaves at ``FolderGridMetrics/standardMarginShare``,
+    /// as a share of the widget's width.
+    ///
+    /// 18 pt of a 170 pt Small widget, which is the system's own content margin
+    /// and what this type used to be handed already-inset by, so naming the
+    /// share changes no layout — see ``defaultIconScale``.
+    public static let standardMarginShare: CGFloat = 18.0 / 170.0
+
+    /// Where the outer margin goes as ``iconScale`` runs from 0 to 1.
+    ///
+    /// The margin is a second lever on icon size, and a bigger one than the gap:
+    /// at the top of the range it gives the icons about 3% of the widget's width
+    /// per side on top of everything the gap can offer.
+    ///
+    /// It is not free, but it is far cheaper than it looks. The widget clips its
+    /// content to a rounded rect of radius ~27.7 pt, so the question is whether
+    /// a corner icon's own corner survives that clip. The icon is already a
+    /// rounded rect of radius `side * 0.22`, so its outermost point on the
+    /// diagonal sits `0.29 * radius` inside the cell corner, and the requirement
+    /// `margin + 0.293 * iconRadius >= 8.11` falls out of the two arcs meeting.
+    /// For a full nine-cell grid that resolves to a margin of about **4.8 pt** —
+    /// not 18 pt. What the 18 pt margin buys is not safety for the icons at all:
+    /// it is that a *painted plate* fills the widget edge to edge without its own
+    /// corners showing a seam against the system's clip.
+    ///
+    /// 0.035 is that 4.8 pt bound with room to spare, expressed as a share of the
+    /// Small widget so it scales to the other families.
+    ///
+    /// - Returns: the margin as a share of the widget's width: 0.135 at scale 0,
+    ///   ``standardMarginShare`` at 0.5, 0.035 at 1.
+    static func marginShare(forIconScale scale: Double) -> CGFloat {
+        let scale = CGFloat(min(max(scale, 0), 1))
+        let widest: CGFloat = 0.135
+        let tightest: CGFloat = 0.035
+        if scale <= 0.5 {
+            let t = scale / 0.5
+            return Self.standardMarginShare + (widest - Self.standardMarginShare) * (1 - t)
+        }
+        let t = (scale - 0.5) / 0.5
+        return Self.standardMarginShare + (tightest - Self.standardMarginShare) * t
+    }
+
+    /// The icon-size setting a folder that has never been given one uses, and
+    /// therefore the one every library written before this existed decodes to.
+    ///
+    /// It is the midpoint because ``gapShare(forIconScale:)`` is defined to
+    /// return the standard gap there — the arrangement those libraries were
+    /// already being drawn at. A default of 0 or 1 would have silently resized
+    /// every folder on the Home Screen the first time this shipped.
+    public static let defaultIconScale: Double = 0.5
+
     /// Fits `tileCount` icons into `available`, laying them out `columns` across.
     ///
     /// - Parameters:
@@ -70,11 +169,15 @@ public struct FolderGridMetrics: Sendable, Equatable {
     ///     unbounded height for a width-driven layout, which is what a preview
     ///     inside an `aspectRatio` is.
     ///   - showsTitles: whether each icon needs room for its name beneath it.
+    ///   - iconScale: how much of the grid should go to icons rather than to the
+    ///     gaps between them. See ``gapShare(forIconScale:)``; the default is
+    ///     ``defaultIconScale``, which is the standard gap.
     public init(
         tileCount: Int,
         columns: Int,
         in available: CGSize,
-        showsTitles: Bool = false
+        showsTitles: Bool = false,
+        iconScale: Double = FolderGridMetrics.defaultIconScale
     ) {
         let columns = max(1, columns)
         let rows = max(1, (max(0, tileCount) + columns - 1) / columns)
@@ -87,10 +190,38 @@ public struct FolderGridMetrics: Sendable, Equatable {
         // drifted to 0.083 and 0.055 of the container — so the preview, whose
         // only job is to say what the widget will look like, showed a visibly
         // tighter grid than the widget drew.
-        self.spacing = max(2, available.width / 12)
+        //
+        // The floor of 2 pt is what stops `iconScale` from squeezing the gap
+        // shut entirely at the top of its range. It is the same bound the
+        // module has always carried, and at this size it is what keeps a
+        // maximum-setting grid from drawing its icons edge to edge: 2 pt of a
+        // 134 pt container is about 1.5% of the cell.
+        //
+        // It also decides where the setting stops having an effect. For a
+        // nine-cell Small widget the floor is reached just past 0.8, so the last
+        // fifth of the slider's travel does nothing — the footnote in the editor
+        // quotes the computed size rather than the slider's value for exactly
+        // that reason.
+        // `available` is the whole widget, not a pre-inset part of it: the margin
+        // is taken off here so that one number — the size setting — decides both
+        // how much of the widget goes to the outer border and how much to the
+        // gaps, rather than an inset being applied by every caller and this type
+        // only owning what is left.
+        let marginShare = Self.marginShare(forIconScale: iconScale)
+        self.margin = available.width * marginShare
 
-        let byWidth = (available.width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
-        let byHeight = (available.height - spacing * CGFloat(rows - 1)) / CGFloat(rows)
+        // What is left for the cells and the gaps between them. Never negative:
+        // a container smaller than its own margin is a layout bug, but a
+        // negative frame turns it into a crash.
+        let inner = CGSize(
+            width: max(0, available.width - 2 * self.margin),
+            height: max(0, available.height - 2 * self.margin)
+        )
+
+        self.spacing = max(2, inner.width * Self.gapShare(forIconScale: iconScale))
+
+        let byWidth = (inner.width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
+        let byHeight = (inner.height - spacing * CGFloat(rows - 1)) / CGFloat(rows)
         // Never negative: a container smaller than its own spacing is a layout
         // bug, but returning a negative frame turns it into a crash.
         let cell = max(0, min(byWidth, byHeight))
@@ -120,6 +251,52 @@ public struct FolderGridMetrics: Sendable, Equatable {
         case 0...4: 2
         case 5...9: 3
         default: 4
+        }
+    }
+}
+
+/// The grid each widget size draws.
+///
+/// One table, read by two sides that have to agree: the timeline provider uses
+/// it as the capacity to truncate the folder to, and the widget view uses it as
+/// the column count to lay those tiles out in. They were written separately — a
+/// capacity of 4 for Small next to a hard-coded 2 columns — and the hand-written
+/// column counts in ``FolderGridMetrics/columns(forTileCount:)`` already said 3
+/// for a five-to-nine-tile folder, which is what the editor preview draws. A
+/// preview that promises a layout the widget will not draw is the drift
+/// ``FolderGridMetrics`` exists to prevent.
+///
+/// Small is 3 × 3 rather than a bigger two-column grid: three across is what
+/// makes nine apps fit, and nine square cells in a square widget come out close
+/// to a real Home Screen icon at roughly 37 pt. Two columns of four would be
+/// larger icons, but leaves four apps on the table for no gain a user asked for.
+///
+/// The cost is the name. A cell that small minus 26% for a label leaves an icon
+/// of about 27 pt, which is small enough that the icon no longer says which app
+/// it is — so titles are not drawn in Small whatever the folder asks for. See
+/// ``gridCapacity``'s siblings in `FolderWidgetView` for where that is applied.
+public extension WidgetFamily {
+    /// How many tiles this family has room for, which is also its cell count:
+    /// the grid is always full, so a widget showing an empty cell would be
+    /// reserving a slot for nothing.
+    var gridCapacity: Int {
+        switch self {
+        case .systemSmall: 9
+        case .systemMedium: 6
+        case .systemLarge: 9
+        case .systemExtraLarge, .systemExtraLargePortrait: 12
+        default: 9
+        }
+    }
+
+    /// How many icons this family draws across.
+    var gridColumns: Int {
+        switch self {
+        case .systemSmall: 3
+        case .systemMedium: 3
+        case .systemLarge: 3
+        case .systemExtraLarge, .systemExtraLargePortrait: 4
+        default: 3
         }
     }
 }

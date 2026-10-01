@@ -1,5 +1,9 @@
 import AppFolderKit
 import SwiftUI
+// For `WidgetFamily`, whose grid table in ``FolderGridMetrics`` is what the icon
+// size footnote below computes against. The app draws no widgets; it reads the
+// same table the widget does so the number it shows is the number the user gets.
+import WidgetKit
 
 /// Edits one folder: its name, tint, and the tiles inside it.
 struct FolderEditorView: View {
@@ -23,6 +27,43 @@ struct FolderEditorView: View {
     /// Screen.
     private var style: FolderStyle { FolderStyle(folder) }
 
+    /// The grid as the *widget* would lay it out, not as the preview does.
+    ///
+    /// The preview is drawn at ``FolderPreviewGrid/designWidth`` — 320 pt, a
+    /// number chosen so the same drawing scales cleanly to a thumbnail and to a
+    /// phone-width editor — while the widget's Small size is 170 pt square.
+    /// Icons scale with the container, so a size can only be quoted honestly if
+    /// it is computed at the widget's own width; quoting the preview's would
+    /// overstate every icon by roughly 1.9×.
+    ///
+    /// Small is the family to quote because it is the one this control was asked
+    /// for and the one that is tightest: the same slider gives a larger icon in
+    /// Medium or Large, and a footnote promising a size that only holds in one
+    /// family would be wrong in the other two.
+    private static let widgetSize = CGSize(width: 170, height: 170)
+
+    private static func iconSize(for folder: Folder) -> CGFloat {
+        FolderGridMetrics(
+            tileCount: WidgetFamily.systemSmall.gridCapacity,
+            columns: WidgetFamily.systemSmall.gridColumns,
+            in: widgetSize,
+            showsTitles: folder.showsTitles,
+            iconScale: folder.iconScale
+        ).iconSide
+    }
+
+    private static func iconSizeFootnote(for folder: Folder) -> String {
+        let side = Int(iconSize(for: folder).rounded())
+        let margin = Int(FolderGridMetrics(
+            tileCount: WidgetFamily.systemSmall.gridCapacity,
+            columns: WidgetFamily.systemSmall.gridColumns,
+            in: widgetSize,
+            showsTitles: false,
+            iconScale: folder.iconScale
+        ).margin.rounded())
+        return "2×2 小组件里每个图标约占 \(side)pt，四周留白 \(margin)pt（系统桌面图标约 60pt）。九宫格始终放满 9 个。"
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -36,7 +77,8 @@ struct FolderEditorView: View {
                         content: AnyView(
                             FolderPreviewGrid(
                                 tiles: Array(folder.tiles.prefix(9)),
-                                showsTitles: folder.showsTitles
+                                showsTitles: folder.showsTitles,
+                                iconScale: folder.iconScale
                             )
                         )
                     )
@@ -68,6 +110,36 @@ struct FolderEditorView: View {
                     }
 
                     Toggle("显示图标名称", isOn: $folder.showsTitles)
+
+                    // A plain `Slider`, not a `Picker` of presets. The size is a
+                    // continuous thing and the user asked for it adjustable, so
+                    // the control should be too; the label carries the number the
+                    // layout actually computes rather than an abstract 1–5, which
+                    // is the only way to see that the icons have stopped growing.
+                    //
+                    // What it moves is the gap between icons, not the widget's
+                    // outer margin. That is not a shortcut: the margin is what
+                    // keeps the corner icons clear of the widget's own corner
+                    // radius, so spending it would clip the artwork the user is
+                    // trying to enlarge. The gap, by contrast, is charged to the
+                    // same pool as the cells, so no setting of this can change
+                    // how many apps fit — the 2 × 2 keeps its nine either way.
+                    LabeledContent("图标大小") {
+                        Text("\(Int((folder.iconScale * 100).rounded()))%")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Slider(value: $folder.iconScale, in: 0...1, step: 0.05) {
+                        Text("图标大小")
+                    } minimumValueLabel: {
+                        Text("小").font(.caption2)
+                    } maximumValueLabel: {
+                        Text("大").font(.caption2)
+                    }
+
+                    Text(Self.iconSizeFootnote(for: folder))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 } header: {
                     Text("外观")
                 } footer: {

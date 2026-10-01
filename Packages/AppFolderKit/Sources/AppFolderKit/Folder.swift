@@ -150,6 +150,10 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
     public var plate: FolderPlate
     /// Whether each icon in the widget carries its name underneath.
     public var showsTitles: Bool
+    /// How much of the grid goes to icons rather than to the gaps between them,
+    /// 0…1. See ``FolderGridMetrics/gapShare(forIconScale:)`` for what the
+    /// number does — it is a share of the widget's width, not a size.
+    public var iconScale: Double
     public var updatedAt: Date
 
     public init(
@@ -159,6 +163,7 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
         colorHex: String = "",
         plate: FolderPlate = .default,
         showsTitles: Bool = false,
+        iconScale: Double = FolderGridMetrics.defaultIconScale,
         updatedAt: Date = .now
     ) {
         self.id = id
@@ -167,6 +172,7 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
         self.colorHex = colorHex
         self.plate = plate
         self.showsTitles = showsTitles
+        self.iconScale = iconScale
         self.updatedAt = updatedAt
     }
 
@@ -196,6 +202,16 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
         colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
         plate = (try? container.decodeIfPresent(FolderPlate.self, forKey: .plate)) ?? .default
         showsTitles = try container.decodeIfPresent(Bool.self, forKey: .showsTitles) ?? false
+        // A library written before this existed decodes to the midpoint, which
+        // is the layout it was already being drawn at — see
+        // ``FolderGridMetrics/defaultIconScale``. Anything outside 0…1 is
+        // clamped rather than rejected: a hand-edited or corrupt value should
+        // give the user a folder with an odd size, not no folder at all.
+        iconScale = min(max(
+            try container.decodeIfPresent(Double.self, forKey: .iconScale)
+                ?? FolderGridMetrics.defaultIconScale,
+            0
+        ), 1)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 }

@@ -31,12 +31,16 @@ struct FolderWidgetView: View {
                 EmptyWidgetView()
             } else {
                 FolderGrid(entry: entry, family: family)
-                    // The widget disables the system's content margins so a
-                    // painted plate can reach the widget's edge — see
-                    // `AppFolderWidget.swift`. The grid still needs the inset, so
-                    // it puts it back itself, from the value the system would
-                    // have used rather than a number of our own.
-                    .padding(contentMargins)
+                // No inset applied out here any more. The widget disables the
+                // system's content margins so a painted plate can reach the
+                // widget's edge — see `AppFolderWidget.swift` — and this view
+                // used to put the system's margin back with
+                // `.padding(contentMargins)`. That inset is the grid's to choose
+                // now, because the size setting moves it: at the large end the
+                // icons are meant to sit near the edge, and a pad applied out
+                // here would have overruled it. `FolderGrid` applies
+                // `FolderGridMetrics/margin` instead, which is the same 18 pt at
+                // the standard setting.
             }
         }
     }
@@ -51,14 +55,29 @@ private struct FolderGrid: View {
     /// Three for the two wide families rather than four: at four the icons come
     /// out smaller than a Home Screen icon, and the point of a 大文件夹 is that
     /// its contents look like the real things.
-    private var columns: Int {
-        switch family {
-        case .systemSmall: 2
-        case .systemMedium: 3
-        case .systemLarge: 3
-        default: 4
-        }
-    }
+    ///
+    /// Read from ``WidgetFamily/gridColumns`` rather than written here, because
+    /// the timeline provider truncates the folder to the matching capacity in
+    /// ``WidgetFamily/gridCapacity``. Two hand-written tables would put the
+    /// widget's column count and its tile count out of step the next time either
+    /// changed — which is exactly what had happened: capacity said four tiles
+    /// for Small while this said two columns.
+    private var columns: Int { family.gridColumns }
+
+    /// Whether to draw names under the icons.
+    ///
+    /// The folder's own answer, at every size. There used to be a rule here that
+    /// Small never drew names, on the grounds that a 3 × 3 cell in 170 pt left a
+    /// 27 pt icon once a label took its 26% — but that arithmetic was done
+    /// against a grid inset by the system's 18 pt margin on each side, which
+    /// wasted 21% of the widget's width on a margin nobody had asked for. The
+    /// grid sizes its own margin now (see ``FolderGridMetrics/margin``), so the
+    /// same nine cells start from a 134 pt block instead of 151 pt of
+    /// already-shrunk space, and a labelled icon comes out at about 38 pt.
+    ///
+    /// Worth stating plainly, because it is the kind of rule that outlives its
+    /// reason: the thing that was wrong was never the label, it was the margin.
+    private var showsTitles: Bool { entry.style.showsTitles }
 
     /// Tiles that actually have artwork, so a sparse folder doesn't leave gaps.
     private var drawable: [FolderTile] {
@@ -73,12 +92,19 @@ private struct FolderGrid: View {
         // cached artwork for it, leave it out.
         let tiles = drawable.isEmpty ? entry.tiles : drawable
 
+        // The container the grid divides up is the whole widget, because the
+        // grid now applies the outer margin itself — see `FolderWidgetView`.
+        // `contentMargins` is read anyway, to keep the layout width and the
+        // margin derived from it describing the same widget: the size setting
+        // only ever removes inner margin, never adds any, so the two cannot
+        // disagree.
         GeometryReader { proxy in
             let metrics = FolderGridMetrics(
                 tileCount: tiles.count,
                 columns: columns,
                 in: proxy.size,
-                showsTitles: entry.style.showsTitles
+                showsTitles: showsTitles,
+                iconScale: entry.style.iconScale
             )
 
             Grid(horizontalSpacing: metrics.spacing, verticalSpacing: metrics.spacing) {
@@ -87,8 +113,16 @@ private struct FolderGrid: View {
                         ForEach(0..<metrics.columns, id: \.self) { column in
                             let index = row * metrics.columns + column
                             if tiles.indices.contains(index) {
-                                TileButton(tile: tiles[index], style: entry.style, metrics: metrics)
-                                    .frame(width: metrics.iconSide, height: metrics.cellHeight)
+                                // The resolved value, not `entry.style`, so a
+                                // Small widget draws no label even though the
+                                // folder asked for one — see `showsTitles`.
+                                TileButton(
+                                    tile: tiles[index],
+                                    style: entry.style,
+                                    showsTitles: showsTitles,
+                                    metrics: metrics
+                                )
+                                .frame(width: metrics.iconSide, height: metrics.cellHeight)
                             } else {
                                 // A grid that is not full needs the empty cells
                                 // to exist, or the icons left-align and the whole
@@ -129,32 +163,39 @@ private struct FolderGrid: View {
 private struct TileButton: View {
     let tile: FolderTile
     let style: FolderStyle
+    /// Whether this tile's name is drawn, which is the grid's answer and not
+    /// necessarily the folder's — see `FolderGrid/showsTitles`.
+    let showsTitles: Bool
     let metrics: FolderGridMetrics
 
     var body: some View {
         switch tile.strategy {
         case .universalLink:
             if let intent = try? OpenLinkIntent(tile: tile) {
-                Button(intent: intent) { TileLabel(tile: tile, style: style, metrics: metrics) }
+                Button(intent: intent) { label }
                     .buttonStyle(.plain)
             } else {
-                TileLabel(tile: tile, style: style, metrics: metrics)
+                label
             }
 
         case .bounce:
             if let target = tile.url, let bounce = LaunchLink.bounceURL(for: target) {
-                Link(destination: bounce) { TileLabel(tile: tile, style: style, metrics: metrics) }
+                Link(destination: bounce) { label }
                     .buttonStyle(.plain)
             } else {
-                TileLabel(tile: tile, style: style, metrics: metrics)
+                label
             }
 
         case .systemShortcut:
             // Configured by hand in the QuickLaunch widget, not here. A tile in
             // a folder grid cannot carry one, because the user picks a shortcut
             // per configuration slot and a grid has nine of them.
-            TileLabel(tile: tile, style: style, metrics: metrics)
+            label
         }
+    }
+
+    private var label: TileLabel {
+        TileLabel(tile: tile, style: style, showsTitles: showsTitles, metrics: metrics)
     }
 }
 
@@ -174,6 +215,10 @@ private struct TileButton: View {
 private struct TileLabel: View {
     let tile: FolderTile
     let style: FolderStyle
+    /// Whether to draw the name. Separate from ``style`` because the grid can
+    /// decide names do not fit at this size — the colour comes from the style
+    /// either way, which is why both are here.
+    let showsTitles: Bool
     let metrics: FolderGridMetrics
 
     var body: some View {
@@ -181,7 +226,7 @@ private struct TileLabel: View {
             WidgetIcon(tile: tile, cornerRadius: metrics.cornerRadius)
                 .frame(width: metrics.iconSide, height: metrics.iconSide)
 
-            if style.showsTitles {
+            if showsTitles {
                 Text(tile.title)
                     .font(.system(size: metrics.titleFontSize))
                     .lineLimit(1)

@@ -14,6 +14,11 @@ import SwiftUI
 struct FolderPreviewGrid: View {
     let tiles: [FolderTile]
     var showsTitles: Bool = false
+    /// How much of the grid goes to icons rather than to the gaps. Not defaulted
+    /// through ``FolderGridMetrics/defaultIconScale`` here, because the only
+    /// caller with an opinion — the editor — is previewing a folder that has one,
+    /// and a silently-different preview is the drift this view exists to avoid.
+    var iconScale: Double = FolderGridMetrics.defaultIconScale
     /// How wide the grid is worked out at, in points.
     ///
     /// ``FolderGridMetrics`` wants a width to divide up, and the grid is drawn at
@@ -31,8 +36,14 @@ struct FolderPreviewGrid: View {
             // Unbounded height: an `aspectRatio` preview knows its width and not
             // its height, and leaving the width as the binding constraint is
             // what a square grid wants anyway.
+            //
+            // `designWidth` is the whole tile, not the space the icons get: the
+            // metrics take the size setting's margin off it themselves, and the
+            // grid is centred in the container below, so the margin appears
+            // without anything here having to apply it.
             in: CGSize(width: designWidth, height: .greatestFiniteMagnitude),
-            showsTitles: showsTitles
+            showsTitles: showsTitles,
+            iconScale: iconScale
         )
     }
 
@@ -65,7 +76,10 @@ struct FolderPreviewGrid: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
-        .aspectRatio(CGFloat(metrics.columns) / CGFloat(max(1, metrics.rows)), contentMode: .fit)
+        .aspectRatio(
+            CGFloat(metrics.columns) / CGFloat(max(1, metrics.rows)),
+            contentMode: .fit
+        )
     }
 }
 

@@ -220,11 +220,20 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
     /// artwork is the identity of a tile — so this is an opt-in, not a restored
     /// default.
     public var showsTitles: Bool
+    /// How much of the grid goes to icons rather than to the gaps between them,
+    /// 0…1. See ``FolderGridMetrics/gapShare(forIconScale:)``.
+    public var iconScale: Double
 
-    public init(plate: FolderPlate = .default, tint: FolderTint = .defaultTint, showsTitles: Bool = false) {
+    public init(
+        plate: FolderPlate = .default,
+        tint: FolderTint = .defaultTint,
+        showsTitles: Bool = false,
+        iconScale: Double = FolderGridMetrics.defaultIconScale
+    ) {
         self.plate = plate
         self.tint = tint
         self.showsTitles = showsTitles
+        self.iconScale = iconScale
     }
 
     /// The appearance a folder asked for, with the missing pieces filled in.
@@ -232,7 +241,8 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
         self.init(
             plate: folder.plate,
             tint: FolderTint(hex: folder.colorHex) ?? .defaultTint,
-            showsTitles: folder.showsTitles
+            showsTitles: folder.showsTitles,
+            iconScale: folder.iconScale
         )
     }
 
