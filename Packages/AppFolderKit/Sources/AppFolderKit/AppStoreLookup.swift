@@ -74,6 +74,16 @@ extension AppStoreLookup {
     /// app's audience.
     public static let defaultCountry = "cn"
 
+    /// A placeholder for an app the user is describing by hand.
+    ///
+    /// Track id 0 is the sentinel ``id`` already uses to mean "not from the App
+    /// Store", so a manual entry needs no new case. Exists because
+    /// ``SchemeEntryView`` takes one of these to render its header, and the manual
+    /// path has a name but nothing else.
+    public static func manual(name: String) -> AppStoreLookup {
+        AppStoreLookup(trackID: 0, bundleID: nil, name: name, sellerName: nil, artworkURL: nil)
+    }
+
     /// The public iTunes Search endpoint for a free-text term.
     ///
     /// No key and no authentication: it is the same endpoint the App Store web
@@ -93,6 +103,37 @@ extension AppStoreLookup {
             URLQueryItem(name: "entity", value: "software"),
             URLQueryItem(name: "limit", value: String(limit)),
         ]
+        return components.url
+    }
+
+    /// The public iTunes Lookup endpoint, for resolving ids to apps.
+    ///
+    /// The counterpart to ``searchURL(term:country:limit:)``: search goes from a
+    /// name to an id, and this goes from an id to everything else. It is what
+    /// makes a shared App Store link useful — the link carries only a track id,
+    /// and a track id alone cannot name a tile or fetch an icon.
+    ///
+    /// `country` is optional on purpose. Omitting it lets the request resolve
+    /// against the device's own storefront, which is right when the app is sold
+    /// there; passing the region parsed out of the link is right when it may not
+    /// be. The endpoint treats "no such app" and "not sold in this storefront"
+    /// identically — a 200 with an empty `results` — so a caller that needs the
+    /// app should be prepared to try more than one.
+    ///
+    /// Several ids may be sent in one request; Apple returns a row per id it found.
+    public static func lookupURL(ids: [Int], country: String? = nil) -> URL? {
+        let clean = ids.filter { $0 > 0 }
+        guard !clean.isEmpty else { return nil }
+
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "itunes.apple.com"
+        components.path = "/lookup"
+        var items = [URLQueryItem(name: "id", value: clean.map(String.init).joined(separator: ","))]
+        if let country, !country.isEmpty {
+            items.append(URLQueryItem(name: "country", value: country))
+        }
+        components.queryItems = items
         return components.url
     }
 

@@ -37,6 +37,10 @@ actor AppStoreSearchClient {
     /// dictionary keyed by everything they typed is a slow leak.
     private var cache: [String: [AppStoreLookup]] = [:]
     private var order: [String] = []
+    /// Single-app resolutions by track id, kept apart from the search cache
+    /// because the values have different types and the keys cannot collide.
+    private var lookupCache: [String: AppStoreLookup] = [:]
+    private var lookupOrder: [String] = []
     private static let cacheLimit = 24
 
     /// The storefront to search, resolved on first use.
@@ -85,6 +89,69 @@ actor AppStoreSearchClient {
         let results = AppStoreLookup.parse(data)
         remember(results, for: key)
         return results
+    }
+
+    /// Resolves a track id to the app it names.
+    ///
+    /// The counterpart to ``search(term:country:)``, and what a shared App Store
+    /// link needs: the link carries an id and nothing else, so the name, bundle id
+    /// and artwork all have to be looked up before a tile can be built.
+    ///
+    /// Several storefronts are tried, because the lookup endpoint cannot say
+    /// *which* storefront holds an app — an app not sold in the one the request
+    /// resolves against comes back as a 200 with an empty `results`, which is
+    /// indistinguishable from an id that does not exist. Since the whole point of
+    /// this path is apps bought under a different account or region, trying only
+    /// the device's storefront would fail on exactly the cases it exists for.
+    ///
+    /// The region parsed out of the link is tried first when there is one; it is a
+    /// hint, not a filter, so a wrong or missing one costs a request rather than
+    /// the whole lookup.
+    func lookup(trackID: Int, region: String? = nil) async -> AppStoreLookup? {
+        let key = "lookup|\(trackID)|\(region ?? "")"
+        if let cached = lookupCache[key] { return cached }
+
+        var countries: [String?] = []
+        if let region { countries.append(region) }
+        countries.append(nil)
+        countries.append(contentsOf: Self.fallbackCountries)
+        // Deduplicated but order-preserving: the link's own region must stay first,
+        // and `nil` (the device's storefront) second.
+        var seen: Set<String> = []
+        let ordered = countries.filter { seen.insert($0 ?? "\u{0}").inserted }
+
+        for country in ordered {
+            guard let url = AppStoreLookup.lookupURL(ids: [trackID], country: country) else { continue }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 8
+            guard
+                let (data, response) = try? await URLSession.shared.data(for: request),
+                let http = response as? HTTPURLResponse,
+                http.statusCode == 200,
+                let first = AppStoreLookup.parse(data).first
+            else { continue }
+
+            rememberLookup(first, for: key)
+            return first
+        }
+        return nil
+    }
+
+    /// Storefronts tried after the link's own and the device's.
+    ///
+    /// The same short list the region picker offers, for the same reason: this is
+    /// the handful of stores a mixed-region purchase history actually spans. Each
+    /// is one cheap request, and a miss costs nothing but a round trip.
+    private static let fallbackCountries: [String?] = ["us", "cn", "hk", "jp", "tw", "gb"]
+
+    private func rememberLookup(_ result: AppStoreLookup, for key: String) {
+        if lookupCache[key] == nil {
+            lookupOrder.append(key)
+            if lookupOrder.count > Self.cacheLimit {
+                lookupCache.removeValue(forKey: lookupOrder.removeFirst())
+            }
+        }
+        lookupCache[key] = result
     }
 
     /// The device's real storefront, resolved once and remembered.

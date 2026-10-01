@@ -264,6 +264,7 @@ struct FolderContentEditorView: View {
 
     @State private var folder: Folder
     @State private var isPickingTiles = false
+    @State private var isImportingSharedLink = false
 
     init(folder: Folder) {
         _folder = State(initialValue: folder)
@@ -298,6 +299,15 @@ struct FolderContentEditorView: View {
                         isPickingTiles = true
                     } label: {
                         Label("选择 App", systemImage: "plus.circle")
+                    }
+
+                    // The other way in, and the faster one when the app is already
+                    // on the Home Screen: share it there, copy the link, paste it
+                    // here. No searching, no typing, no region to pick.
+                    Button {
+                        isImportingSharedLink = true
+                    } label: {
+                        Label("从分享添加", systemImage: "square.and.arrow.down")
                     }
                 } header: {
                     Text("图块")
@@ -341,6 +351,11 @@ struct FolderContentEditorView: View {
             .sheet(isPresented: $isPickingTiles) {
                 TilePickerView(currentTiles: folder.tiles) { picked in
                     folder.tiles = picked
+                }
+            }
+            .sheet(isPresented: $isImportingSharedLink) {
+                SharedLinkIntakeView { tile in
+                    folder.tiles.append(tile)
                 }
             }
         }
