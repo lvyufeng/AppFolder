@@ -128,6 +128,21 @@ struct AppFolderWidget: Widget {
         // Not needed on iOS 18–25, where there are no content margins to disable,
         // but the modifier is a no-op there rather than an error.
         .contentMarginsDisabled()
+        // Asks the host for the system's Liquid Glass plate. This is a
+        // configuration-level preference, not a view one: it is what makes the
+        // widget take the same plate the Home Screen gives its own folders.
+        //
+        // It compiles only because `Scripts/widgetkit-overlay.sh` runs before
+        // this target's Swift compile and drops a WidgetKit module into
+        // TARGET_TEMP_DIR that declares the entry point. iOS exports it and
+        // WidgetKit.tbd lists it, but no SDK swiftinterface publishes it, so an
+        // ordinary build cannot see it. That script is also why the call cannot
+        // be replaced by a Swift extension of the same name — see its header.
+        //
+        // 透明 is where this shows. A folder that paints its own colour fills
+        // the content layer, which sits above the plate and hides it, so those
+        // settings keep the colour they promised and lose the glass.
+        .preferredBackgroundStyle(.blur)
         .configurationDisplayName("大文件夹")
         .description("在桌面上平铺显示一个文件夹里的 App，点一下直接打开。")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])

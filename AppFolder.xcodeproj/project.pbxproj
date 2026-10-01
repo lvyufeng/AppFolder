@@ -12,6 +12,28 @@
 		A1B2C3D4E5F60718293A4B21 /* AppFolderKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F60718293A4B1F /* AppFolderKit */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		A1B2C3D4E5F60718293A4B40 /* WidgetKit overlay */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "WidgetKit overlay";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/Scripts/widgetkit-overlay.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXContainerItemProxy section */
 		A1B2C3D4E5F60718293A4B1C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -84,7 +106,7 @@
 			children = (
 				A1B2C3D4E5F60718293A4B04 /* AppFolder */,
 				A1B2C3D4E5F60718293A4B05 /* AppFolderWidget */,
-				A1B2C3D4E5F60718293A4B22 /* Config */,
+				A1B2C3D4E5F60718293A4B30 /* Config */,
 				A1B2C3D4E5F60718293A4B23 /* Packages */,
 				A1B2C3D4E5F60718293A4B03 /* Products */,
 			);
@@ -99,7 +121,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A1B2C3D4E5F60718293A4B22 /* Config */ = {
+		A1B2C3D4E5F60718293A4B30 /* Config */ = {
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F60718293A4B24 /* AppFolder-Info.plist */,
@@ -158,6 +180,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A1B2C3D4E5F60718293A4B18 /* Build configuration list for PBXNativeTarget "AppFolderWidget" */;
 			buildPhases = (
+				A1B2C3D4E5F60718293A4B40 /* WidgetKit overlay */,
 				A1B2C3D4E5F60718293A4B0F /* Sources */,
 				A1B2C3D4E5F60718293A4B10 /* Frameworks */,
 				A1B2C3D4E5F60718293A4B11 /* Resources */,
@@ -476,6 +499,8 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				OTHER_SWIFT_FLAGS = "-I $(TARGET_TEMP_DIR)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.lvyufeng.appfolder.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -504,6 +529,8 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				OTHER_SWIFT_FLAGS = "-I $(TARGET_TEMP_DIR)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.lvyufeng.appfolder.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

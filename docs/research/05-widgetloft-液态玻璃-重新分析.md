@@ -6,7 +6,7 @@
 
 用户已经明确确认：WidgetLoft 在默认主屏幕外观下就支持液态玻璃，不需要开启系统全局 Clear。这个观察是分析前提，不再要求用户重复确认。
 
-**本轮终次结果：独立第三方测试 widget 已通过 `.preferredBackgroundStyle(.blur)` 在默认外观下复现系统玻璃；随后验证了内容层实心填充会把它盖掉。A=0 白板、B=2 玻璃、C=2+内容层实心色只在填充边缘透出玻璃，真实主屏对照截图与成功 UI/timeline 证据见第 7 节第六、七段。**竞品实际调用方式、真机与审核可用性仍未验证。
+**本轮终次结果：独立第三方测试 widget 已通过 `.preferredBackgroundStyle(.blur)` 在默认外观下复现系统玻璃；随后验证了内容层实心填充会把它盖掉。A=0 白板、B=2 玻璃、C=2+内容层实心色只在填充边缘透出玻璃，真实主屏对照截图与成功 UI/timeline 证据见第 7 节第六、七段。同一调用现已接进仓库源码，模拟器与真机切片均可独立构建，见第八段。**竞品实际调用方式、真机与审核可用性仍未验证。
 
 本轮没有修改 AppFolder 应用源代码、真实 SDK、真机、原有模拟器或它们的已安装应用；没有手改描述符数据库、全局 Clear 或主屏外观。后续运行对照只在新建的独立模拟器上构建、安装、启动临时测试 app，通过正常图库 UI 添加测试 widget；文件与产物放在独立临时目录。本文是研究记录，不是已经修好的功能声明。
 
@@ -281,7 +281,7 @@ headless Flash 本轮约 63.06 秒；实际 UI case 37.017 秒，runner 43.38 �
 
 **此次完成的结论**：在 simulator iOS 27.0 / 默认主屏外观下，第三方最小 widget 能通过真实的 configuration-level `.preferredBackgroundStyle(.blur)` 路径请求系统玻璃底板，正确注册 `backgroundStyle=2` 并实际显示；不需要修改全局 Clear 或缓存。这提供了与 WidgetLoft 用户确认行为一致的可复现机制，推翻“第三方无法申请／必须特殊系统 grant／API 一概被忽略”的旧否定。
 
-**尚未完成的结论**：没有直接读取 WidgetLoft 原版 `.appex`／descriptor，所以不能断言竞品实际使用这一 API；没有实测真机或 iOS 26；入口依然未公开，普通 SDK import 无法直接调用，需要本轮声明接口桥，不能保证审核允许。实际宿主的 policy/draw/filterStyle 或 Solarium 对象实例没有动态采集，静态条件链与观察到的 native 输出应分别记述。生产 AppFolder 尚未接入此 modifier。
+**尚未完成的结论**：没有直接读取 WidgetLoft 原版 `.appex`／descriptor，所以不能断言竞品实际使用这一 API；没有实测真机或 iOS 26；入口依然未公开，普通 SDK import 无法直接调用，需要本轮声明接口桥，不能保证审核允许。实际宿主的 policy/draw/filterStyle 或 Solarium 对象实例没有动态采集，静态条件链与观察到的 native 输出应分别记述。生产 AppFolder 已在源码接入此 modifier，构建方式见第八段；真机当前安装的仍是用临时副本构建的产物，不是仓库这一版，二者尚未同步。
 
 ### 第七段：内容层实心填充会盖掉玻璃（阶段 C）
 
@@ -304,6 +304,27 @@ C 的 descriptor 与 B 完全同值（`2`），说明玻璃底板确实存在；
 - 三条 descriptor 同属 rowid 41：`AFGlassAB.Control = 0`（object 2）、`AFGlassAB.Blur = 2`（object 17）、`AFGlassAB.Plate = 2`（object 22）。
 - 本轮多次 UI 失败都发生在导航阶段（gallery 入口、卡片滑动坐标），与 widget 机制无关；成功那次只在翻页逐页查找 App 图标后长按进入编辑模式。这些失败运行各自独立保存在 `Visual/PlateRun…/`，未覆盖。
 - widget 源与原始扩展二进制全程未变；未改 SDK、AppFolder 仓库源、缓存或全局外观。
+
+### 第八段：接口桥接进仓库，模拟器与真机两种切片都自洽
+
+第七段之前，`.preferredBackgroundStyle(.blur)` 只存在于仓库外的一份临时副本里。这一段把它接进仓库，让仓库自己就能编出这一行，而不是依赖一份没人能复现的产物。
+
+做法是给 `AppFolderWidget` target 加一个跑在 Swift 编译之前的 run script（`Scripts/widgetkit-overlay.sh`），脚本把 SDK 自带的 `WidgetKit.swiftinterface` 原文复制一份、在末尾补上两段只有形状没有实现的声明（`WidgetBackgroundStyle` 枚举与 `preferredBackgroundStyle`），用 `swift-frontend -compile-module-from-interface` 编成模块放进 `TARGET_TEMP_DIR`；target 上的 `OTHER_SWIFT_FLAGS = "-I $(TARGET_TEMP_DIR)"` 让它排在这个模块前面，源码于是可以直接写这一行。脚本没有改动任何 SDK 文件，产物里这两个符号仍是 undefined external，运行时从系统 `WidgetKit` 装载。
+
+一个模块目录里的条目按 `-target` 记死部署版本，跨版本切片会被拒（模拟器上 arm64 编 18.0、x86_64 编 27.0，同一个文件不可能同时满足）。最终形态是**模块目录 + 每架构一个条目**：目录条目按 `<arch>-apple-<platform>.swiftmodule` 查找，查找时忽略部署版本，所以一个按 18.0 编出来的条目可以同时服务 18.0 与 27.0 的客户端。把条目命名成它被编译时的完整 triple 是查不到的——这种写法不会报错，只会静默回退到 SDK 的模块，报出「没有 preferredBackgroundStyle 这个成员」，是一个会误导排查方向的失败模式。改接口自己的 `-target` 去掉版本同样不可行：clang importer 会失去 SDK 的版本默认值，系统接口直接 typecheck 失败。
+
+验证（`CODE_SIGNING_ALLOWED=NO`，产物均在独立临时 DerivedData）：
+
+| 构建 | 结果 |
+| --- | --- |
+| `-sdk iphonesimulator -destination "generic/platform=iOS Simulator"` | exit 0，`** BUILD SUCCEEDED **`，两条 overlay 记录（arm64 / x86_64 各一，均为 18.0），0 error |
+| `-destination "generic/platform=iOS"`（真机 arm64e 切片） | exit 0，`** BUILD SUCCEEDED **`，一条 overlay 记录 |
+
+真机切片产物 `AppFolder.app/PlugIns/AppFolderWidget.appex` 内 `AppFolderWidget.debug.dylib` 的未定义符号确认含 `_$s7SwiftUI19WidgetConfigurationP0C3KitE24preferredBackgroundStyleyQrAD0cgH0OF` 与其 `QOMQ` 元数据访问器，签名 `TeamIdentifier=9WX5LSSM59`。
+
+跑脚本需要该 target 上 `ENABLE_USER_SCRIPT_SANDBOXING = NO`：沙箱打开时脚本对仓库内路径报 “Operation not permitted”。这是该 target 上的构建设置，不影响 App 主 target。
+
+产物（临时 DerivedData，不入库）：`/tmp/af-verify-sim.log`、`/tmp/af-verify-dev.log`。
 
 ## 一手资料
 
