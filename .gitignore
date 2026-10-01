@@ -82,3 +82,6 @@ venv/
 __pycache__/
 .idea/
 .vscode/
+
+# 研究截图（本机保留，不入库）
+docs/research/evidence/
