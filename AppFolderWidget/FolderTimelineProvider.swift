@@ -110,10 +110,14 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
             folder = library.folders.first
         }
 
-        // How many tiles fit is a function of the family, not of the folder, so
-        // the widget never silently drops apps: it truncates to what fits.
-        let capacity = Self.capacity(for: context.family)
-        let tiles = Array((folder?.tiles ?? []).prefix(capacity))
+        // How many tiles fit is a function of the family *and* of the
+        // folder's grid setting — a 四宫格 folder holds four in the small widget
+        // and six in medium. The widget never silently drops apps: it truncates
+        // to what fits, and the editor shows the same number so the truncation
+        // is visible while the folder is being built rather than on the Home
+        // Screen.
+        let grid = folder?.grid ?? .default
+        let tiles = Array((folder?.tiles ?? []).prefix(grid.capacity(for: context.family)))
 
         return FolderEntry(
             date: .now,
@@ -124,6 +128,10 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
         )
     }
 
+    /// How many tiles a family shows at the default grid.
+    ///
+    /// Kept for callers that have no folder to hand — the placeholder entry the
+    /// gallery draws is the only one left.
     static func capacity(for family: WidgetFamily) -> Int { family.gridCapacity }
 }
 

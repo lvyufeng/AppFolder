@@ -255,48 +255,99 @@ public struct FolderGridMetrics: Sendable, Equatable {
     }
 }
 
-/// The grid each widget size draws.
+/// How many icons a folder puts across, which is the one thing the grid's shape
+/// is not free to decide on its own.
 ///
-/// One table, read by two sides that have to agree: the timeline provider uses
-/// it as the capacity to truncate the folder to, and the widget view uses it as
-/// the column count to lay those tiles out in. They were written separately — a
-/// capacity of 4 for Small next to a hard-coded 2 columns — and the hand-written
-/// column counts in ``FolderGridMetrics/columns(forTileCount:)`` already said 3
-/// for a five-to-nine-tile folder, which is what the editor preview draws. A
-/// preview that promises a layout the widget will not draw is the drift
-/// ``FolderGridMetrics`` exists to prevent.
+/// The timeline provider truncates a folder to this many cells and the widget
+/// view lays the tiles out in this many columns, so the two read the same value
+/// by construction. They were written separately once — a capacity of 4 for a
+/// small widget next to a hard-coded 2 columns — and the drift was invisible
+/// until a folder of nine apps quietly showed four.
 ///
-/// Small is 3 × 3 rather than a bigger two-column grid: three across is what
-/// makes nine apps fit, and nine square cells in a square widget come out close
-/// to a real Home Screen icon at roughly 37 pt. Two columns of four would be
-/// larger icons, but leaves four apps on the table for no gain a user asked for.
-///
-/// The cost is the name. A cell that small minus 26% for a label leaves an icon
-/// of about 27 pt, which is small enough that the icon no longer says which app
-/// it is — so titles are not drawn in Small whatever the folder asks for. See
-/// ``gridCapacity``'s siblings in `FolderWidgetView` for where that is applied.
-public extension WidgetFamily {
-    /// How many tiles this family has room for, which is also its cell count:
-    /// the grid is always full, so a widget showing an empty cell would be
-    /// reserving a slot for nothing.
-    var gridCapacity: Int {
+/// Named for what the user sees rather than for the column count, because it is
+/// a user-facing choice: 九宫格 is the classic 大文件夹 square, 四宫格 trades five
+/// apps for icons large enough to match a real Home Screen icon.
+public enum FolderGrid: String, Codable, Sendable, CaseIterable {
+    /// 3 × 3, the arrangement that holds nine apps.
+    case nine
+    /// 2 × 2, for a folder of four shown at close to full size.
+    case four
+
+    /// The arrangement a folder that has never been given one uses, and so the
+    /// one every library written before this existed decodes to.
+    ///
+    /// `nine`, because that is what the small widget already drew and what the
+    /// 大文件夹 idea is — an existing folder must not lose five apps to a
+    /// setting its owner never made.
+    public static let `default`: FolderGrid = .nine
+
+    public var localizedName: String {
         switch self {
-        case .systemSmall: 9
-        case .systemMedium: 6
-        case .systemLarge: 9
-        case .systemExtraLarge, .systemExtraLargePortrait: 12
-        default: 9
+        case .nine: "九宫格"
+        case .four: "四宫格"
         }
     }
 
-    /// How many icons this family draws across.
-    var gridColumns: Int {
+    /// A one-line explanation for the editor, in the same spirit as
+    /// ``FolderPlate/localizedExplanation``: a setting whose effect is only
+    /// visible on the Home Screen has to say what it will do.
+    ///
+    /// Both sentences end on the number of apps, because that is the actual
+    /// trade and the icon size is what buys it. The sizes quoted are for the
+    /// small widget at the default icon-size setting.
+    public var localizedExplanation: String {
         switch self {
-        case .systemSmall: 3
-        case .systemMedium: 3
-        case .systemLarge: 3
-        case .systemExtraLarge, .systemExtraLargePortrait: 4
-        default: 3
+        case .nine:
+            "3 × 3，放 9 个 App，图标约 37pt。只影响 2×2 的小组件；中大尺寸保持 3 列。"
+        case .four:
+            "2 × 2，放 4 个 App，图标约 60pt——和系统桌面图标一样大。多出来的 App 会留在文件夹里，切回九宫格就能看到。"
         }
     }
+
+    /// How many icons across, in a widget of the given size.
+    ///
+    /// The choice only reaches the small widget. Medium and large keep their own
+    /// column counts because a 2 × 2 grid in a wide widget would waste most of
+    /// the width for no benefit — the icons there are already full size, so 四宫格
+    /// would buy nothing and cost two apps.
+    public func columns(for family: WidgetFamily) -> Int {
+        switch (self, family) {
+        case (.four, .systemSmall):
+            return 2
+        case (_, .systemSmall):
+            return 3
+        case (_, .systemMedium):
+            return 3
+        case (_, .systemLarge):
+            return 3
+        case (_, .systemExtraLarge), (_, .systemExtraLargePortrait):
+            return 4
+        default:
+            return 3
+        }
+    }
+
+    /// How many tiles fit, which is also this grid's cell count: the grid is
+    /// always full, so an empty cell would be reserving a slot for nothing.
+    public func capacity(for family: WidgetFamily) -> Int {
+        let columns = columns(for: family)
+        // Rows per family, so the grid is a rectangle that fills the widget
+        // rather than a square that leaves the bottom third bare.
+        let rows: Int
+        switch family {
+        case .systemSmall: rows = columns          // square widget, square grid
+        case .systemMedium, .systemLarge: rows = 3
+        case .systemExtraLarge, .systemExtraLargePortrait: rows = 3
+        default: rows = columns
+        }
+        return columns * rows
+    }
+}
+
+public extension WidgetFamily {
+    /// How many tiles this family has room for at the default grid.
+    var gridCapacity: Int { FolderGrid.default.capacity(for: self) }
+
+    /// How many icons this family draws across at the default grid.
+    var gridColumns: Int { FolderGrid.default.columns(for: self) }
 }

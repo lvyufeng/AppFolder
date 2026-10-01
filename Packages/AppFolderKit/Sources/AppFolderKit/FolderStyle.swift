@@ -223,17 +223,21 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
     /// How much of the grid goes to icons rather than to the gaps between them,
     /// 0…1. See ``FolderGridMetrics/gapShare(forIconScale:)``.
     public var iconScale: Double
+    /// Whether the small widget shows a 3 × 3 or a 2 × 2 grid. See ``FolderGrid``.
+    public var grid: FolderGrid
 
     public init(
         plate: FolderPlate = .default,
         tint: FolderTint = .defaultTint,
         showsTitles: Bool = false,
-        iconScale: Double = FolderGridMetrics.defaultIconScale
+        iconScale: Double = FolderGridMetrics.defaultIconScale,
+        grid: FolderGrid = .default
     ) {
         self.plate = plate
         self.tint = tint
         self.showsTitles = showsTitles
         self.iconScale = iconScale
+        self.grid = grid
     }
 
     /// The appearance a folder asked for, with the missing pieces filled in.
@@ -242,7 +246,8 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
             plate: folder.plate,
             tint: FolderTint(hex: folder.colorHex) ?? .defaultTint,
             showsTitles: folder.showsTitles,
-            iconScale: folder.iconScale
+            iconScale: folder.iconScale,
+            grid: folder.grid
         )
     }
 

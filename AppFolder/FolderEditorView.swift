@@ -42,26 +42,25 @@ struct FolderEditorView: View {
     /// family would be wrong in the other two.
     private static let widgetSize = CGSize(width: 170, height: 170)
 
-    private static func iconSize(for folder: Folder) -> CGFloat {
+    /// The grid the small widget would draw for this folder, which is the one
+    /// number both the footnote and the preview need. Derived from the folder
+    /// rather than from a constant, because the grid setting changes it.
+    private static func metrics(for folder: Folder, showsTitles: Bool? = nil) -> FolderGridMetrics {
         FolderGridMetrics(
-            tileCount: WidgetFamily.systemSmall.gridCapacity,
-            columns: WidgetFamily.systemSmall.gridColumns,
+            tileCount: folder.grid.capacity(for: .systemSmall),
+            columns: folder.grid.columns(for: .systemSmall),
             in: widgetSize,
-            showsTitles: folder.showsTitles,
+            showsTitles: showsTitles ?? folder.showsTitles,
             iconScale: folder.iconScale
-        ).iconSide
+        )
     }
 
     private static func iconSizeFootnote(for folder: Folder) -> String {
-        let side = Int(iconSize(for: folder).rounded())
-        let margin = Int(FolderGridMetrics(
-            tileCount: WidgetFamily.systemSmall.gridCapacity,
-            columns: WidgetFamily.systemSmall.gridColumns,
-            in: widgetSize,
-            showsTitles: false,
-            iconScale: folder.iconScale
-        ).margin.rounded())
-        return "2×2 小组件里每个图标约占 \(side)pt，四周留白 \(margin)pt（系统桌面图标约 60pt）。九宫格始终放满 9 个。"
+        let side = Int(metrics(for: folder).iconSide.rounded())
+        let margin = Int(metrics(for: folder, showsTitles: false).margin.rounded())
+        let count = folder.grid.capacity(for: .systemSmall)
+        return "2×2 小组件里每个图标约占 \(side)pt，四周留白 \(margin)pt（系统桌面图标约 60pt）。"
+            + "这一档放满 \(count) 个。"
     }
 
     var body: some View {
@@ -76,9 +75,15 @@ struct FolderEditorView: View {
                         style: style,
                         content: AnyView(
                             FolderPreviewGrid(
-                                tiles: Array(folder.tiles.prefix(9)),
+                                // The same count the widget will draw, not a
+                                // fixed nine: a 四宫格 folder puts four on the
+                                // Home Screen, and a preview showing nine would
+                                // be promising the one thing this preview exists
+                                // to promise it will not do.
+                                tiles: Array(folder.tiles.prefix(folder.grid.capacity(for: .systemSmall))),
                                 showsTitles: folder.showsTitles,
-                                iconScale: folder.iconScale
+                                iconScale: folder.iconScale,
+                                columns: folder.grid.columns(for: .systemSmall)
                             )
                         )
                     )
@@ -108,6 +113,22 @@ struct FolderEditorView: View {
                             supportsOpacity: false
                         )
                     }
+
+                    // Above the icon-size slider because it sets the room the
+                    // slider then works within: a 四宫格 cell is roughly 1.8× the
+                    // area of a 九宫格 one, so the same percentage means a visibly
+                    // different icon. Somewhere the shape has to come before the
+                    // size, and this is where the user decides it.
+                    Picker("网格", selection: $folder.grid) {
+                        ForEach(FolderGrid.allCases, id: \.self) { grid in
+                            Text(grid.localizedName).tag(grid)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text(folder.grid.localizedExplanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
                     Toggle("显示图标名称", isOn: $folder.showsTitles)
 

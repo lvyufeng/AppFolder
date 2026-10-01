@@ -77,13 +77,17 @@ private struct FolderGrid: View {
     /// out smaller than a Home Screen icon, and the point of a 大文件夹 is that
     /// its contents look like the real things.
     ///
-    /// Read from ``WidgetFamily/gridColumns`` rather than written here, because
-    /// the timeline provider truncates the folder to the matching capacity in
-    /// ``WidgetFamily/gridCapacity``. Two hand-written tables would put the
+    /// Read from ``FolderGrid/columns(for:)`` rather than written here, because
+    /// the timeline provider truncates the folder to the matching
+    /// ``FolderGrid/capacity(for:)``. Two hand-written tables would put the
     /// widget's column count and its tile count out of step the next time either
     /// changed — which is exactly what had happened: capacity said four tiles
     /// for Small while this said two columns.
-    private var columns: Int { family.gridColumns }
+    ///
+    /// It is the *folder's* choice, so a 四宫格 folder draws 2 × 2 in the small
+    /// widget and still 3 across in medium and large — see ``FolderGrid`` for why
+    /// the setting stops at the small size.
+    private var columns: Int { entry.style.grid.columns(for: family) }
 
     /// Whether to draw names under the icons.
     ///

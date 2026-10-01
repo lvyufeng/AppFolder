@@ -154,6 +154,8 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
     /// 0…1. See ``FolderGridMetrics/gapShare(forIconScale:)`` for what the
     /// number does — it is a share of the widget's width, not a size.
     public var iconScale: Double
+    /// Whether the small widget shows a 3 × 3 or a 2 × 2 grid. See ``FolderGrid``.
+    public var grid: FolderGrid
     public var updatedAt: Date
 
     public init(
@@ -164,6 +166,7 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
         plate: FolderPlate = .default,
         showsTitles: Bool = false,
         iconScale: Double = FolderGridMetrics.defaultIconScale,
+        grid: FolderGrid = .default,
         updatedAt: Date = .now
     ) {
         self.id = id
@@ -173,6 +176,7 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
         self.plate = plate
         self.showsTitles = showsTitles
         self.iconScale = iconScale
+        self.grid = grid
         self.updatedAt = updatedAt
     }
 
@@ -212,6 +216,12 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
                 ?? FolderGridMetrics.defaultIconScale,
             0
         ), 1)
+        // Same bargain as `plate` above, for the same reason: an unrecognised
+        // value — written by a newer build, or by hand — must not take the
+        // library down. `decodeIfPresent` alone would tolerate an absent key and
+        // still throw on a present-but-unknown one, and here a throw means
+        // `FolderStore` quarantines the file and the user loses every folder.
+        grid = (try? container.decodeIfPresent(FolderGrid.self, forKey: .grid)) ?? .default
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 }

@@ -171,4 +171,76 @@ struct WidgetGridTests {
         let folder = try FolderCoding.makeDecoder().decode(Folder.self, from: Data(json.utf8))
         #expect(folder.iconScale >= 0 && folder.iconScale <= 1)
     }
+
+    // MARK: - Grid shape
+
+    /// The requirement: the small widget is 3 × 3 or 2 × 2, and the two agree
+    /// with how many apps each holds.
+    @Test("Four-grid holds four, nine-grid holds nine")
+    func gridShapesHoldTheRightCount() {
+        #expect(FolderGrid.nine.columns(for: .systemSmall) == 3)
+        #expect(FolderGrid.nine.capacity(for: .systemSmall) == 9)
+        #expect(FolderGrid.four.columns(for: .systemSmall) == 2)
+        #expect(FolderGrid.four.capacity(for: .systemSmall) == 4)
+    }
+
+    /// The setting stops at the small size, which is the decision that makes it
+    /// worth having: four icons in a medium widget would waste most of the width
+    /// to buy an icon size that is already achievable there.
+    @Test("The choice does not reach the wider widgets", arguments: [
+        WidgetFamily.systemMedium, .systemLarge, .systemExtraLarge,
+    ])
+    func widerWidgetsIgnoreTheChoice(family: WidgetFamily) {
+        #expect(FolderGrid.four.columns(for: family) == FolderGrid.nine.columns(for: family))
+    }
+
+    /// Every family, every grid: capacity is a whole number of rows, so no cell
+    /// is ever reserved with nothing to draw in it. `capacity` and `columns` are
+    /// two separate switches over the same family, and nothing in the type system
+    /// stops them drifting apart — which is the failure ``FolderGrid`` exists to
+    /// fix, one layer up.
+    @Test("Capacity is always a whole number of rows", arguments: FolderGrid.allCases)
+    func everyGridFillsWholeRows(grid: FolderGrid) {
+        for family: WidgetFamily in [.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge] {
+            #expect(grid.capacity(for: family) % grid.columns(for: family) == 0)
+        }
+    }
+
+    /// Four icons at the top of the size range should be about a real Home
+    /// Screen icon — that is the whole reason to give up five apps for them. If
+    /// this ever stops holding, 四宫格 has no reason to exist.
+    @Test("Four-grid icons reach Home Screen size")
+    func fourGridIconsAreFullSize() {
+        let metrics = FolderGridMetrics(
+            tileCount: FolderGrid.four.capacity(for: .systemSmall),
+            columns: FolderGrid.four.columns(for: .systemSmall),
+            in: CGSize(width: 170, height: 170),
+            iconScale: 1
+        )
+        #expect(metrics.iconSide >= 60)
+    }
+
+    /// A folder from before the grid setting existed has no key for it and must
+    /// come back as 九宫格 — losing five apps to a setting nobody made would be
+    /// the worst kind of silent data loss, because the tiles are still in the
+    /// library and only the Home Screen stops showing them.
+    @Test("A folder from before the grid setting stays nine")
+    func decodesToNineGrid() throws {
+        let json = """
+        { "id": "\(UUID().uuidString)", "name": "常用", "updatedAt": 0 }
+        """
+        let folder = try FolderCoding.makeDecoder().decode(Folder.self, from: Data(json.utf8))
+        #expect(folder.grid == .nine)
+    }
+
+    /// And an unrecognised value falls back rather than throwing, for the same
+    /// reason `plate` does: a throw here quarantines the whole library.
+    @Test("An unrecognised grid falls back rather than failing")
+    func unrecognisedGridFallsBack() throws {
+        let json = """
+        { "id": "\(UUID().uuidString)", "name": "常用", "grid": "sixteen", "updatedAt": 0 }
+        """
+        let folder = try FolderCoding.makeDecoder().decode(Folder.self, from: Data(json.utf8))
+        #expect(folder.grid == .nine)
+    }
 }

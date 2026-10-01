@@ -19,6 +19,15 @@ struct FolderPreviewGrid: View {
     /// caller with an opinion — the editor — is previewing a folder that has one,
     /// and a silently-different preview is the drift this view exists to avoid.
     var iconScale: Double = FolderGridMetrics.defaultIconScale
+
+    /// How many icons across. Passed in rather than derived from `tiles.count`
+    /// because the folder's grid setting decides it: a 四宫格 folder holding six
+    /// tiles still draws two across, and deriving from the count would draw three.
+    ///
+    /// `nil` keeps the old behaviour of choosing by count, which is what the
+    /// folder-list thumbnail wants — it has no setting to honour and shows
+    /// whatever the folder holds.
+    var columns: Int?
     /// How wide the grid is worked out at, in points.
     ///
     /// ``FolderGridMetrics`` wants a width to divide up, and the grid is drawn at
@@ -32,7 +41,7 @@ struct FolderPreviewGrid: View {
     private var metrics: FolderGridMetrics {
         FolderGridMetrics(
             tileCount: tiles.count,
-            columns: FolderGridMetrics.columns(forTileCount: tiles.count),
+            columns: columns ?? FolderGridMetrics.columns(forTileCount: tiles.count),
             // Unbounded height: an `aspectRatio` preview knows its width and not
             // its height, and leaving the width as the binding constraint is
             // what a square grid wants anyway.
