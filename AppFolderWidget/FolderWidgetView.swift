@@ -134,9 +134,31 @@ private struct FolderGrid: View {
                     }
                 }
             }
-            // Centred: the grid is the whole widget now that there is no header,
-            // so slack belongs around it rather than under it.
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            // The grid's own margin, spent explicitly. It used to come out right by
+            // accident: the frame below centred its child, so a margin baked into
+            // the metrics landed evenly on both sides. Anchoring to the top takes
+            // that away, and the margin has to be applied rather than assumed.
+            .padding(metrics.margin)
+            // Anchored to the top, not centred. A folder with fewer than nine
+            // tiles leaves a whole empty row, and where that row goes is the
+            // difference between "this folder has four apps" and "this folder has
+            // four apps and the rest are missing". Centred, the icons drift down
+            // and the widget reads as the second one; flush with the top they read
+            // as a list that happens to be short.
+            //
+            // The horizontal axis stays centred — the rows are built from
+            // `metrics.columns` cells whatever the tile count, so a short folder is
+            // already symmetric across the widget. Only the vertical is anchored,
+            // because the vertical is the direction the shortfall is measured in.
+            //
+            // The editor's preview has always drawn it this way (`FolderPreviewGrid`
+            // passes `.top`); this is the widget catching up, which is the drift
+            // ``FolderGridMetrics`` exists to stop.
+            .frame(
+                width: proxy.size.width,
+                height: proxy.size.height,
+                alignment: .top
+            )
         }
     }
 }
