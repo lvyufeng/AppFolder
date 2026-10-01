@@ -36,6 +36,13 @@ final class BounceRouter {
     private(set) var isHandingOff = false
     /// Set when a hand-off could not be completed, for the user to see.
     var failure: String?
+    /// The folder to show expanded, when the user tapped a grid's last cell.
+    ///
+    /// A separate channel from ``isHandingOff`` because the two are opposites:
+    /// a hand-off hides the app and leaves immediately, this one *is* the app
+    /// appearing. Routing both through one flag would make the folder view flash
+    /// behind a blank surface and then be torn down by the deadline.
+    var expandingFolderID: UUID?
 
     /// Whether the app has been to the background since the hand-off started.
     /// The only evidence that the target app actually took over.
@@ -54,6 +61,14 @@ final class BounceRouter {
     ///   the caller should treat it as an ordinary deep link.
     @discardableResult
     func handle(_ url: URL) -> Bool {
+        // Checked before the bounce, because both are our scheme and one host is
+        // a prefix of the other's shape — reading the wrong one would open a
+        // folder whose id is another app's URL, or vice versa.
+        if let folderID = LaunchLink.folderID(from: url) {
+            expandingFolderID = folderID
+            return true
+        }
+
         guard let target = LaunchLink.targetURL(from: url) else { return false }
 
         // A second tile tapped before the first resolved: the newest wins, and

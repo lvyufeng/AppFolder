@@ -111,6 +111,22 @@ private struct FolderGrid: View {
         }
     }
 
+    /// How many apps this widget shows as apps.
+    ///
+    /// One less than the grid's cells, because the last cell is the door. Read
+    /// from the same ``FolderGrid/capacity(for:)`` the timeline provider truncates
+    /// with, so the tiles handed in and the cells laid out cannot disagree.
+    private var capacity: Int { entry.style.grid.capacity(for: family) }
+
+    /// The cell that opens the folder, or `nil` when nothing has overflowed.
+    ///
+    /// Computed from the folder's *full* tile count, not from what the timeline
+    /// provider handed over: the provider has already truncated to `capacity`, so
+    /// asking it whether anything was cut off would always answer no.
+    private var nestedCell: Int? {
+        entry.style.grid.nestedCell(for: family, tileCount: entry.totalTileCount)
+    }
+
     var body: some View {
         // A tile with nothing to draw is a blank rounded rectangle with a label,
         // which reads as a broken image rather than as an app. Until the app has
@@ -123,8 +139,12 @@ private struct FolderGrid: View {
         // anywhere: it held the system's 18 pt, and the size setting now decides
         // that number instead.
         GeometryReader { proxy in
+            // Sized for the *grid*, which is one cell bigger than the app count
+            // when the door is showing. Laying out `tiles.count` cells instead
+            // would make the icons grow the moment a folder overflowed, which is
+            // the opposite of what the door is for.
             let metrics = FolderGridMetrics(
-                tileCount: tiles.count,
+                tileCount: nestedCell == nil ? tiles.count : capacity + 1,
                 columns: columns,
                 in: proxy.size,
                 showsTitles: showsTitles,
@@ -136,7 +156,16 @@ private struct FolderGrid: View {
                     GridRow {
                         ForEach(0..<metrics.columns, id: \.self) { column in
                             let index = row * metrics.columns + column
-                            if tiles.indices.contains(index) {
+                            if nestedCell == index {
+                                NestedTileButton(
+                                    folderID: entry.folder?.id,
+                                    overflow: overflowCount(shown: tiles.count),
+                                    entry: entry,
+                                    showsTitles: showsTitles,
+                                    metrics: metrics
+                                )
+                                .frame(width: metrics.iconSide, height: metrics.cellHeight)
+                            } else if tiles.indices.contains(index) {
                                 // The resolved value, not `entry.style`, so a
                                 // Small widget draws no label even though the
                                 // folder asked for one — see `showsTitles`.
@@ -195,6 +224,185 @@ private struct FolderGrid: View {
                 alignment: .top
             )
         }
+    }
+
+    /// How many apps are behind the door: everything the widget is not drawing.
+    ///
+    /// Counted from the *full* folder against what actually got drawn, and
+    /// deliberately not from `capacity`. The artwork filter above means the drawn
+    /// count can be lower than the capacity — a tile with no cached icon is left
+    /// out rather than drawn as a blank square — and a badge that counted the
+    /// missing ones as "behind the door" would promise apps the user is not going
+    /// to find there.
+    private func overflowCount(shown: Int) -> Int {
+        max(0, entry.totalTileCount - shown)
+    }
+}
+
+/// The grid's last cell when a folder holds more apps than cells: a small grid of
+/// what is behind it, a count, and a tap that opens the folder.
+///
+/// ## Why this is a `Link` and not an `OpenURLIntent`
+///
+/// The route that reaches another *app* from a widget is an intent, and it is the
+/// one ``TileButton`` uses. It cannot be used here. `OpenURLIntent` reaches apps
+/// through universal links, and an `appfolder://` link is not one — Apple
+/// requires universal-link support for `URLRepresentableIntent` and states custom
+/// schemes are not supported. A `Link` is the route that *can* carry an arbitrary
+/// scheme, and a `Link` in a widget opens the containing app by definition, which
+/// is exactly the destination this cell wants. The platform rule that makes
+/// `Link` useless for launching third-party apps is what makes it correct here.
+///
+/// ## What it draws
+///
+/// Not the next app. A folder of twelve in a nine-cell grid shows eight apps and
+/// this; showing the ninth as app number nine would leave eleven behind a door
+/// the user cannot see, which is indistinguishable from losing them.
+///
+/// The miniatures are the four apps the door is hiding, at a quarter scale, so
+/// the cell says *what* is inside rather than only *how much*. They come from the
+/// same cached artwork the full-size cells use; a folder with no artwork cached
+/// falls back to the symbols, and the count carries the cell either way.
+private struct NestedTileButton: View {
+    let folderID: UUID?
+    /// How many apps the grid is not drawing. Never zero: the caller only builds
+    /// this cell when something overflowed.
+    let overflow: Int
+    let entry: FolderEntry
+    let showsTitles: Bool
+    let metrics: FolderGridMetrics
+
+    /// Whether the door can be opened at all.
+    ///
+    /// A link needs the folder's id, and the id is absent only when the widget is
+    /// previewing a folder that does not exist yet. Drawing the cell inert in
+    /// that case is the same choice ``TileButton`` makes for a tile with nowhere
+    /// to go: a control that does nothing when tapped is worse than one that is
+    /// visibly not a control.
+    private var destination: URL? {
+        folderID.flatMap(LaunchLink.folderURL(for:))
+    }
+
+    var body: some View {
+        if let destination {
+            Link(destination: destination) { label }
+                .buttonStyle(.plain)
+        } else {
+            label
+        }
+    }
+
+    /// How big one miniature is, and how far apart they sit, as a share of the cell.
+    ///
+    /// Proportions of ``FolderGridMetrics/iconSide`` rather than points, because
+    /// this cell is drawn at wildly different sizes — about 37 pt in a small
+    /// widget, roughly twice that in the editor's preview — and a fixed number
+    /// would be a speck at one end and a smear at the other.
+    ///
+    /// The first cut of this filled the cell: a flexible 2 × 2 grid with 1 pt
+    /// gaps, which made the four miniatures read as one blurry rectangle rather
+    /// than as four apps, and what a preview of a folder has to be is legible as
+    /// *things*. A miniature is a little under a third of the cell with a gap
+    /// near 8% of it, so the block covers about 64% and the rest is the room the
+    /// cell's rounded corner and the badge need.
+    private static let miniShare: CGFloat = 0.28
+    private static let miniSpacingShare: CGFloat = 0.08
+
+    private var miniSide: CGFloat { metrics.iconSide * Self.miniShare }
+    private var miniSpacing: CGFloat { metrics.iconSide * Self.miniSpacingShare }
+
+    private var label: some View {
+        VStack(spacing: metrics.titleSpacing) {
+            ZStack {
+                RoundedRectangle(cornerRadius: metrics.cornerRadius, style: .continuous)
+                    .fill(.fill.tertiary)
+
+                // Two rows of two rather than a `LazyVGrid` of flexible columns:
+                // with a fixed size the four have to be placed, not stretched,
+                // and an `HStack` of fixed frames says that without a
+                // `GridItem(.flexible())` suggesting otherwise.
+                VStack(spacing: miniSpacing) {
+                    HStack(spacing: miniSpacing) {
+                        miniIcon(at: 0)
+                        miniIcon(at: 1)
+                    }
+                    HStack(spacing: miniSpacing) {
+                        miniIcon(at: 2)
+                        miniIcon(at: 3)
+                    }
+                }
+                // The badge hangs off the *block's* corner, not the cell's.
+                //
+                // Anchoring it to the cell left it stranded in the margin,
+                // sharing an alignment with nothing: the block is centred and
+                // inset, so a badge pinned to the cell's corner sits visibly
+                // outside and below the last miniature with a gap in between.
+                // On the block's corner it reads as a label attached to the
+                // thing it counts.
+                .overlay(alignment: .bottomTrailing) {
+                    Text("+\(overflow)")
+                        .font(.system(size: max(7, metrics.iconSide * 0.20), weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, metrics.iconSide * 0.06)
+                        .padding(.vertical, metrics.iconSide * 0.015)
+                        .background(.black.opacity(0.6), in: Capsule())
+                        .offset(x: miniSpacing * 0.5, y: miniSpacing * 0.5)
+                }
+            }
+            .frame(width: metrics.iconSide, height: metrics.iconSide)
+
+            if showsTitles {
+                // A name, not a count: the count is already on the badge, and
+                // "更多" is what the cell does. Every other cell in this grid
+                // carries the app it opens, so a word is the consistent choice.
+                Text("更多")
+                    .font(.system(size: metrics.titleFontSize))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .foregroundStyle(entry.style.titleStyle)
+                    .frame(width: metrics.iconSide)
+            }
+        }
+    }
+
+    /// One miniature, or a blank if the folder has fewer than four apps behind
+    /// the door.
+    ///
+    /// A blank rather than a repeat or a symbol: with three apps hidden, three
+    /// miniatures plus one empty slot is the truth, and filling the fourth would
+    /// overstate what the door opens onto.
+    /// The radius follows the *miniature's* side, not the cell's.
+    ///
+    /// The first cut passed ``FolderGridMetrics/cornerRadius`` straight through
+    /// on the reasoning that it is already the system icon's 22% proportion. It
+    /// is — of the *cell*. At a third the size the same absolute radius is 73% of
+    /// the miniature's side, which draws a circle. The proportion is what has to
+    /// be preserved, not the number.
+    @ViewBuilder
+    private func miniIcon(at slot: Int) -> some View {
+        let hidden = hiddenTiles
+        if hidden.indices.contains(slot) {
+            WidgetIcon(tile: hidden[slot], cornerRadius: miniSide * 0.22)
+                .frame(width: miniSide, height: miniSide)
+        } else {
+            Color.clear
+                .frame(width: miniSide, height: miniSide)
+        }
+    }
+
+    /// What the door is hiding — the apps the widget is not drawing, in order.
+    ///
+    /// The same `drawable` filter the full cells use would be wrong here: a tile
+    /// excluded for want of artwork is still behind the door, and `overflow`
+    /// counts it.
+    private var hiddenTiles: [FolderTile] {
+        Array(entry.folder?.tiles.dropFirst(capacityShown) ?? [])
+    }
+
+    /// How many tiles the widget is drawing as apps, so the hidden ones start
+    /// where they stop.
+    private var capacityShown: Int {
+        entry.totalTileCount - overflow
     }
 }
 

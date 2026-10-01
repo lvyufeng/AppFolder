@@ -27,6 +27,17 @@ struct RootView: View {
         .onChange(of: scenePhase, initial: true) { _, phase in
             router.scenePhaseChanged(to: phase)
         }
+        // The other destination a widget link can carry: the grid's last cell,
+        // tapped because the folder holds more apps than the widget has cells.
+        // Resolved against the live library rather than against anything the URL
+        // carried, so a folder deleted since the widget last drew simply shows
+        // nothing.
+        .sheet(item: Binding(
+            get: { router.expandingFolderID.flatMap(model.folder(withID:)) },
+            set: { if $0 == nil { router.expandingFolderID = nil } }
+        )) { folder in
+            FolderExpandView(folder: folder)
+        }
         .alert(
             "打不开",
             isPresented: Binding(

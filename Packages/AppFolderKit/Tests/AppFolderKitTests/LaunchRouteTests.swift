@@ -109,4 +109,50 @@ struct LaunchRouteTests {
             #expect(link.hasPrefix("https://"), "\(app.id) has a non-https link: \(link)")
         }
     }
+
+    // MARK: - The folder link
+
+    /// Round-trips: the widget builds a folder link and the app reads it back.
+    ///
+    /// The two are written together and read apart — one in the widget
+    /// extension's process, one in the app's — so nothing but a test can catch
+    /// them drifting. A link whose id does not survive the trip opens the app
+    /// and then shows nothing, which from the Home Screen is indistinguishable
+    /// from the tap not registering.
+    @Test("A folder link round-trips its id")
+    func folderLinkRoundTrips() throws {
+        let id = UUID()
+        let url = try #require(LaunchLink.folderURL(for: id))
+        #expect(url.scheme == "appfolder")
+        #expect(LaunchLink.folderID(from: url) == id)
+    }
+
+    /// The two hosts must not be confused for one another.
+    ///
+    /// Both links are `appfolder://` and both carry a query item, so a reader
+    /// that checked only the scheme — or that checked the host before deciding —
+    /// would hand a bounce's payload to the folder opener. The failure is not a
+    /// crash: a URL is a valid string, so the app would open a folder view onto
+    /// an id that is really another app's URL, show nothing, and leave the user
+    /// certain the widget is broken.
+    @Test("A bounce link is not a folder link, and vice versa")
+    func theTwoHostsDoNotBleed() throws {
+        let bounce = try #require(LaunchLink.bounceURL(for: URL(string: "weixin://")!))
+        #expect(LaunchLink.folderID(from: bounce) == nil)
+        #expect(LaunchLink.targetURL(from: bounce)?.absoluteString == "weixin://")
+
+        let folder = try #require(LaunchLink.folderURL(for: UUID()))
+        #expect(LaunchLink.targetURL(from: folder) == nil)
+    }
+
+    /// A folder link whose id is not a UUID is not a folder link.
+    ///
+    /// The caller's next step is a lookup, and an id that cannot match anything
+    /// is the same answer as no id — `nil`, so the app does not open an empty
+    /// folder view for a link it cannot honour.
+    @Test("A folder link with a malformed id resolves to nothing")
+    func malformedFolderIDFails() throws {
+        let url = try #require(URL(string: "appfolder://folder?id=not-a-uuid"))
+        #expect(LaunchLink.folderID(from: url) == nil)
+    }
 }

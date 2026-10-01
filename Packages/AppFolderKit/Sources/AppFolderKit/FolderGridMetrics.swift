@@ -298,9 +298,9 @@ public enum FolderGrid: String, Codable, Sendable, CaseIterable {
     public var localizedExplanation: String {
         switch self {
         case .nine:
-            "3 × 3，放 9 个 App，图标约 37pt。只影响 2×2 的小组件；中大尺寸保持 3 列。"
+            "3 × 3，直接显示 8 个 App，图标约 37pt。第 9 格是「更多」入口——文件夹里超过 8 个之后，点它展开全部。只影响 2×2 的小组件；中大尺寸保持 3 列。"
         case .four:
-            "2 × 2，放 4 个 App，图标约 60pt——和系统桌面图标一样大。多出来的 App 会留在文件夹里，切回九宫格就能看到。"
+            "2 × 2，直接显示 3 个 App，图标约 60pt——和系统桌面图标一样大。第 4 格是「更多」入口，点它展开文件夹里的全部 App。"
         }
     }
 
@@ -327,9 +327,13 @@ public enum FolderGrid: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    /// How many tiles fit, which is also this grid's cell count: the grid is
-    /// always full, so an empty cell would be reserving a slot for nothing.
-    public func capacity(for family: WidgetFamily) -> Int {
+    /// How many cells this grid draws, which is every cell in the rectangle.
+    ///
+    /// Not the same as ``capacity(for:)`` once a folder overflows, and the two
+    /// being different numbers is the whole of the nesting feature: the grid
+    /// draws this many cells, and the last of them is a door rather than a ninth
+    /// app.
+    public func cellCount(for family: WidgetFamily) -> Int {
         let columns = columns(for: family)
         // Rows per family, so the grid is a rectangle that fills the widget
         // rather than a square that leaves the bottom third bare.
@@ -342,12 +346,42 @@ public enum FolderGrid: String, Codable, Sendable, CaseIterable {
         }
         return columns * rows
     }
+
+    /// How many apps a folder can show *directly* — what the widget draws as
+    /// apps, with the rest reachable behind ``nestedCell``.
+    ///
+    /// One less than the cell count, always, because the last cell is reserved
+    /// for the door. It is reserved even when the folder would not need it, so
+    /// that adding a tenth app to a nine-cell folder rearranges nothing: the
+    /// first eight stay exactly where they were and the ninth cell changes from
+    /// an app to a door. Deciding the reservation from the *current* tile count
+    /// instead would make the ninth app jump out of its cell the moment a tenth
+    /// arrived, which is the reflow users read as data loss.
+    ///
+    /// A one-cell grid would have nothing left to lay out, so the subtraction
+    /// bottoms out at one rather than at zero.
+    public func capacity(for family: WidgetFamily) -> Int {
+        max(1, cellCount(for: family) - 1)
+    }
+
+    /// The index of the cell that opens the rest, or `nil` when nothing has
+    /// overflowed and every cell holds an app.
+    ///
+    /// Read by both the widget and the editor's preview so the two agree about
+    /// where the door is — the same reason everything else on this type is
+    /// shared.
+    public func nestedCell(for family: WidgetFamily, tileCount: Int) -> Int? {
+        tileCount > capacity(for: family) ? capacity(for: family) : nil
+    }
 }
 
 public extension WidgetFamily {
-    /// How many tiles this family has room for at the default grid.
+    /// How many apps this family shows directly at the default grid.
     var gridCapacity: Int { FolderGrid.default.capacity(for: self) }
 
     /// How many icons this family draws across at the default grid.
     var gridColumns: Int { FolderGrid.default.columns(for: self) }
+
+    /// How many cells this family's grid draws at the default grid.
+    var gridCellCount: Int { FolderGrid.default.cellCount(for: self) }
 }

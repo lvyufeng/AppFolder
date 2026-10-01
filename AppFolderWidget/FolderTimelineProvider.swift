@@ -69,6 +69,19 @@ struct FolderEntry: TimelineEntry {
     let date: Date
     let folder: Folder?
     let tiles: [FolderTile]
+    /// How many tiles the folder holds in total, before the widget truncated it
+    /// to what fits.
+    ///
+    /// Carried rather than read from `folder.tiles.count` at draw time because
+    /// the two are not always the same object: a `Folder` can be constructed for
+    /// a placeholder or a test with `tiles` already reduced, and the view would
+    /// then have no way to tell a folder of four from a folder of twelve that
+    /// happens to be showing four.
+    ///
+    /// The view needs it to decide whether the grid's last cell is an app or the
+    /// door, and to count what is behind the door — neither of which is
+    /// answerable from `tiles`, which has already been cut down.
+    let totalTileCount: Int
     let installedSchemes: Set<String>
     /// How the plate and the labels should be drawn.
     ///
@@ -80,10 +93,16 @@ struct FolderEntry: TimelineEntry {
 
 struct FolderTimelineProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> FolderEntry {
+        // A folder of twelve is the one that exercises every part of the grid:
+        // the timeline hands over the first eight, and the ninth cell draws the
+        // door. A placeholder of nine would show the door too, but with only one
+        // app behind it — which is the arrangement the feature is least likely to
+        // be judged on and the least useful thing to preview.
         FolderEntry(
             date: .now,
-            folder: Folder(name: "常用"),
-            tiles: FolderEntry.placeholderTiles,
+            folder: Folder(name: "常用", tiles: FolderEntry.placeholderTiles),
+            tiles: Array(FolderEntry.placeholderTiles.prefix(FolderGrid.default.capacity(for: context.family))),
+            totalTileCount: FolderEntry.placeholderTiles.count,
             installedSchemes: [],
             style: FolderStyle()
         )
@@ -111,11 +130,15 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
         }
 
         // How many tiles fit is a function of the family *and* of the
-        // folder's grid setting — a 四宫格 folder holds four in the small widget
-        // and six in medium. The widget never silently drops apps: it truncates
-        // to what fits, and the editor shows the same number so the truncation
-        // is visible while the folder is being built rather than on the Home
-        // Screen.
+        // folder's grid setting — a 四宫格 folder shows three in the small widget
+        // and eight in medium. One cell is held back for the "open the rest"
+        // door, so this is one less than the grid's cell count; see
+        // ``FolderGrid/capacity(for:)`` for why the reservation is unconditional.
+        //
+        // The widget never silently drops apps. Everything past this point is
+        // reachable by tapping the door, and the editor shows the same number so
+        // the arrangement is visible while the folder is being built rather than
+        // on the Home Screen.
         let grid = folder?.grid ?? .default
         let tiles = Array((folder?.tiles ?? []).prefix(grid.capacity(for: context.family)))
 
@@ -123,12 +146,13 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
             date: .now,
             folder: folder,
             tiles: tiles,
+            totalTileCount: folder?.tiles.count ?? 0,
             installedSchemes: library.installedSchemes,
             style: folder.map(FolderStyle.init) ?? FolderStyle()
         )
     }
 
-    /// How many tiles a family shows at the default grid.
+    /// How many tiles a family shows directly at the default grid.
     ///
     /// Kept for callers that have no folder to hand — the placeholder entry the
     /// gallery draws is the only one left.
@@ -138,11 +162,15 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
 extension FolderEntry {
     /// Sample tiles for the widget gallery, using the host app's own icon so the
     /// preview looks like a real folder without shipping anyone else's artwork.
-    static let placeholderTiles: [FolderTile] = (0..<9).map { index in
+    static let placeholderTiles: [FolderTile] = (0..<12).map { index in
         FolderTile(
             title: "App \(index + 1)",
             urlString: "appfolder://placeholder/\(index)",
-            symbolName: ["message", "calendar", "camera", "music.note", "map", "envelope", "book", "cart", "photo"][index]
+            symbolName: [
+                "message", "calendar", "camera", "music.note",
+                "map", "envelope", "book", "cart",
+                "photo", "clock", "bell", "star",
+            ][index]
         )
     }
 }

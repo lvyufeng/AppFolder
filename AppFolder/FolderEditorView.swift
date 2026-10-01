@@ -55,12 +55,39 @@ struct FolderEditorView: View {
         )
     }
 
+    /// The tiles the small widget draws as apps, which is everything up to the cell
+    /// reserved for the door.
+    private static func shownTiles(of folder: Folder) -> [FolderTile] {
+        Array(folder.tiles.prefix(folder.grid.capacity(for: .systemSmall)))
+    }
+
+    /// What is behind the door, or `nil` when nothing overflowed.
+    ///
+    /// The same ``FolderGrid/nestedCell(for:tileCount:)`` the widget asks, so the
+    /// preview and the Home Screen cannot disagree about whether there is a door
+    /// at all — which would be the worst possible disagreement, because the one
+    /// thing this preview is for is showing the user where their tenth app went.
+    private static func nestedCell(of folder: Folder) -> FolderPreviewGrid.NestedCell? {
+        guard folder.grid.nestedCell(for: .systemSmall, tileCount: folder.tiles.count) != nil else {
+            return nil
+        }
+        let shown = folder.grid.capacity(for: .systemSmall)
+        return FolderPreviewGrid.NestedCell(
+            previews: Array(folder.tiles.dropFirst(shown).prefix(4)),
+            count: max(0, folder.tiles.count - shown)
+        )
+    }
+
     private static func iconSizeFootnote(for folder: Folder) -> String {
         let side = Int(metrics(for: folder).iconSide.rounded())
         let margin = Int(metrics(for: folder, showsTitles: false).margin.rounded())
         let count = folder.grid.capacity(for: .systemSmall)
-        return "2×2 小组件里每个图标约占 \(side)pt，四周留白 \(margin)pt（系统桌面图标约 60pt）。"
-            + "这一档放满 \(count) 个。"
+        var line = "2×2 小组件里每个图标约占 \(side)pt，四周留白 \(margin)pt（系统桌面图标约 60pt）。"
+            + "直接显示 \(count) 个，最后一格是「更多」入口。"
+        if let overflow = nestedCell(of: folder) {
+            line += "现在还有 \(overflow.count) 个在里面，点那一格就能全部展开。"
+        }
+        return line
     }
 
     var body: some View {
@@ -76,14 +103,15 @@ struct FolderEditorView: View {
                         content: AnyView(
                             FolderPreviewGrid(
                                 // The same count the widget will draw, not a
-                                // fixed nine: a 四宫格 folder puts four on the
+                                // fixed nine: a 四宫格 folder shows three on the
                                 // Home Screen, and a preview showing nine would
                                 // be promising the one thing this preview exists
                                 // to promise it will not do.
-                                tiles: Array(folder.tiles.prefix(folder.grid.capacity(for: .systemSmall))),
+                                tiles: Self.shownTiles(of: folder),
                                 showsTitles: folder.showsTitles,
                                 iconScale: folder.iconScale,
-                                columns: folder.grid.columns(for: .systemSmall)
+                                columns: folder.grid.columns(for: .systemSmall),
+                                nested: Self.nestedCell(of: folder)
                             )
                         )
                     )

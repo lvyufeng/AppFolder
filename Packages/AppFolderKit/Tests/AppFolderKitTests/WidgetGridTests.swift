@@ -14,29 +14,34 @@ import WidgetKit
 /// noticing that an app they put in a folder is not on the Home Screen.
 @Suite("Widget grid")
 struct WidgetGridTests {
-    /// Every family is laid out as a full grid — `gridCapacity` cells across in
+    /// Every family is laid out as a full grid — `gridCellCount` cells across in
     /// `gridColumns` columns — so the two numbers have to be consistent with each
     /// other, and a widget must never reserve a cell it has nothing to draw in.
     /// `.systemExtraLargePortrait` is left out: it is iOS-only, and these tests
     /// run on the macOS host.
-    @Test("Capacity is a whole number of rows of columns", arguments: [
+    @Test("The cell count is a whole number of rows of columns", arguments: [
         WidgetFamily.systemSmall,
         .systemMedium,
         .systemLarge,
         .systemExtraLarge,
     ])
-    func capacityIsWholeRows(family: WidgetFamily) {
-        #expect(family.gridCapacity % family.gridColumns == 0)
-        #expect(family.gridCapacity > 0)
+    func cellCountIsWholeRows(family: WidgetFamily) {
+        #expect(family.gridCellCount % family.gridColumns == 0)
+        #expect(family.gridCellCount > 0)
         #expect(family.gridColumns > 0)
     }
 
-    /// The product requirement this table exists to satisfy: nine apps in the
-    /// 2 × 2 widget.
-    @Test("A small widget holds nine apps, three across")
-    func smallHoldsNine() {
-        #expect(WidgetFamily.systemSmall.gridCapacity == 9)
+    /// The product requirement this table exists to satisfy: nine cells in the
+    /// 2 × 2 widget, three across.
+    ///
+    /// Eight *apps*, not nine — the ninth cell is the door. That subtraction is
+    /// the nesting feature, and it is asserted separately below because it is the
+    /// kind of one-off that a later change to `capacity` could quietly undo.
+    @Test("A small widget draws nine cells, three across")
+    func smallDrawsNineCells() {
+        #expect(WidgetFamily.systemSmall.gridCellCount == 9)
         #expect(WidgetFamily.systemSmall.gridColumns == 3)
+        #expect(WidgetFamily.systemSmall.gridCapacity == 8)
     }
 
     /// The grid is handed the whole widget and takes its own margin off, so
@@ -46,7 +51,7 @@ struct WidgetGridTests {
     func gridNeverOverflows(scale: Double) {
         let container = CGSize(width: 170, height: 170)
         let metrics = FolderGridMetrics(
-            tileCount: WidgetFamily.systemSmall.gridCapacity,
+            tileCount: WidgetFamily.systemSmall.gridCellCount,
             columns: WidgetFamily.systemSmall.gridColumns,
             in: container,
             showsTitles: false,
@@ -174,14 +179,71 @@ struct WidgetGridTests {
 
     // MARK: - Grid shape
 
-    /// The requirement: the small widget is 3 × 3 or 2 × 2, and the two agree
-    /// with how many apps each holds.
-    @Test("Four-grid holds four, nine-grid holds nine")
+    /// The requirement: the small widget draws 3 × 3 or 2 × 2, and each holds one
+    /// fewer app than it has cells because the last cell is the door.
+    @Test("Four-grid holds three, nine-grid holds eight")
     func gridShapesHoldTheRightCount() {
         #expect(FolderGrid.nine.columns(for: .systemSmall) == 3)
-        #expect(FolderGrid.nine.capacity(for: .systemSmall) == 9)
+        #expect(FolderGrid.nine.cellCount(for: .systemSmall) == 9)
+        #expect(FolderGrid.nine.capacity(for: .systemSmall) == 8)
         #expect(FolderGrid.four.columns(for: .systemSmall) == 2)
-        #expect(FolderGrid.four.capacity(for: .systemSmall) == 4)
+        #expect(FolderGrid.four.cellCount(for: .systemSmall) == 4)
+        #expect(FolderGrid.four.capacity(for: .systemSmall) == 3)
+    }
+
+    // MARK: - Nesting
+
+    /// Over the capacity, the last cell becomes the door — and it is the *last*
+    /// cell, not the cell after the last app drawn. Those are the same index, and
+    /// the test says which one the code means: the door is pinned to the end of
+    /// the grid so that the apps keep their positions.
+    @Test("The door is the last cell", arguments: [(FolderGrid.nine, 9), (.four, 4)])
+    func doorIsTheLastCell(grid: FolderGrid, cells: Int) {
+        #expect(grid.cellCount(for: .systemSmall) == cells)
+        #expect(grid.nestedCell(for: .systemSmall, tileCount: cells + 1) == cells - 1)
+    }
+
+    /// A folder that fits does not get a door. The empty cells it leaves are
+    /// cells, not a door onto nothing: an entry that opened a list of the zero
+    /// apps already on screen would be a control that does nothing.
+    @Test("A folder that fits has no door", arguments: [0, 1, 2, 8])
+    func folderThatFitsHasNoDoor(tileCount: Int) {
+        #expect(FolderGrid.nine.nestedCell(for: .systemSmall, tileCount: tileCount) == nil)
+    }
+
+    /// The one that is easiest to get wrong, and the reason the reservation is
+    /// unconditional: a folder at exactly the capacity has no door, and adding
+    /// one more app must not move anything that was already on screen.
+    ///
+    /// Under a conditional reservation — "reserve a cell only once there is
+    /// something to put behind it" — the ninth app of a nine-cell grid sits in
+    /// cell 8, and the tenth pushes the door in at cell 8 and demotes the ninth
+    /// app... to somewhere. The user sees an app leave the Home Screen at the
+    /// moment they add another one, which reads as the new app replacing it.
+    @Test("Adding an app past capacity only changes the last cell")
+    func growingPastCapacityDisturbsNothing() {
+        let grid = FolderGrid.nine
+        let capacity = grid.capacity(for: .systemSmall)
+
+        // At capacity: no door, and every cell is an app.
+        #expect(grid.nestedCell(for: .systemSmall, tileCount: capacity) == nil)
+        for index in 0..<capacity {
+            #expect(index != grid.nestedCell(for: .systemSmall, tileCount: capacity + 1))
+        }
+        // One past: the door takes the last cell, and nothing before it moved.
+        #expect(grid.nestedCell(for: .systemSmall, tileCount: capacity + 1) == capacity)
+    }
+
+    /// A grid of one cell would have no room for both an app and a door, and
+    /// `capacity` subtracting unconditionally would return zero — a folder that
+    /// can show nothing at all. No family is that small today; the bound is here
+    /// so that one being added later cannot turn into a division by zero.
+    @Test("The capacity subtraction bottoming out", arguments: FolderGrid.allCases)
+    func capacityNeverReachesZero(grid: FolderGrid) {
+        for family: WidgetFamily in [.systemSmall, .systemMedium, .systemLarge] {
+            #expect(grid.capacity(for: family) >= 1)
+            #expect(grid.capacity(for: family) < grid.cellCount(for: family))
+        }
     }
 
     /// The setting stops at the small size, which is the decision that makes it
@@ -194,15 +256,15 @@ struct WidgetGridTests {
         #expect(FolderGrid.four.columns(for: family) == FolderGrid.nine.columns(for: family))
     }
 
-    /// Every family, every grid: capacity is a whole number of rows, so no cell
-    /// is ever reserved with nothing to draw in it. `capacity` and `columns` are
-    /// two separate switches over the same family, and nothing in the type system
-    /// stops them drifting apart — which is the failure ``FolderGrid`` exists to
-    /// fix, one layer up.
-    @Test("Capacity is always a whole number of rows", arguments: FolderGrid.allCases)
+    /// Every family, every grid: the cell count is a whole number of rows, so no
+    /// cell is ever reserved with nothing to draw in it. `cellCount` and
+    /// `columns` are two separate switches over the same family, and nothing in
+    /// the type system stops them drifting apart — which is the failure
+    /// ``FolderGrid`` exists to fix, one layer up.
+    @Test("The cell count is always a whole number of rows", arguments: FolderGrid.allCases)
     func everyGridFillsWholeRows(grid: FolderGrid) {
         for family: WidgetFamily in [.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge] {
-            #expect(grid.capacity(for: family) % grid.columns(for: family) == 0)
+            #expect(grid.cellCount(for: family) % grid.columns(for: family) == 0)
         }
     }
 
