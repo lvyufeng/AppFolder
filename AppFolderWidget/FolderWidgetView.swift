@@ -9,9 +9,30 @@ import WidgetKit
 /// button's job is to hand a URL to the system; see ``LaunchTileIntent`` for why
 /// that reaches a third-party app at all. There is intentionally no `Link` here:
 /// a `Link` in a widget can only open the containing app.
+///
+/// ## What the empty space does
+///
+/// Nothing, and making that true took three attempts.
+///
+/// A widget's whole surface opens the containing app when tapped — that is the
+/// platform's behaviour, `widgetURL` only redirects the tap rather than gating
+/// it, and the SDK publishes no hit-region API. (Apple's own widgets do the same:
+/// tapping the blank half of a short Calendar widget opens Calendar.) So a folder
+/// of four apps with a whole row empty launches AppFolder when the user taps what
+/// looks like nothing.
+///
+/// The fix is ``InertTapShield`` — a no-op button covering the widget, behind the
+/// grid — and the two failed attempts before it are documented there, because
+/// both failures look identical from the Home Screen and only one of them was
+/// about hit areas.
+///
+/// An earlier version of this comment claimed the space was inert because no
+/// `widgetURL` was set. That was wrong in both directions — the default is
+/// *tappable*, and a missing `widgetURL` does not disable it — and it is worth
+/// recording because the wrong version reads as obviously correct, and the only
+/// thing that disproved it was a tap on a real Home Screen.
 struct FolderWidgetView: View {
     @Environment(\.widgetFamily) private var family
-    @Environment(\.widgetContentMargins) private var contentMargins
     /// How the system is rendering us right now.
     ///
     /// Read because Liquid Glass is not something the app can ask for — Apple's
@@ -93,11 +114,10 @@ private struct FolderGrid: View {
         let tiles = drawable.isEmpty ? entry.tiles : drawable
 
         // The container the grid divides up is the whole widget, because the
-        // grid now applies the outer margin itself — see `FolderWidgetView`.
-        // `contentMargins` is read anyway, to keep the layout width and the
-        // margin derived from it describing the same widget: the size setting
-        // only ever removes inner margin, never adds any, so the two cannot
-        // disagree.
+        // grid applies the outer margin itself — see
+        // `FolderGridMetrics/margin`. `\.widgetContentMargins` is no longer read
+        // anywhere: it held the system's 18 pt, and the size setting now decides
+        // that number instead.
         GeometryReader { proxy in
             let metrics = FolderGridMetrics(
                 tileCount: tiles.count,
@@ -126,13 +146,24 @@ private struct FolderGrid: View {
                             } else {
                                 // A grid that is not full needs the empty cells
                                 // to exist, or the icons left-align and the whole
-                                // folder reads as off-centre.
+                                // folder reads as off-centre. They need no tap
+                                // handling of their own — the shield behind the
+                                // grid already covers them, and the regions the
+                                // grid does not reach.
                                 Color.clear
                                     .frame(width: metrics.iconSide, height: metrics.cellHeight)
                             }
                         }
                     }
                 }
+            }
+            // The tap shield, over the *whole* widget rather than over the empty
+            // cells. See ``InertTapShield`` for why covering only the cells a
+            // tile is missing from was not enough.
+            .background {
+                InertTapShield()
+                    .contentShape(Rectangle())
+                    .frame(width: proxy.size.width, height: proxy.size.height)
             }
             // The grid's own margin, spent explicitly. It used to come out right by
             // accident: the frame below centred its child, so a margin baked into
@@ -160,6 +191,48 @@ private struct FolderGrid: View {
                 alignment: .top
             )
         }
+    }
+}
+
+/// The no-op button that makes the widget's non-icon surface inert.
+///
+/// A widget's whole surface opens the containing app when tapped, and nothing in
+/// the SDK turns that off — `widgetURL` redirects the tap rather than gating it,
+/// and there is no hit-region API. Apple's own widgets behave the same way. A
+/// folder holding four apps should not launch AppFolder because someone tapped
+/// the space where the other five are not.
+///
+/// So that surface is covered by a `Button` whose intent does nothing: a button
+/// is a tap target the system routes to instead of falling through to the
+/// widget's default action.
+///
+/// ## Why it covers everything, and why the first two attempts failed
+///
+/// This started as one no-op button per *empty cell*, which did not work, for two
+/// reasons that are worth recording because both make the failure look
+/// identical from the Home Screen:
+///
+/// 1. A transparent `Color.clear` label has no hit area, so the button was never
+///    clickable and every tap went straight through. Fixed by `contentShape`.
+/// 2. Even clickable, the cells were the wrong region. The `Grid` is built from
+///    `metrics.rows`, and `rows` is derived from the *tile count* — so a
+///    four-tile folder lays out two rows and the bottom third of the widget is
+///    not part of that `Grid` at all. Neither is the outer margin, nor the slack
+///    under a grid that is shorter than its container. Taps there met no button,
+///    empty cell or not.
+///
+/// Covering the whole widget removes the need to reason about which regions the
+/// layout happens to leave bare. It is placed behind the grid, so tiles still
+/// take their own taps; everything else lands here.
+///
+/// It draws nothing on purpose: no shape, no tint, no highlight, and no
+/// accessible element for what is genuinely a gap in the folder.
+private struct InertTapShield: View {
+    var body: some View {
+        Button(intent: InertTapIntent(cell: 0)) {
+            Color.clear.contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
