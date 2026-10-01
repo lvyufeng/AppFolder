@@ -214,7 +214,7 @@ extension AppCatalog {
         // through AppFolder is a worse tap than a universal link, but a much
         // better one than a tile that opens Safari.
         KnownApp(id: "shortcuts", name: "快捷指令", englishName: "Shortcuts",
-                 scheme: "shortcuts://", category: "系统", isSystemApp: true),
+                 scheme: "shortcuts://", category: "系统", isSystemApp: true, symbolName: "command"),
         KnownApp(id: "maps", name: "地图", englishName: "Maps",
                  scheme: "maps://", category: "系统", isSystemApp: true,
                  // `?t=m` is the map-type parameter, set to its own default. Maps
@@ -223,30 +223,30 @@ extension AppCatalog {
                  // `?ll=0,0` drops the camera in the Atlantic off Africa (the
                  // screenshot is unambiguous), `?q=coffee` pins a search, and the
                  // bare `?q=` / `?ll=` / `?t=` forms fall through to Safari.
-                 universalLink: "https://maps.apple.com/?t=m"),
+                 universalLink: "https://maps.apple.com/?t=m", symbolName: "map"),
         KnownApp(id: "photos", name: "照片", englishName: "Photos",
-                 scheme: "photos-redirect://", category: "系统", isSystemApp: true),
+                 scheme: "photos-redirect://", category: "系统", isSystemApp: true, symbolName: "photo"),
         KnownApp(id: "calendar", name: "日历", englishName: "Calendar",
-                 scheme: "calshow://", category: "系统", isSystemApp: true),
+                 scheme: "calshow://", category: "系统", isSystemApp: true, symbolName: "calendar"),
         KnownApp(id: "messages", name: "信息", englishName: "Messages",
-                 scheme: "sms://", category: "系统", isSystemApp: true),
+                 scheme: "sms://", category: "系统", isSystemApp: true, symbolName: "message"),
         KnownApp(id: "health", name: "健康", englishName: "Health",
-                 scheme: "x-apple-health://", category: "系统", isSystemApp: true),
+                 scheme: "x-apple-health://", category: "系统", isSystemApp: true, symbolName: "heart"),
         KnownApp(id: "reminders", name: "提醒事项", englishName: "Reminders",
-                 scheme: "x-apple-reminderkit://", category: "系统", isSystemApp: true),
+                 scheme: "x-apple-reminderkit://", category: "系统", isSystemApp: true, symbolName: "checklist"),
         KnownApp(id: "files", name: "文件", englishName: "Files",
-                 scheme: "shareddocuments://", category: "系统", isSystemApp: true),
+                 scheme: "shareddocuments://", category: "系统", isSystemApp: true, symbolName: "folder"),
         KnownApp(id: "wallet", name: "钱包", englishName: "Wallet",
-                 scheme: "shoebox://", category: "系统", isSystemApp: true),
+                 scheme: "shoebox://", category: "系统", isSystemApp: true, symbolName: "creditcard"),
         KnownApp(id: "safari", name: "Safari", englishName: "Safari",
-                 scheme: "x-web-search://", category: "系统", isSystemApp: true),
+                 scheme: "x-web-search://", category: "系统", isSystemApp: true, symbolName: "safari"),
         KnownApp(id: "news", name: "新闻", englishName: "News",
                  scheme: "applenews://", category: "系统", isSystemApp: true,
-                 universalLink: "https://apple.news/"),
+                 universalLink: "https://apple.news/", symbolName: "newspaper"),
         KnownApp(id: "fitness", name: "健身", englishName: "Fitness",
-                 scheme: "fitnessapp://", category: "系统", isSystemApp: true),
+                 scheme: "fitnessapp://", category: "系统", isSystemApp: true, symbolName: "figure.run"),
         KnownApp(id: "settings", name: "设置", englishName: "Settings",
-                 scheme: "App-prefs://", category: "系统", isSystemApp: true),
+                 scheme: "App-prefs://", category: "系统", isSystemApp: true, symbolName: "gearshape"),
 
         // MARK: 待验证
         // Real apps whose scheme we have only from a single unverified source.

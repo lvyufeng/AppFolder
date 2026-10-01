@@ -60,6 +60,21 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
     /// substitute: a launcher tile should land where the Home Screen icon does.
     public let universalLink: String?
 
+    /// An SF Symbol standing in for the app's icon, when there is no App Store id
+    /// to fetch real artwork with.
+    ///
+    /// Apple's own apps are the reason this exists. They have no App Store id
+    /// (they don't ship through the store), so the icon path that every
+    /// third-party entry uses has nothing to fetch, and the app cannot reach into
+    /// their bundles to ask. It is also *why* they are listed at all: a picker
+    /// whose whole first section is blank grey squares reads as broken, and the
+    /// system apps are exactly the ones the probe can always find — so they are
+    /// exactly the ones that fill that section.
+    ///
+    /// A symbol is the honest fallback: not the app's real icon, and not
+    /// pretending to be. See ``FolderTile/init(app:)`` for where it lands.
+    public let symbolName: String?
+
     public init(
         id: String,
         name: String,
@@ -69,7 +84,8 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         category: String,
         confidence: Confidence = .verified,
         isSystemApp: Bool = false,
-        universalLink: String? = nil
+        universalLink: String? = nil,
+        symbolName: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -80,6 +96,7 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         self.confidence = confidence
         self.isSystemApp = isSystemApp
         self.universalLink = universalLink
+        self.symbolName = symbolName
     }
 
     /// The scheme without `://`, which is the form `LSApplicationQueriesSchemes`

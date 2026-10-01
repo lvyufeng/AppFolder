@@ -349,20 +349,25 @@ struct FolderContentEditorView: View {
 
 /// Picks tiles from the catalog, split by what the probe knows.
 ///
-/// Three sections rather than two, because there are three answers and the app
-/// can only give one of them honestly:
+/// Two sections, not three:
 ///
-/// * **已安装** — asked, and the system said yes. This is the section the picker
-///   exists for; it turns the whole catalogue into a short list of apps the user
-///   is actually looking at on their Home Screen.
-/// * **未安装** — asked, and the system said no.
-/// * **其他** — never asked. `LSApplicationQueriesSchemes` is capped (see
-///   ``AppCatalog/queryBudget``), so most of the catalogue can never be checked.
-///   These are *not* known to be absent, and the app says so instead of guessing.
+/// * **已安装** — asked, and the system said yes.
+/// * **其他 App** — everything else, which is two different things wearing one
+///   label: apps the probe asked about and got a *no*, and apps it was never
+///   allowed to ask about. `LSApplicationQueriesSchemes` is capped at
+///   ``AppCatalog/queryBudget``, and the cap is real — measured on device, 133
+///   declared schemes yielded exactly 25 answers — so the second group is the
+///   large one and cannot be shrunk by trying harder.
 ///
-/// In the simulator nothing third-party is installed, so every declared scheme
-/// lands in 未安装 and the list looks like a failure. On a real device the first
-/// section is the useful one.
+/// The *未安装* section this screen used to carry is gone, deliberately. Only the
+/// first 25 catalogue entries can be checked at all, so for the other thirty an
+/// "未安装" heading would have been the app asserting something it never
+/// measured — and the user's own eyes can see the app on their Home Screen. A
+/// list that claims to know and is wrong is worse than one that admits the
+/// boundary, which the 其他 footer now states outright.
+///
+/// In the simulator nothing third-party is installed, so most of the list falls
+/// into 其他 App. On a real device the first section is the useful one.
 ///
 /// ## Why the folder's own apps come in selected
 ///
@@ -405,8 +410,10 @@ struct TilePickerView: View {
     @State private var pendingLookup: AppStoreLookup?
 
     private var installed: [KnownApp] { filtered.filter { model.installStatus($0) == .installed } }
-    private var absent: [KnownApp] { filtered.filter { model.installStatus($0) == .absent } }
-    private var unknown: [KnownApp] { filtered.filter { model.installStatus($0) == .unknown } }
+    /// Everything the probe could not confirm. Includes apps the system
+    /// explicitly said no to and apps it was never allowed to ask about — see the
+    /// type's own note for why those two cannot be told apart on screen.
+    private var unknown: [KnownApp] { filtered.filter { model.installStatus($0) != .installed } }
 
     /// The catalogue's matches for the current query.
     ///
@@ -477,7 +484,7 @@ struct TilePickerView: View {
                     } header: {
                         Text("已安装")
                     } footer: {
-                        Text("这些 App 在当前设备上装了，可以放心添加。")
+                        Text("这些 App 检测到装在当前设备上。")
                     }
                 }
 
@@ -485,21 +492,15 @@ struct TilePickerView: View {
                     Section {
                         ForEach(unknown) { row($0) }
                     } header: {
-                        Text("其他")
+                        Text("其他 App")
                     } footer: {
                         // Said plainly, because the alternative is the user
                         // wondering why an app they have isn't in the list above.
-                        Text("系统只允许 App 检查约 \(AppCatalog.queryBudget) 个 App 是否安装，其余的在这里。它们能用，只是没法自动判断装没装。")
-                    }
-                }
-
-                if !absent.isEmpty {
-                    Section {
-                        ForEach(absent) { row($0) }
-                    } header: {
-                        Text("未安装")
-                    } footer: {
-                        Text("当前设备上没有检测到这些 App。")
+                        // The count is the honest part: the limit is exactly why
+                        // these are here, and a user who knows that can tell
+                        // "not detected" apart from "not installed" — which the
+                        // list itself cannot, so it does not claim to.
+                        Text("系统只允许 App 检查 \(AppCatalog.queryBudget) 个 App 是否安装，其余的都在这里。装着的也在里面，只是没法自动认出来。")
                     }
                 }
 
@@ -688,13 +689,12 @@ struct TilePickerView: View {
 
     private func row(_ app: KnownApp) -> some View {
         let isPicked = selectedIDs.contains(app.id)
-        let status = model.installStatus(app)
 
         return Button {
             if isPicked { selectedIDs.remove(app.id) } else { selectedIDs.insert(app.id) }
         } label: {
             HStack(spacing: 12) {
-                AsyncTileIcon(appStoreID: app.appStoreID, symbolName: "app.dashed")
+                AsyncTileIcon(appStoreID: app.appStoreID, symbolName: app.symbolName ?? "app.dashed")
                     .frame(width: 32, height: 32)
 
                 VStack(alignment: .leading, spacing: 1) {
@@ -706,12 +706,6 @@ struct TilePickerView: View {
 
                 Spacer()
 
-                if status != .unknown {
-                    Text(status.label)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
                 Image(systemName: isPicked ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(isPicked ? Color.accentColor : Color.secondary)
             }
@@ -721,22 +715,43 @@ struct TilePickerView: View {
 }
 
 /// Icon view driven by an App Store id, for entries that are not tiles yet.
+///
+/// Three states, and which one is showing matters. Fetched artwork is the real
+/// icon. When there is an id but the fetch has not landed (or failed) the tile is
+/// a neutral placeholder — honest, because something *is* coming. When there is no
+/// id at all, nothing is coming, so a placeholder would just be a hole in the
+/// list; the symbol is drawn as a deliberate mark instead.
 struct AsyncTileIcon: View {
     let appStoreID: Int?
     let symbolName: String
 
     @State private var image: UIImage?
 
+    /// Whether this icon is waiting on a fetch that could plausibly succeed.
+    private var isAwaitingArtwork: Bool { appStoreID != nil && image == nil }
+
     var body: some View {
         Group {
             if let image {
                 Image(uiImage: image).resizable().scaledToFit()
-            } else {
+            } else if isAwaitingArtwork {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .fill(.fill.tertiary)
                     .overlay {
                         Image(systemName: symbolName)
                             .foregroundStyle(.secondary)
+                    }
+            } else {
+                // No id, so this app has no store artwork to fetch — Apple's own
+                // apps. Drawn larger and in the accent-adjacent foreground so it
+                // reads as the icon rather than as a missing one; the same size
+                // as the placeholder glyph would still look like a failure.
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(.fill.secondary)
+                    .overlay {
+                        Image(systemName: symbolName)
+                            .font(.system(size: 18))
+                            .foregroundStyle(.primary)
                     }
             }
         }

@@ -128,6 +128,11 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
             urlString: app.scheme,
             appStoreID: app.appStoreID,
             catalogID: app.id,
+            // Carried so that an entry with no App Store id — Apple's own apps —
+            // still draws something recognisable. A catalogue entry can gain a
+            // real id later, and the symbol steps aside on its own because the
+            // icon view prefers fetched artwork when there is any.
+            symbolName: app.symbolName,
             universalLinkString: app.universalLink
         )
     }
