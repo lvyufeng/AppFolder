@@ -29,30 +29,10 @@ import SwiftUI
 /// which is the part the screenshots could not show.
 struct WidgetPlatePreview: View {
     var body: some View {
-        VStack(spacing: 16) {
-            plate(
-                title: "现在的写法",
-                detail: ".containerBackground { Color.clear }"
-            ) {
-                Color.clear
-            }
-            plate(
-                title: "上次试过的写法",
-                detail: "45% 黑 —— 渲染成 #969696，说明底下是白板"
-            ) {
-                Color.black.opacity(0.45)
-            }
-            plate(
-                title: "对照：真玻璃应该长这样",
-                detail: "同一张壁纸上透出下面的颜色"
-            ) {
-                Rectangle().fill(.regularMaterial)
-            }
-        }
-        .padding(20)
-        // A wallpaper-like backdrop: without gradients behind it there is
-        // nothing for a translucent surface to be translucent *to*.
-        .background(
+        ZStack {
+            // A wallpaper stand-in. Everything in this file is about what a
+            // surface does to what is *behind* it, so the backdrop has to have
+            // structure in it.
             LinearGradient(
                 colors: [
                     Color(red: 0.58, green: 0.47, blue: 0.36),
@@ -61,7 +41,37 @@ struct WidgetPlatePreview: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-        )
+            .ignoresSafeArea()
+
+            VStack(spacing: 18) {
+                plate(title: "A 玻璃 + 不画背景", detail: "glassEffect 画在一块透明板上") {
+                    glassPlate { Rectangle().fill(Color.clear) }
+                }
+                plate(title: "B 玻璃 + Color.clear", detail: "把 .widget 交给系统，内容上再叠玻璃") {
+                    glassPlate {
+                        Rectangle().fill(Color.clear)
+                            .containerBackground(for: .widget) { Color.clear }
+                    }
+                }
+                plate(title: "C 只有玻璃，没有 containerBackground", detail: "看少了那一层会不会出事") {
+                    glassPlate { Rectangle().fill(Color.clear) }
+                }
+            }
+            .padding(20)
+        }
+    }
+
+    /// `glassEffect` is iOS 26+; the widget target deploys lower, so the call
+    /// has to be behind an availability check or the whole target fails to
+    /// compile. Below 26 there is no glass to draw, so the plate is just the
+    /// view the caller handed in.
+    @ViewBuilder
+    private func glassPlate<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content().glassEffect(.regular, in: .rect(cornerRadius: 22))
+        } else {
+            content()
+        }
     }
 
     private func plate<Fill: View>(
@@ -69,11 +79,8 @@ struct WidgetPlatePreview: View {
         detail: String,
         @ViewBuilder fill: () -> Fill
     ) -> some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .fill(Color.clear)
-            .overlay { fill() }
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .frame(height: 110)
+        fill()
+            .frame(height: 130)
             .overlay {
                 VStack(spacing: 4) {
                     Text(title).font(.headline)

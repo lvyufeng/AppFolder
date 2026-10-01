@@ -12,6 +12,17 @@ import WidgetKit
 struct FolderWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.widgetContentMargins) private var contentMargins
+    /// How the system is rendering us right now.
+    ///
+    /// Read because Liquid Glass is not something the app can ask for — Apple's
+    /// own words are that the system "removes the background and replaces it
+    /// with a themed glass or tinted color effect" once the person picks a
+    /// tinted or clear Home Screen appearance, and the developer's whole job is
+    /// to make content survive that. The measure of "survive" is this value: in
+    /// ``WidgetRenderingMode/accented`` the system tints primary content white
+    /// and flattens images, so an app launcher has to say which of its pictures
+    /// must resist that — see the icons below.
+    @Environment(\.widgetRenderingMode) private var renderingMode
     let entry: FolderEntry
 
     var body: some View {
@@ -195,10 +206,33 @@ private struct WidgetIcon: View {
     let tile: FolderTile
     var cornerRadius: CGFloat = 8
 
+    /// Read here rather than passed down, because this is the only place that
+    /// needs it and the value is already in the environment.
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
     var body: some View {
         Group {
             if let image = tile.cachedIcon {
-                Image(uiImage: image).resizable().scaledToFit()
+                // The icon is a *picture of another app*, not decoration, and in
+                // Liquid Glass's accented mode the system tints opaque images to
+                // a single flat white — which would turn a folder of nine apps
+                // into nine identical white blobs. `accentedDesaturated` is the
+                // documented middle path for a full-color image the person still
+                // has to recognise: the shape and relative luminance survive,
+                // the saturation is the part that gives way to the glass. In
+                // every other rendering mode there is nothing to yield to, so
+                // the artwork stays exactly as the app cached it.
+                //
+                // Both modifiers here are declared on `Image` and return
+                // `some View`, so the order is not a style choice: `resizable`
+                // has to come first and `scaledToFit` (a `View` method) has to
+                // come last, or one of them is gone by the time it is reached.
+                Image(uiImage: image)
+                    .resizable()
+                    .widgetAccentedRenderingMode(
+                        renderingMode == .accented ? .accentedDesaturated : .fullColor
+                    )
+                    .scaledToFit()
             } else if let symbol = tile.symbolName {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.fill.tertiary)
