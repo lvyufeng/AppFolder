@@ -26,6 +26,14 @@ struct RootView: View {
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
             router.scenePhaseChanged(to: phase)
+            // Coming back from another app is exactly when a shared import is
+            // waiting: the user shared from the Home Screen, the extension
+            // deposited a record, and this is the first moment the app can act on
+            // it. `initial: true` also covers a cold launch that is itself the
+            // return.
+            if phase == .active {
+                Task { await model.drainSharedImports() }
+            }
         }
         // The other destination a widget link can carry: the grid's last cell,
         // tapped because the folder holds more apps than the widget has cells.

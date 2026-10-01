@@ -20,6 +20,14 @@ public enum AppFolderShared {
     /// File name of the library inside the shared container.
     public static let libraryFileName = "library.json"
 
+    /// Directory inside the shared container holding one file per app the user
+    /// shared in, waiting for the app to turn into a tile.
+    ///
+    /// A directory rather than a file on purpose — see ``PendingImport`` for why
+    /// appending to a single JSON would put the extension and the app back into
+    /// the same lost-update race the queue exists to avoid.
+    public static let importsDirectoryName = "imports"
+
     /// `UserDefaults` key used when the App Group container is unavailable.
     public static let fallbackDefaultsKey = "library.fallback"
 }

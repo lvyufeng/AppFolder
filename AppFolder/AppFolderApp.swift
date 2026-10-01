@@ -52,7 +52,58 @@ final class LibraryModel {
     func start() async {
         library = store.load()
         isSharedStorageAvailable = store.hasSharedContainer
+        await drainSharedImports()
         await refreshInstalledApps()
+    }
+
+    /// Turns anything the share extension left for us into tiles.
+    ///
+    /// The extension cannot write the library — two writers on one file lose
+    /// updates, see ``PendingImport`` — so it deposits a record and this is where
+    /// the record becomes real. Called on launch and again whenever the app comes
+    /// forward, because the whole point of sharing is that the user does it from
+    /// another app and then switches back.
+    ///
+    /// The catalogue is consulted first and by track id, so an app it already
+    /// knows needs no network at all: its scheme is verified and the tile is
+    /// finished immediately. Only a stranger costs a lookup, and even then it is
+    /// one request rather than a search.
+    func drainSharedImports() async {
+        let pending = PendingImportStore().drain()
+        guard !pending.isEmpty else { return }
+
+        for item in pending {
+            guard let index = library.folders.firstIndex(where: { $0.id == item.folderID }) else {
+                // The folder was deleted between the share and the return. Dropped
+                // rather than re-homed: putting it somewhere the user did not pick
+                // is worse than not adding it, and sharing again costs one tap.
+                continue
+            }
+
+            let tile: FolderTile?
+            if let entry = AppCatalog.entry(appStoreID: item.trackID) {
+                tile = FolderTile(app: entry)
+            } else if let lookup = await AppStoreSearchClient.shared.lookup(
+                trackID: item.trackID, region: item.region
+            ) {
+                // Known to the App Store but not to the catalogue: a name, an
+                // icon and an id, but no verified scheme. The tile is still worth
+                // making — the app's editor is where a scheme gets filled in and
+                // tried, and that is a better place to land than dropping it.
+                tile = FolderTile(
+                    title: lookup.name,
+                    scheme: SchemeGuess.candidates(bundleID: lookup.bundleID, name: lookup.name).first ?? "",
+                    appStoreID: lookup.trackID
+                )
+            } else {
+                tile = nil
+            }
+
+            guard let tile else { continue }
+            var next = library
+            next.folders[index].tiles.append(tile)
+            apply(next)
+        }
     }
 
     /// Re-probes which apps are installed and persists the result for the widget.

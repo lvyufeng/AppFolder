@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The share extension's half of the shared container.
+
+	     This is what makes the queue work at all: the extension deposits into
+	     `imports/` inside this container and the app reads it out. Without the
+	     entitlement the two would each get their own private container, the
+	     deposit would land somewhere the app cannot look, and the share would
+	     appear to do nothing.
+
+	     Same value as the app and the widget — see `AppFolderShared`. Requires
+	     the paid team; a Personal Team cannot provision App Groups. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.lvyufeng.appfolder</string>
+	</array>
+</dict>
+</plist>
