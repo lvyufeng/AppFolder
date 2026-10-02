@@ -36,11 +36,14 @@ public struct OpenLinkIntent: AppIntent {
 
     /// Resolves the URL for a tile, refusing anything that cannot work.
     ///
-    /// The check is worth having even though the strategy is stored: a universal
-    /// link tile whose target app has no link — or whose link was hand-edited to
-    /// a custom scheme — would otherwise be a tile that silently does nothing
-    /// when tapped. Asking ``FolderTile/launchURL`` rather than ``FolderTile/url``
-    /// is what makes "直接打开" mean the app, and never the scheme.
+    /// Three ways a tile can fail to be a universal-link target, and all three
+    /// throw rather than produce an intent: no link, a link that is not a URL,
+    /// and a link that is one but is not `https`. Asking
+    /// ``FolderTile/launchURL`` rather than ``FolderTile/url`` is what makes
+    /// "直接打开" mean the app and never the scheme — but the guard is still
+    /// worth writing out, because the widget decides *which* intent to build by
+    /// switching on ``FolderTile/launchRoute``, and this is the backstop if the
+    /// two ever disagree.
     public init(tile: FolderTile) throws {
         guard let url = tile.launchURL else {
             throw TileError.malformedURL(tile.urlString)
@@ -74,22 +77,9 @@ public enum TileError: Error, CustomLocalizedStringResourceConvertible {
     }
 }
 
-extension FolderTile {
-    /// Why "直接打开" cannot be used for this tile, or `nil` if it can.
-    ///
-    /// A cell of the picker's menu, not an error path: the answer is what the
-    /// user needs in order to choose, so it is phrased as the reason rather than
-    /// as a failure. The alternative — offering both routes for every app and
-    /// letting the broken one fail silently on the Home Screen — is how the 地图
-    /// bug happened in the first place.
-    public var universalLinkRefusal: String? {
-        guard strategy == .universalLink else { return nil }
-        guard let url = universalLink else {
-            return "这个 App 没有已知的通用链接，只能用「经 AppFolder 中转」"
-        }
-        guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
-            return "「\(url.absoluteString)」不是 https 链接，只能用「经 AppFolder 中转」"
-        }
-        return nil
-    }
-}
+// `FolderTile.universalLinkRefusal` used to live here, explaining why 直接打开
+// could not be used for a tile. It is gone along with the route picker it
+// served: the route is derived now, so there is no choice to explain. The
+// condition it described is not gone, though — it moved into
+// ``FolderTile/universalLink``, which returns `nil` for exactly the links this
+// used to reject, and ``FolderTile/launchRoute`` reads the answer from there.

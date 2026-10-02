@@ -14,7 +14,7 @@ import Foundation
 ///    supported. A custom scheme handed to `OpenURLIntent` does nothing.
 ///
 /// So a target's *URL shape* decides the route, not our preference.
-public enum LaunchStrategy: String, Codable, Sendable, CaseIterable {
+public enum LaunchStrategy: String, Codable, Sendable {
     /// The target is an `https://` universal link. Hand it to the system and it
     /// opens the right app — or the browser, if no app claims it.
     ///
@@ -47,41 +47,12 @@ public enum LaunchStrategy: String, Codable, Sendable, CaseIterable {
 
     /// The default route for a target we only know a scheme for.
     public static let `default`: LaunchStrategy = .bounce
-
-    /// Whether the target app opens without AppFolder appearing on screen.
-    public var isHopFree: Bool {
-        switch self {
-        case .universalLink, .systemShortcut: true
-        case .bounce: false
-        }
-    }
-
-    public var localizedName: String {
-        switch self {
-        case .universalLink: "直接打开"
-        case .bounce: "经 AppFolder 中转"
-        case .systemShortcut: "系统快捷启动"
-        }
-    }
-
-    /// A one-line explanation for the tile editor, so the choice is not a
-    /// mystery the user has to guess at.
-    public var localizedExplanation: String {
-        switch self {
-        case .universalLink:
-            "系统直接打开目标 App，AppFolder 不会出现在屏幕上。需要目标 App 支持通用链接。"
-        case .bounce:
-            "先打开 AppFolder，再由它跳转到目标 App。会有一次明显的切换，但任何 App 都适用。"
-        case .systemShortcut:
-            "由系统代为打开，最快且无切换。需要 iOS 27，且目标要在小组件配置里手动选择。"
-        }
-    }
-
-    /// Whether a tap can fail with no feedback.
-    ///
-    /// Only the hop-free routes can: the system runs them out of process and
-    /// reports nothing, so a target that refuses to open looks exactly like a
-    /// target that opened. The bounce route always produces something visible,
-    /// even when it fails — AppFolder comes to the front either way.
-    public var canFailSilently: Bool { isHopFree }
 }
+
+// `isHopFree`, `canFailSilently`, `localizedName` and `localizedExplanation`
+// used to live here, describing each route to the user so the editor could offer
+// them as a menu. The menu is gone — the route is derived, see
+// ``FolderTile/launchRoute`` — and with it the only caller of these. They are
+// not kept "just in case": a route the user cannot pick does not need a display
+// name, and a `canFailSilently` that nothing branches on would be a claim about
+// behaviour that no longer has a consequence in the code.

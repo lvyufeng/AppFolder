@@ -3,7 +3,7 @@ import Testing
 
 @testable import AppFolderKit
 
-/// What the two launch routes actually resolve to.
+/// What the launch route actually resolves to.
 ///
 /// These exist because of a real bug: 地图 was configured as 直接打开 while the
 /// tile's only URL was `maps://`, `OpenLinkIntent` refused the scheme, and the
@@ -11,6 +11,11 @@ import Testing
 /// nothing, and there was no error anywhere to look at. The fix separates the
 /// tile's two URLs, and these tests pin the property that made the bug possible:
 /// a tile's launch URL must be the one its route can actually open.
+///
+/// The route is *derived* now — see ``FolderTile/launchRoute`` — so the stored
+/// `strategy` is no longer what decides. Every test below therefore asserts on
+/// the route the tile actually resolves to, and the ones that used to be about
+/// switching a setting are about the derivation ignoring a stale one.
 @Suite("Launch routes")
 struct LaunchRouteTests {
     private func tile(
@@ -26,65 +31,76 @@ struct LaunchRouteTests {
         )
     }
 
-    @Test("A universal link tile launches the link, not the scheme")
-    func universalLinkUsesTheLink() throws {
+    @Test("A tile with a universal link takes the link, whatever it was stored as")
+    func universalLinkWins() throws {
         let tile = tile(
             url: "maps://",
             strategy: .universalLink,
             link: "https://maps.apple.com/?t=m"
         )
+        #expect(tile.launchRoute == .universalLink)
         #expect(tile.launchURL?.absoluteString == "https://maps.apple.com/?t=m")
         #expect(tile.canLaunch)
-        #expect(tile.universalLinkRefusal == nil)
 
         // And the intent — the thing the widget actually builds — accepts it.
         let intent = try OpenLinkIntent(tile: tile)
         #expect(intent.url.absoluteString == "https://maps.apple.com/?t=m")
+
+        // A stale `.bounce` in the stored strategy does not override the link:
+        // the derivation reads the tile, not the setting. This is the case a
+        // library saved by an older build lands in, and it must open directly.
+        var stale = tile
+        stale.strategy = .bounce
+        #expect(stale.launchRoute == .universalLink)
+        #expect(stale.launchURL?.absoluteString == "https://maps.apple.com/?t=m")
     }
 
     @Test("A universal link tile with no link does not fall back to its scheme")
     func universalLinkWithoutLinkRefuses() {
         let tile = tile(url: "maps://", strategy: .universalLink)
-        // The whole point: `nil`, not `maps://`. Returning the scheme would give
-        // `OpenURLIntent` something it ignores, which renders as a live tile that
-        // does nothing.
-        #expect(tile.launchURL == nil)
-        #expect(!tile.canLaunch)
-        #expect(tile.universalLinkRefusal != nil)
-        #expect(throws: TileError.self) { try OpenLinkIntent(tile: tile) }
-    }
-
-    @Test("A bounce tile launches its scheme, whatever else it carries")
-    func bounceUsesTheScheme() {
-        let tile = tile(
-            url: "maps://",
-            strategy: .bounce,
-            link: "https://maps.apple.com/?t=m"
-        )
+        // The whole point: the route falls through to the scheme rather than
+        // producing `nil`. A `nil` here would be a dead tile — the editor draws
+        // it, the widget draws it, and the tap does nothing — whereas the bounce
+        // route always reaches *something*, even when it is only AppFolder
+        // reporting that it could not open the target.
+        #expect(tile.launchRoute == .bounce)
         #expect(tile.launchURL?.absoluteString == "maps://")
         #expect(tile.canLaunch)
-        // Bounce has no refusal to offer: it is the route that always works.
-        #expect(tile.universalLinkRefusal == nil)
     }
 
-    @Test("Switching routes neither invents nor destroys the other URL")
-    func switchingRoutesKeepsBothURLs() {
-        var tile = tile(url: "maps://", strategy: .bounce, link: "https://maps.apple.com/?t=m")
-        tile.strategy = .universalLink
-        #expect(tile.launchURL?.absoluteString == "https://maps.apple.com/?t=m")
-        tile.strategy = .bounce
+    /// A link that is not `https` is not a universal link, however it was
+    /// stored. `OpenURLIntent` throws on it, and a throw from a widget button is
+    /// the 地图 bug — so the derivation must not pick `.universalLink` just
+    /// because the string is present.
+    @Test("A non-https link does not become a universal-link route")
+    func nonHTTPSLinkIsNotAUniversalLink() {
+        let tile = tile(url: "maps://", strategy: .universalLink, link: "maps://")
+        #expect(tile.universalLink == nil)
+        #expect(tile.launchRoute == .bounce)
         #expect(tile.launchURL?.absoluteString == "maps://")
-        // Both survived the round trip, which is what lets the editor offer the
-        // route switch as a repair rather than as a destructive edit.
-        #expect(tile.universalLinkString == "https://maps.apple.com/?t=m")
-        #expect(tile.urlString == "maps://")
+        #expect(tile.canLaunch)
     }
 
-    @Test("A shortcut tile cannot launch from a folder grid")
-    func shortcutTilesAreInert() {
-        let tile = tile(url: "shortcuts://", strategy: .systemShortcut)
+    @Test("A tile with neither URL keeps its stored route")
+    func nothingToLaunchKeepsTheStoredRoute() {
+        // Nothing to derive from, so the stored value is the only answer left —
+        // and a `.systemShortcut` there means the tile is inert rather than
+        // falling through to a scheme that does not exist.
+        let tile = tile(url: "", strategy: .systemShortcut)
+        #expect(tile.launchRoute == .systemShortcut)
+        #expect(tile.launchURL == nil)
         #expect(!tile.canLaunch)
-        #expect(tile.launchURL?.absoluteString == "shortcuts://")
+    }
+
+    @Test("A stored shortcut route falls back to the scheme it carries")
+    func shortcutRouteFallsBackToItsScheme() {
+        let tile = tile(url: "shortcuts://", strategy: .systemShortcut)
+        // The scheme is present, so the derivation sends it down the bounce
+        // route — which is the only route that can work at all. A stored
+        // `.systemShortcut` cannot be honoured in a grid: `SystemShortcut` is
+        // not constructible, so there is no intent for the widget to run.
+        #expect(tile.launchRoute == .bounce)
+        #expect(tile.canLaunch)
     }
 
     @Test("A catalog entry's link travels onto the tile it makes")
@@ -95,7 +111,9 @@ struct LaunchRouteTests {
         #expect(tile.universalLinkString == "https://maps.apple.com/?t=m")
         #expect(tile.appStoreID == maps.appStoreID)
 
-        tile.strategy = .universalLink
+        // The route follows the link, which the catalogue entry supplied — no
+        // setting to set, and nothing the user has to get right.
+        #expect(tile.launchRoute == .universalLink)
         #expect(tile.canLaunch)
     }
 

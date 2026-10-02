@@ -42,15 +42,20 @@ public enum LibraryRepair {
                     tile.universalLinkString = app.universalLink
                 }
 
-                // 2. Repair, most-preferred route first.
-                if !tile.canLaunch {
-                    if tile.universalLink != nil {
-                        tile.strategy = .universalLink
-                    } else if tile.url != nil {
-                        tile.strategy = .bounce
-                    }
-                    // Neither: nothing can be done from here, and the editor is
-                    // where the user finds that out.
+                // 2. Keep the stored route in step with the derived one.
+                //
+                // The route is no longer a user setting — see
+                // ``FolderTile/launchRoute`` — so the stored value is only still
+                // written for a build that reads it. Keeping it in sync here means
+                // a library written before this change, or by a build that still
+                // had the picker, converges on the same answer the widget derives.
+                //
+                // Only ever set, never cleared: a tile with neither a link nor a
+                // URL keeps whatever it had, because there is no better value and
+                // overwriting it would destroy the record of what the user once
+                // chose.
+                if tile.url != nil || tile.universalLink != nil {
+                    tile.strategy = tile.launchRoute
                 }
 
                 library.folders[folderIndex].tiles[tileIndex] = tile

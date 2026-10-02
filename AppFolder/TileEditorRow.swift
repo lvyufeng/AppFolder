@@ -2,19 +2,23 @@ import AppFolderKit
 import SwiftUI
 import UIKit
 
-/// One tile in the editor: icon, name, URL, launch route.
+/// One tile in the editor: icon, name, and a way to try it.
 ///
-/// The launch route is editable here and nowhere else, on purpose. A tile that
-/// cannot open its app is indistinguishable from a broken app — the tap just
-/// does nothing — so the place to find out is the editor, where the user is
-/// already looking at the tile and can act on it.
+/// ## Why there is no launch-route picker
 ///
-/// "直接打开" is the route that makes this necessary. It needs the target app to
-/// publish a universal link, which most apps do not, and the wrong choice
-/// produces exactly the silent-nothing tap described above. So the option is
-/// offered only when there is a link to use, and when it cannot be used the
-/// editor says why and offers the fix — rather than letting the tile be saved in
-/// a state where the widget renders it inert.
+/// There used to be one — 直接打开 / 经 AppFolder 中转 — and it was a mistake,
+/// for a reason worth recording. The two options are not preferences; they are a
+/// fact about the target app. "直接打开" needs the target to publish a universal
+/// link and most apps do not (of the catalogue's 73 entries, exactly two do), so
+/// picking it for anything else produced a tile that drew normally and did
+/// nothing when tapped. The picker looked like a setting and was really asking
+/// the user a question the app can answer itself.
+///
+/// The route is now derived from the tile — ``FolderTile/launchRoute`` — and the
+/// widget reads it from there. What is left here is the only thing the user can
+/// actually act on: whether the link works. "试一下" opens it for real, which is
+/// the one check that settles the question, and for a hand-added tile the link
+/// itself is editable above it.
 struct TileEditorRow: View {
     @Binding var tile: FolderTile
     @State private var isTesting = false
@@ -74,29 +78,6 @@ struct TileEditorRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Menu {
-                LaunchRouteMenu(tile: tile) { tile.strategy = $0 }
-            } label: {
-                HStack(spacing: 6) {
-                    Text("打开方式")
-                    Spacer()
-                    Text(tile.strategy.localizedName)
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                .font(.subheadline)
-            }
-
-            Text(tile.strategy.localizedExplanation)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if let refusal = tile.universalLinkRefusal {
-                refusalNotice(refusal)
-            }
-
             HStack(spacing: 12) {
                 Button("试一下") { test() }
                     .buttonStyle(.bordered)
@@ -128,36 +109,10 @@ struct TileEditorRow: View {
             }
         }
         .padding(.vertical, 4)
-        .onChange(of: tile.strategy) { _, _ in
-            // A stale verdict from a previous route reads as a verdict on this
+        .onChange(of: tile.urlString) { _, _ in
+            // A stale verdict from a previous link reads as a verdict on the new
             // one. Clear it rather than let the user draw the wrong conclusion.
             result = nil
-        }
-    }
-
-    /// Explains an unusable "直接打开" and offers the one-tap way out.
-    ///
-    /// The repair is only offered when a repair exists: switching a tile that is
-    /// already broken to the route that works. Anything else would be a button
-    /// that changes a setting without fixing the tile.
-    @ViewBuilder
-    private func refusalNotice(_ refusal: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label {
-                Text(refusal)
-            } icon: {
-                Image(systemName: "exclamationmark.triangle")
-            }
-            .font(.caption)
-            .foregroundStyle(.orange)
-
-            if tile.canLaunch == false, tile.url != nil {
-                Button("改用「经 AppFolder 中转」") {
-                    tile.strategy = .bounce
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
         }
     }
 
@@ -202,48 +157,3 @@ struct TileEditorRow: View {
         }
     }
 }
-
-// MARK: - Route picker
-
-/// The `打开方式` menu, with the routes that cannot work removed.
-///
-/// A separate view because a `Picker` cannot disable one of its own rows:
-/// `.disabled` applies to the whole control. The menu is built by hand instead,
-/// which is also what allows each route to carry a reason.
-struct LaunchRouteMenu: View {
-    let tile: FolderTile
-    let onPick: (LaunchStrategy) -> Void
-
-    /// Routes offered for this tile, in the enum's own order.
-    private var offered: [LaunchStrategy] {
-        LaunchStrategy.allCases.filter { strategy in
-            // Whatever is already selected stays listed, or the menu would
-            // misreport the tile's state and the user could not switch away
-            // from a route they picked before it became unusable.
-            strategy == tile.strategy || Self.isAvailable(strategy, for: tile)
-        }
-    }
-
-    private static func isAvailable(_ strategy: LaunchStrategy, for tile: FolderTile) -> Bool {
-        switch strategy {
-        case .universalLink: tile.universalLink != nil
-        case .bounce: tile.url != nil
-        case .systemShortcut: false
-        }
-    }
-
-    var body: some View {
-        ForEach(offered, id: \.self) { strategy in
-            Button {
-                onPick(strategy)
-            } label: {
-                if strategy == tile.strategy {
-                    Label(strategy.localizedName, systemImage: "checkmark")
-                } else {
-                    Text(strategy.localizedName)
-                }
-            }
-        }
-    }
-}
-

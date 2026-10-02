@@ -476,7 +476,11 @@ private struct TileButton: View {
     let metrics: FolderGridMetrics
 
     var body: some View {
-        switch tile.strategy {
+        // The route is derived from the tile, not read from a stored preference —
+        // see `FolderTile/launchRoute`. The editor no longer offers a choice, so
+        // the only thing that could disagree is a tile written by an older build,
+        // and deriving it here means those start working correctly too.
+        switch tile.launchRoute {
         case .universalLink:
             if let intent = try? OpenLinkIntent(tile: tile) {
                 Button(intent: intent) { label }

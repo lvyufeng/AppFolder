@@ -34,10 +34,16 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
     public var symbolName: String?
     /// How the widget should ask the system to open this tile.
     ///
-    /// Per tile rather than per folder because the answer depends on the target
-    /// URL, not on the folder it sits in — see ``LaunchStrategy``. The default is
-    /// ``LaunchStrategy/bounce`` because that is the only route that works for a
-    /// custom scheme, and a custom scheme is what almost every app exposes.
+    /// No longer what decides — ``launchRoute`` derives the route from the tile's
+    /// own URLs, and the widget reads *that*. It survives because it is written
+    /// on disk and a library may be read by a build from before the derivation
+    /// existed, and because ``launchRoute`` still falls back to it for a tile
+    /// that carries no URL at all. ``LibraryRepair`` keeps it in step with the
+    /// derived answer on every load, so the two do not drift.
+    ///
+    /// It stays `var` and stays persisted rather than being deleted: removing a
+    /// key is what makes an old build's decode fail, and a failed decode is the
+    /// user losing every folder — see ``Folder/init(from:)`` on that bargain.
     public var strategy: LaunchStrategy
 
     /// The app's universal link, when it has one and the route above is
@@ -84,31 +90,71 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
     public var url: URL? { URL(string: urlString) }
 
     /// The app's universal link, or `nil` if it has none.
-    public var universalLink: URL? { universalLinkString.flatMap(URL.init(string:)) }
+    ///
+    /// Shape is checked here rather than at the point of use, because this is the
+    /// single door both the editor and the widget come through. ``OpenLinkIntent``
+    /// reaches an app through an `https://` universal link and nothing else — a
+    /// link that is really a custom scheme makes it *throw*, and a throw from a
+    /// `Button(intent:)` on the Home Screen is a tile that draws normally and does
+    /// nothing when tapped. That is the 地图 bug, and refusing a malformed link
+    /// here is what keeps it from coming back in through the link instead of
+    /// through the route picker.
+    public var universalLink: URL? {
+        guard let url = universalLinkString.flatMap(URL.init(string:)) else { return nil }
+        guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+            return nil
+        }
+        return url
+    }
 
     /// The URL the widget will actually hand to the system.
     ///
     /// One place decides, so the widget cannot draw a button that opens something
-    /// other than what the editor showed. Note what happens when a
-    /// ``LaunchStrategy/universalLink`` tile has no link: the answer is `nil`, not
-    /// the scheme. Falling back to ``url`` would be the easy thing to write and
-    /// the wrong thing to ship — `OpenURLIntent` ignores custom schemes, so the
-    /// tile would look live and do nothing, which is the exact bug this whole
-    /// type exists to prevent.
+    /// other than what the editor showed. The `nil` case is the `.systemShortcut`
+    /// route: there is no URL, because the system holds the target as an opaque
+    /// reference we never learn — see ``LaunchStrategy``. It is `nil` rather than
+    /// an empty URL so the widget's `switch` has a branch that cannot be mistaken
+    /// for a link that merely failed to parse.
     public var launchURL: URL? {
-        switch strategy {
+        switch launchRoute {
         case .universalLink: universalLink
-        case .bounce, .systemShortcut: url
+        case .bounce: url
+        case .systemShortcut: nil
         }
+    }
+
+    /// How this tile will open, decided from the tile itself.
+    ///
+    /// Not a stored setting and not a user choice. It used to be both, and the
+    /// editor offered 直接打开 / 经 AppFolder 中转 as if they were preferences —
+    /// but the picker was really answering "can this work at all", and a user who
+    /// picked 直接打开 for an app with no universal link got a tile that lit up
+    /// and did nothing. That is the `地图` bug from `docs/research/04-实现笔记.md`,
+    /// and removing the choice is what makes it unrepresentable.
+    ///
+    /// A universal link wins when there is one: it opens with no visible hop.
+    /// Otherwise the scheme goes through AppFolder, which is the only route the
+    /// platform allows for a custom scheme — a widget's own `Link` opens its host
+    /// app and nothing else. There is no third option to fall through to;
+    /// `SystemShortcut` is excluded because it cannot be constructed, see
+    /// ``LaunchStrategy``.
+    public var launchRoute: LaunchStrategy {
+        if universalLink != nil { return .universalLink }
+        return url != nil ? .bounce : strategy
     }
 
     /// Whether tapping this tile can reach its target at all.
     ///
-    /// False for the one configuration that cannot work — "直接打开" on an app
-    /// with no universal link — so the widget's silence is a decision the app
-    /// made rather than a mystery the user has to debug by tapping.
+    /// False only for a tile with no URL to open — the state the widget cannot
+    /// do anything with, where a silent tile is a decision the app made rather
+    /// than a mystery the user has to debug by tapping.
+    ///
+    /// Under the old stored-strategy rule this was also false for "直接打开" on an
+    /// app with no universal link, which was the 地图 bug. That state is now
+    /// unrepresentable: the derivation sends such a tile down the bounce route,
+    /// where it at least reaches AppFolder and can report the failure.
     public var canLaunch: Bool {
-        switch strategy {
+        switch launchRoute {
         case .universalLink: universalLink != nil
         case .bounce: url != nil
         case .systemShortcut: false
