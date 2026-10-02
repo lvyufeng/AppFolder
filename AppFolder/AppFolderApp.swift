@@ -51,7 +51,10 @@ final class LibraryModel {
 
     func start() async {
         library = store.load()
-        isSharedStorageAvailable = store.hasSharedContainer
+        // A real write, not a check that the container exists: see
+        // ``FolderStore/isSharedStorageWritable()`` for why the difference is the
+        // whole point.
+        isSharedStorageAvailable = store.isSharedStorageWritable()
         await drainSharedImports()
         await refreshInstalledApps()
     }
@@ -73,12 +76,22 @@ final class LibraryModel {
         guard !pending.isEmpty else { return }
 
         for item in pending {
-            guard let index = library.folders.firstIndex(where: { $0.id == item.folderID }) else {
-                // The folder was deleted between the share and the return. Dropped
-                // rather than re-homed: putting it somewhere the user did not pick
-                // is worse than not adding it, and sharing again costs one tap.
-                continue
-            }
+            // The folder the user picked, falling back to the first one.
+            //
+            // The fallback is not a nicety. The extension reads the folder list
+            // from the shared container, and if the app's last write to that
+            // container failed — see ``FolderStore/save(_:)`` — the extension is
+            // listing a library the app no longer agrees with. It then deposits
+            // against a folder id that does not exist here, and every one of those
+            // imports used to be dropped silently: the user shared an app, the
+            // sheet said 已添加, and nothing ever appeared.
+            //
+            // Losing the user's chosen folder is a far smaller harm than losing
+            // the import, and it is visible — the tile lands somewhere they can
+            // see and move. Dropping it is invisible.
+            guard let index = library.folders.firstIndex(where: { $0.id == item.folderID })
+                ?? library.folders.indices.first
+            else { continue }  // no folders at all; nothing to add to
 
             let tile: FolderTile?
             if let entry = AppCatalog.entry(appStoreID: item.trackID) {
