@@ -136,6 +136,92 @@ struct FolderCodingTests {
         #expect(folder.showsTitles == false, "labels were off before this field existed")
     }
 
+    /// The same guarantee for the tile, which is where the newest field landed.
+    ///
+    /// `FolderTile` had synthesized `Codable` until `needsSchemeConfirmation` was
+    /// added. A `Bool` has no absent-key tolerance under synthesis — `decode`
+    /// throws where `decodeIfPresent` would not — so adding it would have failed
+    /// the decode of every library written before it, and ``FolderStore`` answers
+    /// a failed decode by quarantining the file. One boolean would have cost the
+    /// user every folder, so the test is written against the literal bytes an
+    /// older build produced rather than against a round trip.
+    @Test("A tile written before the confirmation flag still decodes")
+    func tileToleratesAbsentConfirmationFlag() throws {
+        let json = """
+        {
+          "folders": [
+            {
+              "id": "\(UUID().uuidString)",
+              "name": "常用",
+              "colorHex": "",
+              "updatedAt": 812104549.6,
+              "tiles": [
+                {
+                  "id": "\(UUID().uuidString)",
+                  "kind": "app",
+                  "title": "票牛",
+                  "urlString": "pner://",
+                  "appStoreID": 1052455390,
+                  "strategy": "bounce"
+                }
+              ]
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let library = try FolderCoding.makeDecoder().decode(FolderLibrary.self, from: json)
+        let tile = try #require(library.folders.first?.tiles.first)
+
+        #expect(tile.title == "票牛")
+        #expect(tile.urlString == "pner://", "the scheme is the thing that would be lost")
+        #expect(tile.needsSchemeConfirmation == false, "a tile from before the flag carries no warning")
+        #expect(tile.bundleID == nil)
+    }
+
+    /// ``FolderTile/bundleID`` is new, and it is the field that lets a later
+    /// improvement to ``SchemeGuess`` re-derive a scheme for a tile that is
+    /// already saved. If it does not survive a write it can never do that.
+    @Test("The bundle id and the confirmation flag round-trip")
+    func tileGuessFieldsRoundTrip() throws {
+        let original = FolderLibrary(folders: [
+            Folder(name: "常用", tiles: [
+                FolderTile(
+                    title: "票牛",
+                    scheme: "pner://",
+                    appStoreID: 1052455390,
+                    bundleID: "com.ipiaoniu.pner",
+                    needsSchemeConfirmation: true
+                ),
+            ]),
+        ])
+
+        let decoded = try FolderCoding.makeDecoder()
+            .decode(FolderLibrary.self, from: FolderCoding.makeEncoder().encode(original))
+        let tile = try #require(decoded.folders.first?.tiles.first)
+
+        #expect(tile.bundleID == "com.ipiaoniu.pner")
+        #expect(tile.needsSchemeConfirmation)
+    }
+
+    /// The collapse request has to survive a write, or the app's request to close
+/// an expanded widget never reaches the widget.
+    ///
+    /// It defaults to zero, which is what a library written before it decodes to
+    /// — and the widget's own cursor starts at zero too, so upgrading does not
+    /// spuriously collapse anything.
+    @Test("The collapse request round-trips and defaults to zero")
+    func collapseRequestRoundTrips() throws {
+        let old = #"{"folders":[]}"#.data(using: .utf8)!
+        #expect(try FolderCoding.makeDecoder().decode(FolderLibrary.self, from: old).collapseRequest == 0)
+
+        var library = FolderLibrary()
+        library.collapseRequest = 3
+        let decoded = try FolderCoding.makeDecoder()
+            .decode(FolderLibrary.self, from: FolderCoding.makeEncoder().encode(library))
+        #expect(decoded.collapseRequest == 3)
+    }
+
     /// A field the *encoder* writes has to survive the decoder, and the reverse.
     @Test("The appearance fields round-trip")
     func roundTripsAppearance() throws {

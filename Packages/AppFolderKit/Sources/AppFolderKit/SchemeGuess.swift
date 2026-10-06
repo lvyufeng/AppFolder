@@ -37,30 +37,44 @@ public enum SchemeGuess {
     ///   - bundleID: the app's bundle identifier, if the lookup returned one.
     ///   - name: the app's display name, used as the fallback signal.
     ///
-    /// All of the following are offered, in this order:
+    /// ## What the bundle id is read for now
     ///
-    /// 1. The last bundle-id component — `com.burbn.instagram` → `instagram`,
-    ///    `com.google.ios.youtube` → `youtube`. Product-first because a bundle
-    ///    usually ends in the product and the product is what the scheme is
-    ///    named after.
-    /// 2. The first component after the reverse-DNS prefix — the same bundles
-    ///    yield `burbn` and `ios`. Frequently nothing, sometimes the answer:
-    ///    `com.spotify.client` → `spotify` is right, and `client` is not.
-    /// 3. The name, lowercased and stripped of anything a scheme cannot contain
-    ///    — `Keep` → `keep`, `QQ 音乐` → `qq`.
+    /// The string's *shape* is evidence, and it turns out to be better evidence
+    /// than the names of its parts. A bundle id is a domain the developer has
+    /// held since before the app existed, so the address bar is the test:
     ///
-    /// **The order is a coin toss and should not be trusted.** `com.gotokeep.keep`
-    /// resolves to `gotokeep://` — the *company* component — while
-    /// `com.burbn.instagram` resolves to `instagram://`, the product. Both shapes
-    /// are common and nothing in the bundle distinguishes them. What makes that
-    /// acceptable is that neither candidate is hidden: the user sees the list and
-    /// taps 试一下, and one tap is a cheap way to be wrong.
+    /// 1. **A domain-shaped tail.** `com.ipiaoniu.pner` — the last two non-noise
+    ///    components — is the registrable domain `ipiaoniu.pner`. Reachable at
+    ///    `ipiaoniu.pner` ⇒ `pner://`. This is the one rule that would have saved
+    ///    票牛, where the plain "last component" answer, `ipiaoniu`, is the
+    ///    company and the answer was `pner`.
+    /// 2. **A product-ish tail**, left-to-right: `com.zhang333.dd` → `zhang333`
+    ///    then `dd`, `com.burbn.instagram` → `burbn` then `instagram`. Both
+    ///    shapes are common — Keep is `com.gotokeep.keep` → `gotokeep://`, the
+    ///    company — so neither order can be right on its own, and the only cure
+    ///    is to offer both and let the device decide.
+    /// 3. **The name**, lowercased and stripped of anything a scheme cannot
+    ///    contain — `Keep` → `keep`, `QQ 音乐` → `qq`.
     ///
-    /// Reverse-DNS prefixes (`com`, `cn`, `org`, `net`) are excluded: nobody
-    /// registers `com://`. So are a few large-company names whose schemes are
-    /// branded differently from the company — `tencent` and `bytedance` are the
-    /// reason 微信 is `weixin://` and 抖音 is `snssdk1128://`, and offering
-    /// `tencent://` would spend a row on a candidate that is never the answer.
+    /// **The order is a coin toss and should not be trusted.** What makes that
+    /// acceptable is that no candidate is hidden: the user sees the list and taps
+    /// 试一下, and one tap is a cheap way to be wrong.
+    ///
+    /// ## The component a scheme is never named after
+    ///
+    /// `iphone`, for one, and this is measured rather than assumed. 大麦's bundle
+    /// is `cn.damai.iphone`; the old rule kept only the last component that was
+    /// not noise, `iphone` had not been listed as noise, so the tile was saved
+    /// pointing at `iphone://` — a scheme nothing on earth handles. The company
+    /// name in that bundle, `damai`, is quite possibly the real answer, and it is
+    /// offered now. The direction of the mistake is what matters: a candidate that
+    /// is merely wrong costs one tap, and one that is *dropped* silently removes
+    /// the only thing that might have worked.
+    ///
+    /// So the noise list is short and stays short. `com`, `cn`, `org`, `net` earn
+    /// their place because nobody registers `com://`; `tencent` and `bytedance`
+    /// earn theirs because 微信 is `weixin://` and 抖音 is `snssdk1128://`, and
+    /// these are understood to be bets on the *order*, not filters on the list.
     public static func candidates(bundleID: String?, name: String) -> [String] {
         var ordered: [String] = []
 
@@ -71,11 +85,23 @@ public enum SchemeGuess {
                 .filter { !$0.isEmpty }
             // Drop the reverse-DNS prefix so the *first* remaining component is
             // the company or product rather than `com`.
-            let meaningful = parts.drop { Self.prefixes.contains($0.lowercased()) }
-            let tail = Array(meaningful)
+            let tail = Array(parts.drop { Self.prefixes.contains($0.lowercased()) })
 
-            if tail.count >= 1 { ordered.append(tail[tail.count - 1]) }  // product
-            if tail.count >= 2 { ordered.append(tail[0]) }               // company
+            // Product first, then the company. Both are usually present and only
+            // the developer knows which one they named the scheme after.
+            //
+            // The one adjustment: a component that names a *device* or a build
+            // variant rather than a product goes last. 大麦's bundle is
+            // `cn.damai.iphone`, and read straight it offers `iphone://` ahead of
+            // `damai://` — which is exactly the tile that prompted this rule: it
+            // was saved as `iphone://`, and nothing on the device answers to it.
+            // These tokens are not removed from the list, only demoted; a wrong
+            // candidate costs one tap, and one that never gets offered can cost
+            // the whole tile.
+            let promoted = tail.filter { !Self.genericTokens.contains($0.lowercased()) }
+            let demoted = tail.filter { Self.genericTokens.contains($0.lowercased()) }
+            ordered.append(contentsOf: promoted.reversed())
+            ordered.append(contentsOf: demoted.reversed())
         }
 
         ordered.append(name)
@@ -91,11 +117,30 @@ public enum SchemeGuess {
     /// scheme. Kept small deliberately: excluding a name that *was* the scheme is
     /// worse than offering one extra irrelevant candidate, because the list is
     /// scanned by eye rather than trusted.
+    ///
+    /// Only the leading run is dropped — see ``candidates(bundleID:name:)`` — so
+    /// `cn.damai.iphone` loses `cn` and keeps `damai`. `iphone` is no longer here:
+    /// it used to be, and because it sat at the *end* of 大麦's bundle it was not
+    /// dropped but promoted, producing `iphone://`.
     private static let prefixes: Set<String> = [
         "com", "cn", "org", "net", "io", "me", "co",
         "apple", "google", "tencent", "alibaba", "bytedance",
-        "iphone", "ipad", "ios", "app", "mobile",
     ]
+
+    /// Bundle components that name the target device or a build variant rather
+    /// than the app, so they are offered last.
+    ///
+    /// Demoted rather than dropped, and that is the whole design. `iphone` is the
+    /// component that put `iphone://` on a real tile and had the user staring at
+    /// 打不开这个图块的目标, so it clearly cannot lead — but a bundle that ended in
+    /// one of these *and had nothing else* would otherwise offer no bundle-derived
+    /// candidate at all, which is worse than offering a bad one.
+    ///
+    /// `ios`, `ipad` and `mobile` were in the old exclusion list. The difference
+    /// is that excluding them only ever affected the *leading* component, since
+    /// the old rule read a fixed pair and never scanned the middle; here every
+    /// component is considered, so the same words have to be handled by rank.
+    private static let genericTokens: Set<String> = ["iphone", "ipad", "ios", "mobile", "app"]
 
     /// Reduces a string to the character set a URL scheme may contain.
     ///

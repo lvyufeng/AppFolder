@@ -30,6 +30,17 @@ struct TileEditorRow: View {
         case finished
     }
 
+    /// The candidates to offer when the scheme is a guess.
+    ///
+    /// Re-derived from the stored bundle id rather than kept alongside the
+    /// scheme, so a tile saved by an older, worse guesser shows the improved
+    /// list — see ``FolderTile/bundleID``. A hand-added tile has no bundle id and
+    /// falls back to its name, which is the same signal ``SchemeGuess`` would
+    /// have had.
+    private var candidates: [String] {
+        SchemeGuess.candidates(bundleID: tile.bundleID, name: tile.title)
+    }
+
     /// Whether this tile came from the catalogue.
     ///
     /// The catalogue's entries have an id, which is what ``LibraryRepair`` uses to
@@ -72,14 +83,19 @@ struct TileEditorRow: View {
                 Spacer()
             }
 
-            if isUserAdded {
+            if tile.needsSchemeConfirmation {
+                unconfirmedHint
+            } else if isUserAdded {
                 Text("这个 App 不在目录里，链接是你自己试出来的。打不开就在这里改。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 12) {
-                Button("试一下") { test() }
+                // The primary control while unconfirmed, because on this tile the
+                // question is not "is this still working" but "is this right at
+                // all" — and it is the same button either way.
+                Button(tile.needsSchemeConfirmation ? "试一下并确认" : "试一下") { test() }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(isTesting)
@@ -87,7 +103,7 @@ struct TileEditorRow: View {
                 if let result {
                     switch result {
                     case .opened:
-                        Label("已交给系统打开", systemImage: "checkmark.circle")
+                        Label("已确认，已交给系统打开", systemImage: "checkmark.circle")
                             .font(.caption)
                             .foregroundStyle(.green)
                     case .noHandler:
@@ -113,6 +129,57 @@ struct TileEditorRow: View {
             // A stale verdict from a previous link reads as a verdict on the new
             // one. Clear it rather than let the user draw the wrong conclusion.
             result = nil
+        }
+    }
+
+    /// The 待确认 block: what is wrong, and the other schemes worth trying.
+    ///
+    /// ## Why the candidates are here and not only on the entry screen
+    ///
+    /// The share path adds a tile in one step, without ever showing
+    /// ``SchemeEntryView`` — the user picked a folder and was done. So the guess
+    /// that came out of it has to be correctable *after* the fact, or the only
+    /// remedy for a wrong one is deleting the tile and sharing the app again.
+    /// Offering the same list here, one tap each, is what makes the flag a
+    /// 待确认 rather than a dead end.
+    ///
+    /// ## Why they are not filtered to the currently-chosen one
+    ///
+    /// The stored scheme is shown first and marked, because it is what the tile
+    /// will actually open — but the rest are the alternatives, and picking one
+    /// rewrites the tile rather than adding a second one.
+    @ViewBuilder
+    private var unconfirmedHint: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("这个 App 不在目录里，启动链接是猜的，确认后才能出现在桌面", systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+
+            ForEach(candidates, id: \.self) { candidate in
+                Button {
+                    // Reassigning past the binding is what makes this a real
+                    // correction: the tile keeps one scheme, and everything that
+                    // reads the tile — the widget, the repair pass — sees the new
+                    // one with no second place to update.
+                    tile.urlString = candidate
+                    test()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: candidate == tile.urlString ? "largecircle.fill.circle" : "circle")
+                            .font(.caption)
+                        Text(candidate)
+                            .font(.caption.monospaced())
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(isTesting)
+            }
+
+            if candidates.isEmpty {
+                Text("没能从这个 App 的信息里猜到链接，得手动填。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -154,6 +221,24 @@ struct TileEditorRow: View {
         UIApplication.shared.open(target) { success in
             result = success ? .opened : .finished
             isTesting = false
+            // Confirmed, and this is the only thing that ever confirms a tile.
+            //
+            // `success` means the system accepted the request and found a
+            // handler for it, which is the strongest signal available: the
+            // completion handler exists precisely to distinguish "there is an app
+            // for this" from "there is not". It is not proof that the app came
+            // forward — nothing reports that — so this is a bet, and the
+            // alternative is worse: leaving the tile permanently unconfirmed
+            // means it never reaches the Home Screen, and the user has no way to
+            // finish the job they started by sharing the app.
+            //
+            // Note there is no corresponding "mark it broken on failure". A
+            // `false` here is genuinely ambiguous — see the type's note on the
+            // completion handler — so the tile is left exactly as it was, still a
+            // guess, still fixable.
+            if success {
+                tile.needsSchemeConfirmation = false
+            }
         }
     }
 }

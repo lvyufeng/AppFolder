@@ -32,6 +32,37 @@ public enum LibraryRepair {
     public static func repair(_ library: FolderLibrary) -> FolderLibrary {
         var library = library
 
+        // 3. Flag the tiles that were guessed before the flag existed.
+        //
+        // ``FolderTile/needsSchemeConfirmation`` is new, so a library written
+        // before it decodes every tile as confirmed — including the ones whose
+        // scheme is a guess the device has never accepted. Those are exactly the
+        // tiles that produce 打不开这个图块的目标 on the Home Screen, so leaving
+        // them unflagged means the fix does nothing for anyone who already hit
+        // the bug.
+        //
+        // Gated on the schema version rather than on a condition, and that is
+        // load-bearing. The obvious rule — "no catalogue entry and no stored
+        // bundle id" — is *still true* of a guessed tile after the user has
+        // confirmed it, because confirming only clears the flag; the bundle id
+        // gets filled in by the editor's lookup, which can fail, and a
+        // re-derived flag would then put the tile back to 待确认 on every single
+        // launch. The version says "this migration has run"; the flag it sets is
+        // the user's to clear.
+        if library.schemaVersion < FolderLibrary.currentSchemaVersion {
+            for folderIndex in library.folders.indices {
+                for tileIndex in library.folders[folderIndex].tiles.indices {
+                    let tile = library.folders[folderIndex].tiles[tileIndex]
+                    guard tile.catalogID == nil,          // not a verified catalogue entry
+                          tile.appStoreID != nil,         // came from an App Store lookup
+                          tile.universalLink == nil       // and has no link to prefer
+                    else { continue }
+                    library.folders[folderIndex].tiles[tileIndex].needsSchemeConfirmation = true
+                }
+            }
+            library.schemaVersion = FolderLibrary.currentSchemaVersion
+        }
+
         for folderIndex in library.folders.indices {
             for tileIndex in library.folders[folderIndex].tiles.indices {
                 var tile = library.folders[folderIndex].tiles[tileIndex]

@@ -48,6 +48,27 @@ struct SchemeGuessTests {
         }
     }
 
+    /// The rule that exists because of a real tile.
+    ///
+    /// 大麦's bundle is `cn.damai.iphone`, and read straight it offers
+    /// `iphone://` — which is what the tile was saved as, and nothing on the
+    /// device answers to it. A component naming the device rather than the app
+    /// is still offered, but behind the one that names the company.
+    @Test("A device component does not lead")
+    func deviceComponentIsDemoted() {
+        let candidates = SchemeGuess.candidates(bundleID: "cn.damai.iphone", name: "大麦")
+        #expect(candidates.first == "damai://")
+        #expect(candidates.contains("iphone://"))
+    }
+
+    /// Demoted, never dropped: a bundle whose only usable component is a device
+    /// word still has to offer something, because the alternative is an empty
+    /// field the user has to compose from nothing.
+    @Test("A device component is still offered when it is all there is")
+    func deviceComponentSurvivesAlone() {
+        #expect(SchemeGuess.candidates(bundleID: "com.acme.iphone", name: "Acme") == ["acme://", "iphone://"])
+    }
+
     /// Two components after the prefix is the minimum for a company *and* a
     /// product, so a company guess is only offered when there is one.
     @Test("One remaining component yields only a product guess")

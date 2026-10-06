@@ -126,6 +126,21 @@ extension FolderEntry {
         guard folder.tiles.count > shown else { return [] }
         return Array(folder.tiles.dropFirst(shown))
     }
+
+    /// The hidden apps the widget is willing to draw.
+    ///
+    /// One list, read by the door's preview, its badge and the expansion, because
+    /// all three are making the same promise: *these* are what the door holds.
+    /// Filtering them separately is how a badge ends up counting a tile the
+    /// expansion then declines to show.
+    ///
+    /// The two exclusions are the same ones the collapsed grid applies to
+    /// ``tiles``: no artwork, and a scheme that is still a guess. A withheld tile
+    /// is withheld everywhere, so the grid, the door and the expansion cannot
+    /// disagree about what the folder contains.
+    var drawableHiddenTiles: [FolderTile] {
+        hiddenTiles.filter { !$0.needsSchemeConfirmation && $0.hasArtwork }
+    }
 }
 
 struct FolderTimelineProvider: AppIntentTimelineProvider {
@@ -165,6 +180,13 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
     private func entry(for configuration: FolderSelectionIntent, context: Context) -> FolderEntry {
         let library = FolderStore().load()
 
+        // The app asks for any expansion to be dropped when it opens, and it
+        // says so here rather than through defaults — see
+        // ``FolderLibrary/collapseRequest`` for why the library is the channel
+        // that works. Applied before the entry is built so the frame this very
+        // reload draws is already collapsed, with no second beat.
+        WidgetState.applyCollapseRequest(library.collapseRequest)
+
         let folder: Folder?
         if let selected = configuration.folder {
             folder = library.folders.first { $0.id.uuidString == selected.id }
@@ -185,6 +207,27 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
         let grid = folder?.grid ?? .default
         let tiles = Array((folder?.tiles ?? []).prefix(grid.capacity(for: context.family)))
 
+        // Whether *this* widget is the one the user opened.
+        //
+        // Two conditions, and the second is not redundant. The stored id alone
+        // says "some widget is showing this folder expanded" — but a folder has
+        // one shared id across every widget bound to it, and whether it overflows
+        // depends on the widget's size. A folder of four, on a 四宫格 setting,
+        // shows a door in the small widget (capacity 3) and fits entirely in the
+        // medium one (capacity 8).
+        //
+        // Without the size check, tapping the door on the small widget would put
+        // the *medium* widget into the expanded layout too — and there, with
+        // nothing hidden, the expansion has no apps to lay out at all: it draws a
+        // lone 返回 cell and the four apps the user could see disappear from the
+        // Home Screen. A widget that has no door cannot be the one that was
+        // opened, so it must not expand.
+        //
+        // The condition is on the *overflow*, not on the tile count: see
+        // ``FolderGrid/nestedCell(for:tileCount:)``, which is the same test the
+        // collapsed grid uses to decide the last cell is a door.
+        let canExpand = grid.nestedCell(for: context.family, tileCount: folder?.tiles.count ?? 0) != nil
+
         return FolderEntry(
             date: .now,
             folder: folder,
@@ -192,7 +235,8 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
             totalTileCount: folder?.tiles.count ?? 0,
             installedSchemes: library.installedSchemes,
             style: folder.map(FolderStyle.init) ?? FolderStyle(),
-            isExpanded: folder.map { $0.id.uuidString == WidgetState.expandedFolderID } ?? false,
+            isExpanded: canExpand
+                && folder.map { $0.id.uuidString == WidgetState.expandedFolderID } == true,
             expandedPage: WidgetState.expandedPage
         )
     }

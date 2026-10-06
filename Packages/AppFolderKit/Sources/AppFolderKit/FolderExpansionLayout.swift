@@ -125,11 +125,27 @@ public struct FolderExpansionLayout: Sendable, Equatable {
 
     /// The next cell's index — the last cell of the page.
     ///
-    /// The same index the collapsed grid puts its door in, because
-    /// `pageSize + 1 == cellCount - 1 == FolderGrid.capacity(for:)`. That
-    /// coincidence is deliberate and worth keeping: it means the expand tap
-    /// changes the role of one cell and moves nothing else, so the beat while the
-    /// timeline reloads reads as a state change rather than a re-layout.
+    /// ## Where the number lands, and why only one case matters
+    ///
+    /// `pageSize + 1` is `cellCount - 1` in the paging branch and `cellCount` in
+    /// the fitting branch, since `pageSize` is `cells - 2` in the first and
+    /// `cells - 1` in the second. So the identity that actually holds —
+    ///
+    /// ```swift
+    /// isPaged ⇒ nextCell == cellCount - 1 == FolderGrid.capacity(for:)
+    /// ```
+    ///
+    /// — is conditional, and in the fitting branch this is a cell index *outside*
+    /// the grid. That is deliberate rather than sloppy: a folder that fits has no
+    /// way forward, so there is no cell for the arrow to occupy, and
+    /// ``role(forCell:onPage:)`` answers `.empty` from its range guard. The
+    /// alternative — clamping to `cells - 1` — would name the *door's* cell on
+    /// every fitting layout, which is the one cell that must never draw a next
+    /// arrow, since tapping it would collapse the folder the user just opened.
+    ///
+    /// The paged case is the one the design turns on: the expand tap changes the
+    /// role of one cell and moves nothing else, so the beat while the timeline
+    /// reloads reads as a state change rather than a re-layout.
     ///
     /// Valid on every page. What the cell *is* depends on the page — see
     /// ``role(forCell:onPage:)``, which reports `.empty` on the last one.

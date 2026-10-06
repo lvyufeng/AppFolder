@@ -230,7 +230,17 @@ struct SchemeEntryView: View {
             FolderTile(
                 title: lookup.name,
                 scheme: resolvedScheme,
-                appStoreID: lookup.trackID
+                appStoreID: lookup.trackID,
+                // Stored so ``SchemeGuess`` can be re-run on this tile later
+                // without another network lookup — see ``FolderTile/bundleID``.
+                bundleID: lookup.bundleID,
+                // Whatever the user typed or picked here still counts as a guess.
+                // This screen cannot tell a working link from a plausible one: it
+                // hands the URL to the system and the system reports nothing back
+                // (see ``Outcome``), so a tile made here is confirmed by the same
+                // act as one made by the share extension — the first real open.
+                // Marking it here is what makes the widget wait for that.
+                needsSchemeConfirmation: true
             )
         )
         dismiss()

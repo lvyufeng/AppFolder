@@ -59,12 +59,43 @@ final class LibraryModel {
         // opening the app is a strong signal the user has moved on from it. Left
         // alone, the widget would still be expanded the next time it is looked at,
         // showing a page they never asked to keep.
-        if WidgetState.expandedFolderID != nil {
-            WidgetState.collapse()
-            WidgetCenter.shared.reloadAllTimelines()
-        }
+        //
+        // The request goes into the library rather than into `WidgetState`, and
+        // that is not a preference. `WidgetState`'s defaults are resolved per
+        // process and the app cannot reach the App Group on this device, so a
+        // collapse written there would land in a domain the widget never reads —
+        // the widget would stay expanded and the write would look like it worked.
+        // The library file is written atomically by ``FolderStore`` and read by
+        // both sides, so it is the channel that actually connects them. See
+        // ``FolderLibrary/collapseRequest``.
+        //
+        // Unconditional: the counter is the test, not a preceding read. Checking
+        // `expandedFolderID != nil` first would mean asking a domain that may not
+        // hold the answer, and answering "nothing to collapse" on the strength of
+        // it is the bug being fixed.
+        collapseExpandedWidget()
         await drainSharedImports()
         await refreshInstalledApps()
+    }
+
+    /// Asks every widget to drop any expansion, and nudges them to look.
+    ///
+    /// The counter is what makes the request durable and idempotent: the widget
+    /// compares it against the value it last acted on, so a request survives
+    /// being read by two widgets, being missed because WidgetKit declined a
+    /// reload, and being followed by the app launching again. Nothing here has to
+    /// know whether anything was actually expanded — the request is unconditional
+    /// and a no-op when nothing is open.
+    ///
+    /// Also clears ``WidgetState`` in *this* process, which is free and helps on
+    /// the configurations where the app can reach the same defaults the widget
+    /// uses. It is not relied on.
+    private func collapseExpandedWidget() {
+        WidgetState.collapse()
+        var next = library
+        next.collapseRequest += 1
+        apply(next)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Turns anything the share extension left for us into tiles.
@@ -111,10 +142,24 @@ final class LibraryModel {
                 // icon and an id, but no verified scheme. The tile is still worth
                 // making — the app's editor is where a scheme gets filled in and
                 // tried, and that is a better place to land than dropping it.
+                //
+                // The scheme is a guess, so the tile is flagged as one. That flag
+                // is what keeps a tile that opens nothing out of the widget and
+                // puts a 待确认 warning on it in the editor, where 试一下 is one
+                // tap away. Without it the user's only signal was the 打不开 alert
+                // on the Home Screen, which names neither the tile nor the reason.
+                //
+                // The bundle id is stored alongside because it is the guesser's
+                // input and the network is the only way to get it. Keeping it
+                // means a later improvement — like the one that demoted `iphone`
+                // — can repair this tile in place, instead of asking the user to
+                // share the app again.
                 tile = FolderTile(
                     title: lookup.name,
                     scheme: SchemeGuess.candidates(bundleID: lookup.bundleID, name: lookup.name).first ?? "",
-                    appStoreID: lookup.trackID
+                    appStoreID: lookup.trackID,
+                    bundleID: lookup.bundleID,
+                    needsSchemeConfirmation: true
                 )
             } else {
                 tile = nil

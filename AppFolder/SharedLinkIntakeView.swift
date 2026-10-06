@@ -138,13 +138,17 @@ struct SharedLinkIntakeView: View {
             }
             .padding(.vertical, 4)
 
+            // One tap from here now covers the whole job. The destination reads
+            // the bundle id off ``AppStoreLookup``, derives its own candidates,
+            // and hands back a tile — so the share path no longer needs a
+            // throwaway tile of its own just to reach this screen.
             NavigationLink {
                 SchemeEntryView(lookup: lookup, title: lookup.name) { tile in
                     onPick(tile)
                     dismiss()
                 }
             } label: {
-                Label("填启动链接", systemImage: "link")
+                Label("确认启动链接", systemImage: "link")
             }
         } header: {
             Text("不在目录里")

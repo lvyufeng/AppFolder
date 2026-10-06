@@ -32,6 +32,35 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
     public var customIconName: String?
     /// SF Symbol name, used when there is no artwork at all.
     public var symbolName: String?
+
+    /// The app's bundle identifier, when the App Store lookup returned one.
+    ///
+    /// Kept because it is a fact about the app that only the network can supply
+    /// and only once — a shared link carries a track id and nothing else, so this
+    /// is the sole surviving link back to `SchemeGuess`'s input. With it the
+    /// candidates can be re-derived at any time, which is what lets a *later*
+    /// improvement to the guesser fix a tile that was already saved wrong,
+    /// without the user sharing the app again.
+    ///
+    /// `String?` rather than a fourth required key, and that is load-bearing:
+    /// synthesized `Codable` decodes an optional property with `decodeIfPresent`,
+    /// so a library written before this field existed still loads. A non-optional
+    /// would have made every existing library fail to decode, which here means
+    /// ``FolderStore`` moving it aside as `.corrupt`.
+    public var bundleID: String?
+
+    /// Whether ``urlString`` is a guess the device has never confirmed.
+    ///
+    /// The share path has to invent a scheme for an app the catalogue does not
+    /// know — see ``SchemeGuess`` — and a guess is wrong often enough to matter.
+    /// A tile carrying this flag is drawn with a warning in the editor and is
+    /// excluded from the widget until it is tried, because a tile that opens
+    /// nothing is worse than a tile that is visibly unfinished.
+    ///
+    /// Cleared by the one thing that settles the question: opening it for real.
+    /// Never set for a catalogue tile (whose scheme is verified) or a hand-typed
+    /// one (whose author already knows).
+    public var needsSchemeConfirmation: Bool
     /// How the widget should ask the system to open this tile.
     ///
     /// No longer what decides — ``launchRoute`` derives the route from the tile's
@@ -72,7 +101,9 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
         customIconName: String? = nil,
         symbolName: String? = nil,
         strategy: LaunchStrategy = .bounce,
-        universalLinkString: String? = nil
+        universalLinkString: String? = nil,
+        bundleID: String? = nil,
+        needsSchemeConfirmation: Bool = false
     ) {
         self.id = id
         self.kind = kind
@@ -84,6 +115,8 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
         self.symbolName = symbolName
         self.strategy = strategy
         self.universalLinkString = universalLinkString
+        self.bundleID = bundleID
+        self.needsSchemeConfirmation = needsSchemeConfirmation
     }
 
     /// The tile's target, or `nil` if the stored string is not a URL.
@@ -120,6 +153,46 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
             return nil
         }
         return url
+    }
+
+    /// Decodes leniently, for the same reason ``Folder`` does.
+    ///
+    /// This had to become explicit the moment ``needsSchemeConfirmation`` was
+    /// added. Synthesized `Codable` ignores a property's default and decodes a
+    /// non-optional key with `decode`, which *throws* when the key is absent — so
+    /// a schema addition would fail the decode of every library written before
+    /// it, and a failed decode here is ``FolderStore`` moving the whole file
+    /// aside as `.corrupt`. The user would lose every folder they had, as the
+    /// price of one boolean.
+    ///
+    /// Every field is now tolerant, including the ones that predate this: the
+    /// cost of `try?` over `try` is nothing on a file that has always been
+    /// written correctly, and it is the difference between an odd tile and no
+    /// library at all on one that has not.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // These two are the identity of a tile; a row without them is not a tile
+        // and there is no sensible stand-in, so they are the only fields allowed
+        // to fail the decode.
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        kind = (try? container.decodeIfPresent(Kind.self, forKey: .kind)) ?? .app
+        urlString = try container.decodeIfPresent(String.self, forKey: .urlString) ?? ""
+        appStoreID = try container.decodeIfPresent(Int.self, forKey: .appStoreID)
+        catalogID = try container.decodeIfPresent(String.self, forKey: .catalogID)
+        customIconName = try container.decodeIfPresent(String.self, forKey: .customIconName)
+        symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName)
+        // Same bargain as ``Folder``'s `plate`: a value written by a newer build,
+        // or edited by hand, gets the fallback rather than taking the library
+        // down with it.
+        strategy = (try? container.decodeIfPresent(LaunchStrategy.self, forKey: .strategy)) ?? .bounce
+        universalLinkString = try container.decodeIfPresent(String.self, forKey: .universalLinkString)
+        bundleID = try container.decodeIfPresent(String.self, forKey: .bundleID)
+        // Absent means "no warning", which is the right reading in both
+        // directions: a tile written before this flag existed was either from the
+        // catalogue or hand-added, and neither of those wants a warning.
+        needsSchemeConfirmation =
+            (try? container.decodeIfPresent(Bool.self, forKey: .needsSchemeConfirmation)) ?? false
     }
 
     /// The URL the widget will actually hand to the system.
@@ -214,14 +287,23 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
     ///
     /// The app keeps its App Store id, so artwork comes from the same
     /// ``IconStore`` path as everything else with no special case.
-    public init(title: String, scheme: String, appStoreID: Int?, symbolName: String? = nil) {
+    public init(
+        title: String,
+        scheme: String,
+        appStoreID: Int?,
+        symbolName: String? = nil,
+        bundleID: String? = nil,
+        needsSchemeConfirmation: Bool = false
+    ) {
         self.init(
             kind: .app,
             title: title,
             urlString: scheme,
             appStoreID: appStoreID,
             catalogID: nil,
-            symbolName: symbolName
+            symbolName: symbolName,
+            bundleID: bundleID,
+            needsSchemeConfirmation: needsSchemeConfirmation
         )
     }
 }
@@ -341,18 +423,42 @@ public struct FolderLibrary: Codable, Sendable {
     public var probedSchemes: Set<String>
     public var lastProbeAt: Date?
 
+    /// Bumped when the app wants any expanded widget to collapse.
+    ///
+    /// ## Why the request travels with the library instead of through defaults
+    ///
+    /// Opening AppFolder is supposed to put the Home Screen back: a folder left
+    /// expanded is a folder the user has finished with. That is a write the *app*
+    /// makes for the *widget* to read, and it is the one direction
+    /// ``WidgetState`` cannot serve — its defaults are resolved per process, and
+    /// on a device where only one side can reach the App Group the two never
+    /// meet. The library file has no such problem: ``FolderStore`` already writes
+    /// it atomically and both processes already read it, and the widget already
+    /// reloads when the app changes it.
+    ///
+    /// A counter rather than a flag, because the request has to survive being
+    /// read more than once. The widget stores the value it last acted on and
+    /// collapses when they differ, so two launches in a row are two distinct
+    /// requests, and a widget that missed the reload still catches up on the
+    /// next one. A flag would be cleared by the first reader and invisible to
+    /// the second — and with two widgets on the same folder there is always a
+    /// second reader.
+    public var collapseRequest: Int
+
     public init(
         schemaVersion: Int = FolderLibrary.currentSchemaVersion,
         folders: [Folder] = [],
         installedSchemes: Set<String> = [],
         probedSchemes: Set<String> = [],
-        lastProbeAt: Date? = nil
+        lastProbeAt: Date? = nil,
+        collapseRequest: Int = 0
     ) {
         self.schemaVersion = schemaVersion
         self.folders = folders
         self.installedSchemes = installedSchemes
         self.probedSchemes = probedSchemes
         self.lastProbeAt = lastProbeAt
+        self.collapseRequest = collapseRequest
     }
 
     /// Decodes leniently so a field added in a later version doesn't discard the
@@ -366,6 +472,10 @@ public struct FolderLibrary: Codable, Sendable {
         installedSchemes = try container.decodeIfPresent(Set<String>.self, forKey: .installedSchemes) ?? []
         probedSchemes = try container.decodeIfPresent(Set<String>.self, forKey: .probedSchemes) ?? []
         lastProbeAt = try container.decodeIfPresent(Date.self, forKey: .lastProbeAt)
+        // Absent in every library written before this existed, and zero is the
+        // right reading: the widget's stored cursor starts at zero too, so the
+        // two agree and nothing collapses on the first launch after upgrading.
+        collapseRequest = try container.decodeIfPresent(Int.self, forKey: .collapseRequest) ?? 0
     }
 
     public static let empty = FolderLibrary()

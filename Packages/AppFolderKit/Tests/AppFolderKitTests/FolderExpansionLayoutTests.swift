@@ -83,7 +83,35 @@ struct FolderExpansionLayoutTests {
             let layout = layout(family, grid, cells - 1)
             #expect(!layout.isPaged)
             #expect(layout.pageCount == 1)
+            // The next cell is `.empty`, and the way it gets there is the
+            // point: `nextCell` is out of range here, so the role comes from
+            // the range guard rather than from the paging rule. See
+            // ``nextCellIsOutOfRangeWhenNothingOverflows``, which pins that
+            // directly so this line cannot be read as the rule under test.
             #expect(layout.role(forCell: layout.nextCell, onPage: 0) == .empty)
+
+            // And the cell the door would have been in is a real app, not a
+            // reserved slot — a fitting folder fills every cell but the back.
+            #expect(layout.tileIndex(forCell: cells - 1, onPage: 0) != nil)
+        }
+    }
+
+    /// The one case the doc on ``FolderExpansionLayout/nextCell`` is careful
+    /// about, pinned so its equality is not read as unconditional.
+    ///
+    /// A folder that fits has no way forward, and `nextCell` says so by pointing
+    /// *past* the grid rather than at a cell. That is not cosmetic: naming
+    /// `cellCount - 1` here would name the collapsed grid's door cell, and every
+    /// role query for it would then have to remember not to draw a next arrow
+    /// there. An index that cannot be drawn needs no such rule — and the test
+    /// above would otherwise pass for the wrong reason.
+    @Test("A folder that fits puts the next cell outside the grid", arguments: families)
+    func nextCellIsOutOfRangeWhenNothingOverflows(family: WidgetFamily) {
+        for grid in FolderGrid.allCases {
+            let cells = grid.cellCount(for: family)
+            let layout = layout(family, grid, cells - 1)
+            #expect(layout.nextCell == cells, "\(family) \(grid)")
+            #expect(layout.nextCell != layout.cellCount - 1)
         }
     }
 

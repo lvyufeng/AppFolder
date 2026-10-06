@@ -2,6 +2,16 @@ import Foundation
 
 /// Transient widget-display state, kept where both processes can see it.
 ///
+/// ## The one case where an accessor deliberately lies
+///
+/// When the App Group is unreachable *from the extension* there is no domain both
+/// processes can share, and the type is readable-only rather than
+/// writable-and-private: see ``resolveStorage()``. In that state ``expandedFolderID``
+/// reports `nil` to an extension, because answering from a private domain would
+/// claim an expansion the app could never clear. The cost is that the widget does
+/// not expand; the alternative cost was a widget stuck expanded with no way back
+/// except the back cell.
+///
 /// Deliberately *not* part of ``FolderLibrary``: this changes on every tap and
 /// must never end up in a user's backup, whereas the library changes rarely and
 /// is exactly what should be exported.
@@ -36,6 +46,8 @@ public enum WidgetState {
         static let expandedPage = "widget.expandedPage"
         /// Written and read back by ``resolveStorage()``; never a real setting.
         static let probe = "widget.probe"
+        /// How far this process has got through ``FolderLibrary/collapseRequest``.
+        static let seenCollapseRequest = "widget.seenCollapseRequest"
     }
 
     /// The defaults this state lives in.
@@ -102,6 +114,35 @@ public enum WidgetState {
         set { defaults.set(newValue, forKey: Key.expandedPage) }
     }
 
+    /// The ``FolderLibrary/collapseRequest`` this process has already acted on.
+    ///
+    /// A cursor, not a flag: the request travels in the library so both processes
+    /// can see it, and this records how far this process has got through them.
+    /// Kept in the same defaults as the rest of the state — it is per-process by
+    /// nature, so a domain only this process can read is exactly right for it.
+    public static var seenCollapseRequest: Int {
+        get { defaults.integer(forKey: Key.seenCollapseRequest) }
+        set { defaults.set(newValue, forKey: Key.seenCollapseRequest) }
+    }
+
+    /// Applies a collapse the app has asked for, if it is newer than the last
+    /// one seen here.
+    ///
+    /// Called from the timeline provider, which is the only place that has the
+    /// library in hand. Deliberately not a "collapse on every reload": the whole
+    /// point of the counter is that it distinguishes a *new* request from a
+    /// reload that merely happened afterwards, so a widget reloading because the
+    /// user added an app does not also throw away an expansion they are looking at.
+    ///
+    /// Returns whether it collapsed, so the caller can say so in a log or a test.
+    @discardableResult
+    public static func applyCollapseRequest(_ request: Int) -> Bool {
+        guard request != seenCollapseRequest else { return false }
+        seenCollapseRequest = request
+        collapse()
+        return true
+    }
+
     /// Collapses whatever is open and returns it to the first page.
     ///
     /// Both keys, always, because they are one piece of state: a stored page with
@@ -123,15 +164,54 @@ public enum WidgetState {
         let isAvailable: Bool
     }
 
+    /// A `UserDefaults` that refuses everything without crashing.
+    ///
+    /// Do not use `.standard` here. In the *app* process `.standard` is a real,
+    /// private, writable domain, and handing it to an extension that cannot share
+    /// it is precisely the bug: the extension would expand into a place the app
+    /// cannot reach to collapse. `.volatile` is per-process and unreachable from
+    /// anywhere else by definition, so it is the honest stand-in for "no shared
+    /// domain" — writes are accepted and silently discarded from the point of
+    /// view of every other process, which is the actual situation.
+    private final class UnreadableDefaults: UserDefaults {
+        override func set(_ value: Any?, forKey defaultName: String) {}
+        override func removeObject(forKey defaultName: String) {}
+        override func string(forKey defaultName: String) -> String? { nil }
+        override func integer(forKey defaultName: String) -> Int { 0 }
+    }
+
     /// Picks the defaults to use, and reports whether they can round-trip.
     ///
-    /// The App Group suite first, because that is the one that survives the
-    /// widget extension being rebuilt — but it is *not* required for the tap to
-    /// work, which is why a failure falls through to `.standard` rather than
-    /// giving up. `.standard` inside the extension is shared between the intent
-    /// and the render for the same reason the suite is: one process, one domain.
-    /// It needs no entitlement, so it is the more robust of the two for the
-    /// in-process path, and the weaker one for persistence.
+    /// The App Group suite on a successful round trip, then `.standard` inside an
+    /// extension, and otherwise a domain nobody else can read.
+    ///
+    /// ## Why the extension is not allowed to fall back to `.standard`
+    ///
+    /// It used to be, and the reasoning was that one process is one domain, so
+    /// the intent's write and the render's read always agree. True as far as it
+    /// goes — and it stops one step short, because the widget is not the only
+    /// writer. The *app* also writes this state: opening AppFolder collapses
+    /// whatever was expanded, so the Home Screen is not left showing a page the
+    /// user has moved on from.
+    ///
+    /// A cross-process write cannot land in a per-process fallback. If the
+    /// extension put the expansion in `.standard`, the app's `collapse()` would
+    /// write `nil` into the app's own plist and the widget would never see it —
+    /// the widget would stay expanded forever, and the only way out would be to
+    /// tap the back cell. So the fallback is not merely weaker for cross-process
+    /// state, it is silently wrong, and being wrong is worse than being
+    /// unavailable: an unavailable domain degrades to the `Link` route, which
+    /// still works.
+    ///
+    /// ## And why the app is not either
+    ///
+    /// The same argument in the other direction, which is the state this device
+    /// is actually in: the app cannot reach the group container while the
+    /// extension can. If the app wrote the expansion to its own `.standard`,
+    /// nothing would read it. So the app is given the read-only domain — it
+    /// still *reads* widget state, in case the group works, but the collapse it
+    /// asks for is carried through the shared library file, which is the channel
+    /// ``FolderStore`` already gates and which both processes can see.
     ///
     /// The probe is a write and a read-back rather than a check that the suite
     /// exists: `UserDefaults(suiteName:)` returns an object for a suite the
@@ -141,23 +221,41 @@ public enum WidgetState {
     /// Synchronous and cheap by design — a widget has a tight render budget and
     /// no second process to wait on.
     private static func resolveStorage() -> Storage {
+        if let shared = UserDefaults(suiteName: AppFolderShared.appGroupIdentifier),
+           roundTrips(shared) {
+            return Storage(defaults: shared, isAvailable: true)
+        }
+
+        // The widget extension is the side that cannot afford a wrong answer: a
+        // testable answer is worth more to it than a writable one it cannot share.
+        if isExtension {
+            return Storage(defaults: UnreadableDefaults(), isAvailable: false)
+        }
+
+        return Storage(defaults: UserDefaults.standard, isAvailable: true)
+    }
+
+    /// Whether a `UserDefaults` accepts a value and gives it back.
+    private static func roundTrips(_ defaults: UserDefaults) -> Bool {
         let token = UUID().uuidString
+        defaults.set(token, forKey: Key.probe)
+        guard defaults.string(forKey: Key.probe) == token else { return false }
+        defaults.removeObject(forKey: Key.probe)
+        return true
+    }
 
-        if let shared = UserDefaults(suiteName: AppFolderShared.appGroupIdentifier) {
-            shared.set(token, forKey: Key.probe)
-            if shared.string(forKey: Key.probe) == token {
-                shared.removeObject(forKey: Key.probe)
-                return Storage(defaults: shared, isAvailable: true)
-            }
-        }
-
-        let standard = UserDefaults.standard
-        standard.set(token, forKey: Key.probe)
-        if standard.string(forKey: Key.probe) == token {
-            standard.removeObject(forKey: Key.probe)
-            return Storage(defaults: standard, isAvailable: true)
-        }
-
-        return Storage(defaults: standard, isAvailable: false)
+    /// Whether this process is an app extension rather than the app itself.
+    ///
+    /// Read from the bundle's own `Info.plist` key, which is what an extension
+    /// always has and an app never does. Asking the *main* bundle would answer
+    /// for the app in both cases, since `Bundle.main` in an extension is the
+    /// extension — so this deliberately reads `Bundle.main` and not a bundle
+    /// looked up by identifier.
+    ///
+    /// Documented by Apple as present for every app extension, and checked here
+    /// rather than inferred from the process name or the presence of a
+    /// `UIApplication` subclass, both of which are conventions rather than API.
+    static var isExtension: Bool {
+        Bundle.main.object(forInfoDictionaryKey: "NSExtension") != nil
     }
 }

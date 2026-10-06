@@ -111,9 +111,16 @@ private struct FolderGrid: View {
     private var showsTitles: Bool { entry.style.showsTitles }
 
     /// Tiles that actually have artwork, so a sparse folder doesn't leave gaps.
+    ///
+    /// A tile whose scheme is still a guess is excluded too: it is a tile that
+    /// opens nothing, and drawing it on the Home Screen offers the user a button
+    /// that fails with 打不开这个图块的目标 — which names neither the tile nor the
+    /// reason. Waiting in the editor for one tap of 试一下 is the better trade,
+    /// and it is the same rule as the artwork one: do not draw what is not ready.
     private var drawable: [FolderTile] {
         entry.tiles.filter { tile in
-            tile.appStoreID != nil || tile.customIconName != nil || tile.symbolName != nil
+            !tile.needsSchemeConfirmation
+                && (tile.appStoreID != nil || tile.customIconName != nil || tile.symbolName != nil)
         }
     }
 
@@ -248,7 +255,7 @@ private struct FolderGrid: View {
         // and the badge would then undercount by exactly the tiles that were
         // dropped. The badge, the preview and the expansion all read this one
         // list, so they cannot promise different things.
-        entry.hiddenTiles.count
+        entry.drawableHiddenTiles.count
     }
 }
 
@@ -409,7 +416,7 @@ private struct NestedTileButton: View {
     /// be preserved, not the number.
     @ViewBuilder
     private func miniIcon(at slot: Int) -> some View {
-        let hidden = entry.hiddenTiles
+        let hidden = entry.drawableHiddenTiles
         if hidden.indices.contains(slot) {
             WidgetIcon(tile: hidden[slot], cornerRadius: miniSide * 0.22)
                 .frame(width: miniSide, height: miniSide)
@@ -457,19 +464,26 @@ private struct FolderExpandedGrid: View {
     let family: WidgetFamily
 
     /// Laid out over what the door hides, not over the whole folder — see the
-    /// type's own note. `appCount(of:showing:)` takes the number the collapsed
-    /// grid actually drew, so the first app here is the first one the door was
-    /// hiding rather than one the user can already see.
+    /// type's own note. The count comes from ``tiles``, which is the *filtered*
+    /// list, because the layout's `appCount` decides how many cells the pages
+    /// hold: counting a tile the expansion will not draw would leave the last
+    /// page with a gap where the withheld app should have been. Passing what is
+    /// actually drawn keeps the pages full.
     private var layout: FolderExpansionLayout {
         FolderExpansionLayout(
             family: family,
             grid: entry.style.grid,
-            appCount: FolderExpansionLayout.appCount(of: folder, showing: entry.tiles.count)
+            appCount: tiles.count
         )
     }
 
     /// The apps to draw: the hidden ones, in folder order.
-    private var tiles: [FolderTile] { entry.hiddenTiles }
+    ///
+    /// ``FolderEntry/drawableHiddenTiles`` rather than ``FolderEntry/hiddenTiles``,
+    /// so the tiles the expansion declines to draw are exactly the ones the door's
+    /// preview and badge already left out. The three have to agree, or the door
+    /// promises an app the expansion then fails to show.
+    private var tiles: [FolderTile] { entry.drawableHiddenTiles }
 
     private var page: Int { layout.clampedPage(entry.expandedPage) }
 
