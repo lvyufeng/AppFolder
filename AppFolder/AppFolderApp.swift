@@ -62,11 +62,12 @@ final class LibraryModel {
         //
         // The request goes into the library rather than into `WidgetState`, and
         // that is not a preference. `WidgetState`'s defaults are resolved per
-        // process and the app cannot reach the App Group on this device, so a
-        // collapse written there would land in a domain the widget never reads —
-        // the widget would stay expanded and the write would look like it worked.
-        // The library file is written atomically by ``FolderStore`` and read by
-        // both sides, so it is the channel that actually connects them. See
+        // process, so the two sides can end up in different domains — on this
+        // device they did, and the app was reading an expansion the widget had
+        // never written. A collapse written there would have looked like it
+        // worked while the widget stayed expanded. The library file is written
+        // atomically by ``FolderStore`` and read by both processes, so it is the
+        // channel that actually connects them. See
         // ``FolderLibrary/collapseRequest``.
         //
         // Unconditional: the counter is the test, not a preceding read. Checking

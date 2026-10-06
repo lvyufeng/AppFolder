@@ -404,7 +404,21 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
 /// Everything the app persists and the widget reads.
 public struct FolderLibrary: Codable, Sendable {
     /// Bumped when the on-disk shape changes, so old files can be migrated.
-    public static let currentSchemaVersion = 1
+    ///
+    /// ## Why this is 2
+    ///
+    /// 1 is every library written before ``FolderTile/needsSchemeConfirmation``
+    /// and ``collapseRequest`` existed. Both fields are additive and both decode
+    /// to a safe default, so nothing *breaks* reading them — but
+    /// ``LibraryRepair`` uses this number to decide whether to run the
+    /// one-time migration that flags previously-guessed tiles, and that
+    /// migration cannot be keyed on a field that was just given a default.
+    ///
+    /// The trap worth recording: leaving this at 1 makes the migration silently
+    /// dead. `schemaVersion < currentSchemaVersion` is then `1 < 1`, false for
+    /// every library in the field, and the fix ships without ever running on the
+    /// tiles that prompted it.
+    public static let currentSchemaVersion = 2
 
     public var schemaVersion: Int
     public var folders: [Folder]

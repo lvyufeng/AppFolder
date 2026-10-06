@@ -197,6 +197,30 @@ struct LibraryRepairTests {
         #expect(tile.needsSchemeConfirmation)
     }
 
+    /// The version every library *in the field* is actually at.
+    ///
+    /// A real library read off a device on 2026-10-07 reported `schemaVersion: 1`
+    /// — the value the previous build wrote. The migration's gate is
+    /// `version < currentSchemaVersion`, so leaving `currentSchemaVersion` at 1
+    /// while adding the flag makes that gate `1 < 1`: false, for every user, and
+    /// the fix ships having never run on the tiles that prompted it. Nothing
+    /// about the code would look wrong; the warning would simply never appear.
+    ///
+    /// Written against an explicit 1 rather than against the constant, because
+    /// the whole failure is that the constant and the field drifted apart.
+    @Test("A library at the previous schema version is still migrated")
+    func migrationCoversTheShippedSchemaVersion() throws {
+        var shipped = library(FolderTile(
+            title: "票牛",
+            scheme: "pner://",
+            appStoreID: 1052455390
+        ))
+        shipped.schemaVersion = 1
+
+        let tile = try onlyTile(LibraryRepair.repair(shipped))
+        #expect(tile.needsSchemeConfirmation)
+    }
+
     /// A catalogue tile is verified, so the migration must not touch it — the
     /// warning would be a lie and the widget would stop drawing a working app.
     @Test("A catalogue tile is not flagged by the migration")
