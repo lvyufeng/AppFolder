@@ -49,18 +49,6 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
     /// ``FolderStore`` moving it aside as `.corrupt`.
     public var bundleID: String?
 
-    /// Whether ``urlString`` is a guess the device has never confirmed.
-    ///
-    /// The share path has to invent a scheme for an app the catalogue does not
-    /// know — see ``SchemeGuess`` — and a guess is wrong often enough to matter.
-    /// A tile carrying this flag is drawn with a warning in the editor and is
-    /// excluded from the widget until it is tried, because a tile that opens
-    /// nothing is worse than a tile that is visibly unfinished.
-    ///
-    /// Cleared by the one thing that settles the question: opening it for real.
-    /// Never set for a catalogue tile (whose scheme is verified) or a hand-typed
-    /// one (whose author already knows).
-    public var needsSchemeConfirmation: Bool
     /// How the widget should ask the system to open this tile.
     ///
     /// No longer what decides — ``launchRoute`` derives the route from the tile's
@@ -102,8 +90,7 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
         symbolName: String? = nil,
         strategy: LaunchStrategy = .bounce,
         universalLinkString: String? = nil,
-        bundleID: String? = nil,
-        needsSchemeConfirmation: Bool = false
+        bundleID: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -116,7 +103,6 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
         self.strategy = strategy
         self.universalLinkString = universalLinkString
         self.bundleID = bundleID
-        self.needsSchemeConfirmation = needsSchemeConfirmation
     }
 
     /// The tile's target, or `nil` if the stored string is not a URL.
@@ -157,13 +143,12 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
 
     /// Decodes leniently, for the same reason ``Folder`` does.
     ///
-    /// This had to become explicit the moment ``needsSchemeConfirmation`` was
-    /// added. Synthesized `Codable` ignores a property's default and decodes a
-    /// non-optional key with `decode`, which *throws* when the key is absent — so
-    /// a schema addition would fail the decode of every library written before
-    /// it, and a failed decode here is ``FolderStore`` moving the whole file
-    /// aside as `.corrupt`. The user would lose every folder they had, as the
-    /// price of one boolean.
+    /// This had to become explicit when the tile gained fields that a library in
+/// the field does not have. Synthesized `Codable` goes through `decode`, which
+/// *throws* on an absent key — so adding a field would fail the decode of every
+/// library written before it, and a failed decode here is ``FolderStore``
+/// moving the whole file aside as `.corrupt`. The user would lose every folder
+/// they had, as the price of one schema addition.
     ///
     /// Every field is now tolerant, including the ones that predate this: the
     /// cost of `try?` over `try` is nothing on a file that has always been
@@ -191,8 +176,6 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
         // Absent means "no warning", which is the right reading in both
         // directions: a tile written before this flag existed was either from the
         // catalogue or hand-added, and neither of those wants a warning.
-        needsSchemeConfirmation =
-            (try? container.decodeIfPresent(Bool.self, forKey: .needsSchemeConfirmation)) ?? false
     }
 
     /// The URL the widget will actually hand to the system.
@@ -292,8 +275,7 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
         scheme: String,
         appStoreID: Int?,
         symbolName: String? = nil,
-        bundleID: String? = nil,
-        needsSchemeConfirmation: Bool = false
+        bundleID: String? = nil
     ) {
         self.init(
             kind: .app,
@@ -302,8 +284,7 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
             appStoreID: appStoreID,
             catalogID: nil,
             symbolName: symbolName,
-            bundleID: bundleID,
-            needsSchemeConfirmation: needsSchemeConfirmation
+            bundleID: bundleID
         )
     }
 }
@@ -405,19 +386,17 @@ public struct Folder: Codable, Sendable, Hashable, Identifiable {
 public struct FolderLibrary: Codable, Sendable {
     /// Bumped when the on-disk shape changes, so old files can be migrated.
     ///
-    /// ## Why this is 2
+    /// 1 is every library written before ``collapseRequest``. That field is
+    /// additive and decodes to a safe default, so nothing breaks reading it — the
+    /// number is bumped anyway because a version that never moves cannot be used
+    /// by a *future* migration to tell "written before X" from "written after".
     ///
-    /// 1 is every library written before ``FolderTile/needsSchemeConfirmation``
-    /// and ``collapseRequest`` existed. Both fields are additive and both decode
-    /// to a safe default, so nothing *breaks* reading them — but
-    /// ``LibraryRepair`` uses this number to decide whether to run the
-    /// one-time migration that flags previously-guessed tiles, and that
-    /// migration cannot be keyed on a field that was just given a default.
-    ///
-    /// The trap worth recording: leaving this at 1 makes the migration silently
-    /// dead. `schemaVersion < currentSchemaVersion` is then `1 < 1`, false for
-    /// every library in the field, and the fix ships without ever running on the
-    /// tiles that prompted it.
+    /// Worth recording, because it cost a release: a migration here was once
+    /// keyed on this number while the number was left unchanged, so the gate
+    /// `version < currentSchemaVersion` was `1 < 1` — false for every library in
+    /// the field. The code looked right and the migration never ran once. If a
+    /// migration is ever added back, bump this first and write its test against
+    /// the literal number the shipped builds actually wrote.
     public static let currentSchemaVersion = 2
 
     public var schemaVersion: Int

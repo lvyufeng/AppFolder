@@ -112,15 +112,20 @@ private struct FolderGrid: View {
 
     /// Tiles that actually have artwork, so a sparse folder doesn't leave gaps.
     ///
-    /// A tile whose scheme is still a guess is excluded too: it is a tile that
-    /// opens nothing, and drawing it on the Home Screen offers the user a button
-    /// that fails with 打不开这个图块的目标 — which names neither the tile nor the
-    /// reason. Waiting in the editor for one tap of 试一下 is the better trade,
-    /// and it is the same rule as the artwork one: do not draw what is not ready.
+    /// Artwork only. A tile whose *scheme* is a guess is deliberately not filtered
+    /// out here, and the attempt to do so was reverted: the guesser is right far
+    /// more often than it is wrong — 票牛's `pner://` is its real scheme, and it
+    /// was hidden by this rule for no reason — so withholding every guessed tile
+    /// costs the user the ones that work to spare them the ones that don't.
+    ///
+    /// The failure it was meant to prevent is not silent and not permanent: a
+    /// wrong scheme opens the 打不开 alert, and the editor lists the alternatives
+    /// one tap away. A missing icon, by contrast, is invisible — the app simply
+    /// is not there and nothing says why. That is the difference that makes one
+    /// worth filtering and the other not.
     private var drawable: [FolderTile] {
         entry.tiles.filter { tile in
-            !tile.needsSchemeConfirmation
-                && (tile.appStoreID != nil || tile.customIconName != nil || tile.symbolName != nil)
+            tile.appStoreID != nil || tile.customIconName != nil || tile.symbolName != nil
         }
     }
 

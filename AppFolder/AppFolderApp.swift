@@ -159,8 +159,7 @@ final class LibraryModel {
                     title: lookup.name,
                     scheme: SchemeGuess.candidates(bundleID: lookup.bundleID, name: lookup.name).first ?? "",
                     appStoreID: lookup.trackID,
-                    bundleID: lookup.bundleID,
-                    needsSchemeConfirmation: true
+                    bundleID: lookup.bundleID
                 )
             } else {
                 tile = nil

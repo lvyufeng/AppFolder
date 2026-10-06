@@ -134,12 +134,11 @@ extension FolderEntry {
     /// Filtering them separately is how a badge ends up counting a tile the
     /// expansion then declines to show.
     ///
-    /// The two exclusions are the same ones the collapsed grid applies to
-    /// ``tiles``: no artwork, and a scheme that is still a guess. A withheld tile
-    /// is withheld everywhere, so the grid, the door and the expansion cannot
-    /// disagree about what the folder contains.
+    /// The one exclusion is artwork, matching the collapsed grid. A guessed
+    /// scheme is explicitly *not* an exclusion — see the note on the grid's own
+    /// filter for why withholding those cost more than it saved.
     var drawableHiddenTiles: [FolderTile] {
-        hiddenTiles.filter { !$0.needsSchemeConfirmation && $0.hasArtwork }
+        hiddenTiles.filter(\.hasArtwork)
     }
 }
 

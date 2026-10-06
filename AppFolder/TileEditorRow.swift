@@ -83,19 +83,21 @@ struct TileEditorRow: View {
                 Spacer()
             }
 
-            if tile.needsSchemeConfirmation {
-                unconfirmedHint
-            } else if isUserAdded {
+            if isUserAdded {
                 Text("这个 App 不在目录里，链接是你自己试出来的。打不开就在这里改。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
+            // The other schemes this app might answer to. Shown for any tile that
+            // is not from the catalogue — guessed or typed — because either can be
+            // wrong and this is the one place to fix it without deleting the tile.
+            if isUserAdded, !candidates.isEmpty {
+                candidateList
+            }
+
             HStack(spacing: 12) {
-                // The primary control while unconfirmed, because on this tile the
-                // question is not "is this still working" but "is this right at
-                // all" — and it is the same button either way.
-                Button(tile.needsSchemeConfirmation ? "试一下并确认" : "试一下") { test() }
+                Button("试一下") { test() }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(isTesting)
@@ -103,7 +105,7 @@ struct TileEditorRow: View {
                 if let result {
                     switch result {
                     case .opened:
-                        Label("已确认，已交给系统打开", systemImage: "checkmark.circle")
+                        Label("已交给系统打开", systemImage: "checkmark.circle")
                             .font(.caption)
                             .foregroundStyle(.green)
                     case .noHandler:
@@ -132,28 +134,34 @@ struct TileEditorRow: View {
         }
     }
 
-    /// The 待确认 block: what is wrong, and the other schemes worth trying.
+    /// The other schemes this app might answer to, one tap each.
     ///
-    /// ## Why the candidates are here and not only on the entry screen
+    /// ## Why this exists
     ///
-    /// The share path adds a tile in one step, without ever showing
-    /// ``SchemeEntryView`` — the user picked a folder and was done. So the guess
-    /// that came out of it has to be correctable *after* the fact, or the only
-    /// remedy for a wrong one is deleting the tile and sharing the app again.
-    /// Offering the same list here, one tap each, is what makes the flag a
-    /// 待确认 rather than a dead end.
+    /// A tile whose app is not in the catalogue carries a *guessed* scheme, and
+    /// the share path adds it in one step without ever showing
+    /// ``SchemeEntryView`` — the user picked a folder and was done. So a wrong
+    /// guess has to be correctable afterwards, or the only remedy is deleting the
+    /// tile and sharing the app again.
     ///
-    /// ## Why they are not filtered to the currently-chosen one
+    /// ## What this deliberately does *not* do
     ///
-    /// The stored scheme is shown first and marked, because it is what the tile
-    /// will actually open — but the rest are the alternatives, and picking one
-    /// rewrites the tile rather than adding a second one.
+    /// It does not gate anything. An earlier version hid every guessed tile from
+    /// the widget until the user confirmed it, on the theory that a tile which
+    /// opens nothing is worse than an absent one — and that was wrong twice over.
+    /// The guesser is right most of the time (票牛's `pner://` is its real
+    /// scheme), so the rule hid working apps; and a *missing* icon tells the user
+    /// nothing, where a failing tap at least raises the 打不开 alert that points
+    /// here. Offering the alternatives is the fix; withholding the tile was not.
+    ///
+    /// The stored scheme is marked rather than duplicated, and picking another
+    /// rewrites the tile instead of adding a second one.
     @ViewBuilder
-    private var unconfirmedHint: some View {
+    private var candidateList: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("这个 App 不在目录里，启动链接是猜的，确认后才能出现在桌面", systemImage: "exclamationmark.triangle")
+            Text("这个 App 不在目录里，链接是猜的。打不开就换个试试。")
                 .font(.caption)
-                .foregroundStyle(.orange)
+                .foregroundStyle(.secondary)
 
             ForEach(candidates, id: \.self) { candidate in
                 Button {
@@ -173,12 +181,6 @@ struct TileEditorRow: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isTesting)
-            }
-
-            if candidates.isEmpty {
-                Text("没能从这个 App 的信息里猜到链接，得手动填。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -218,27 +220,14 @@ struct TileEditorRow: View {
             return
         }
 
+        // The result is reported and nothing else. An earlier version cleared a
+        // "confirmed" flag here so the widget would start drawing the tile; the
+        // flag is gone and the tile was never actually withheld, so there is
+        // nothing to promote. What the user needs is the verdict on screen, which
+        // `result` is.
         UIApplication.shared.open(target) { success in
             result = success ? .opened : .finished
             isTesting = false
-            // Confirmed, and this is the only thing that ever confirms a tile.
-            //
-            // `success` means the system accepted the request and found a
-            // handler for it, which is the strongest signal available: the
-            // completion handler exists precisely to distinguish "there is an app
-            // for this" from "there is not". It is not proof that the app came
-            // forward — nothing reports that — so this is a bet, and the
-            // alternative is worse: leaving the tile permanently unconfirmed
-            // means it never reaches the Home Screen, and the user has no way to
-            // finish the job they started by sharing the app.
-            //
-            // Note there is no corresponding "mark it broken on failure". A
-            // `false` here is genuinely ambiguous — see the type's note on the
-            // completion handler — so the tile is left exactly as it was, still a
-            // guess, still fixable.
-            if success {
-                tile.needsSchemeConfirmation = false
-            }
         }
     }
 }

@@ -27,41 +27,28 @@ import Foundation
 /// really about schema versions: a tile can fall into it any time the catalogue
 /// learns or loses a link. Running it on every load means the widget and the app
 /// always agree, and there is no "upgraded" flag that can be wrong.
+///
+/// ## A migration that was here and was removed
+///
+/// A third repair briefly lived here: flagging tiles whose scheme had been
+/// *guessed*, so the widget could withhold them until the user confirmed one. It
+/// is gone, and the reason is worth keeping because the idea is tempting.
+///
+/// It was justified as "a tile that opens nothing is worse than an absent one",
+/// which sounds right and is not. The guesser is correct most of the time — 票牛's
+/// `pner://` is its real scheme and was hidden by this rule for no reason — so the
+/// cost was working apps vanishing from the Home Screen, which is a failure the
+/// user cannot even diagnose. A wrong guess, by contrast, is loud: the tap raises
+/// the 打不开 alert, and the editor lists the alternatives one tap away.
+///
+/// The lesson generalises: withhold a tile only for something that makes it
+/// *undrawable* (no artwork — a blank square with a label). Never for a property
+/// that only affects what happens when it is tapped, because that trade always
+/// removes something visible to prevent something already visible.
 public enum LibraryRepair {
     /// Returns a library whose tiles can all be launched by the widget.
     public static func repair(_ library: FolderLibrary) -> FolderLibrary {
         var library = library
-
-        // 3. Flag the tiles that were guessed before the flag existed.
-        //
-        // ``FolderTile/needsSchemeConfirmation`` is new, so a library written
-        // before it decodes every tile as confirmed — including the ones whose
-        // scheme is a guess the device has never accepted. Those are exactly the
-        // tiles that produce 打不开这个图块的目标 on the Home Screen, so leaving
-        // them unflagged means the fix does nothing for anyone who already hit
-        // the bug.
-        //
-        // Gated on the schema version rather than on a condition, and that is
-        // load-bearing. The obvious rule — "no catalogue entry and no stored
-        // bundle id" — is *still true* of a guessed tile after the user has
-        // confirmed it, because confirming only clears the flag; the bundle id
-        // gets filled in by the editor's lookup, which can fail, and a
-        // re-derived flag would then put the tile back to 待确认 on every single
-        // launch. The version says "this migration has run"; the flag it sets is
-        // the user's to clear.
-        if library.schemaVersion < FolderLibrary.currentSchemaVersion {
-            for folderIndex in library.folders.indices {
-                for tileIndex in library.folders[folderIndex].tiles.indices {
-                    let tile = library.folders[folderIndex].tiles[tileIndex]
-                    guard tile.catalogID == nil,          // not a verified catalogue entry
-                          tile.appStoreID != nil,         // came from an App Store lookup
-                          tile.universalLink == nil       // and has no link to prefer
-                    else { continue }
-                    library.folders[folderIndex].tiles[tileIndex].needsSchemeConfirmation = true
-                }
-            }
-            library.schemaVersion = FolderLibrary.currentSchemaVersion
-        }
 
         for folderIndex in library.folders.indices {
             for tileIndex in library.folders[folderIndex].tiles.indices {

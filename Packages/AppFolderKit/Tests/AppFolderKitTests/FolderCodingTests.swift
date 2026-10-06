@@ -136,17 +136,17 @@ struct FolderCodingTests {
         #expect(folder.showsTitles == false, "labels were off before this field existed")
     }
 
-    /// The same guarantee for the tile, which is where the newest field landed.
+    /// The same guarantee for the tile, which is where the newest fields landed.
     ///
-    /// `FolderTile` had synthesized `Codable` until `needsSchemeConfirmation` was
-    /// added. A `Bool` has no absent-key tolerance under synthesis — `decode`
-    /// throws where `decodeIfPresent` would not — so adding it would have failed
-    /// the decode of every library written before it, and ``FolderStore`` answers
-    /// a failed decode by quarantining the file. One boolean would have cost the
-    /// user every folder, so the test is written against the literal bytes an
-    /// older build produced rather than against a round trip.
-    @Test("A tile written before the confirmation flag still decodes")
-    func tileToleratesAbsentConfirmationFlag() throws {
+    /// `FolderTile` had synthesized `Codable` until ``FolderTile/bundleID`` was
+    /// added. Synthesis has no absent-key tolerance — it goes through `decode`,
+    /// which throws — so the addition would have failed the decode of every
+    /// library written before it, and ``FolderStore`` answers a failed decode by
+    /// quarantining the file. The test is written against the literal bytes an
+    /// older build produced rather than against a round trip, so it cannot be
+    /// satisfied by the encoder and decoder drifting together.
+    @Test("A tile written before the bundle id existed still decodes")
+    func tileToleratesAbsentFields() throws {
         let json = """
         {
           "folders": [
@@ -175,23 +175,21 @@ struct FolderCodingTests {
 
         #expect(tile.title == "票牛")
         #expect(tile.urlString == "pner://", "the scheme is the thing that would be lost")
-        #expect(tile.needsSchemeConfirmation == false, "a tile from before the flag carries no warning")
-        #expect(tile.bundleID == nil)
+        #expect(tile.bundleID == nil, "a tile from before the field has no bundle id")
     }
 
-    /// ``FolderTile/bundleID`` is new, and it is the field that lets a later
-    /// improvement to ``SchemeGuess`` re-derive a scheme for a tile that is
-    /// already saved. If it does not survive a write it can never do that.
-    @Test("The bundle id and the confirmation flag round-trip")
-    func tileGuessFieldsRoundTrip() throws {
+    /// ``FolderTile/bundleID`` is the field that lets a later improvement to
+    /// ``SchemeGuess`` re-derive a scheme for a tile that is already saved. If it
+    /// does not survive a write it can never do that.
+    @Test("The bundle id round-trips")
+    func tileBundleIDRoundTrips() throws {
         let original = FolderLibrary(folders: [
             Folder(name: "常用", tiles: [
                 FolderTile(
                     title: "票牛",
                     scheme: "pner://",
                     appStoreID: 1052455390,
-                    bundleID: "com.ipiaoniu.pner",
-                    needsSchemeConfirmation: true
+                    bundleID: "com.ipiaoniu.pner"
                 ),
             ]),
         ])
@@ -201,7 +199,6 @@ struct FolderCodingTests {
         let tile = try #require(decoded.folders.first?.tiles.first)
 
         #expect(tile.bundleID == "com.ipiaoniu.pner")
-        #expect(tile.needsSchemeConfirmation)
     }
 
     /// The collapse request has to survive a write, or the app's request to close
