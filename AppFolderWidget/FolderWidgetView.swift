@@ -50,6 +50,12 @@ struct FolderWidgetView: View {
         Group {
             if entry.tiles.isEmpty {
                 EmptyWidgetView()
+            } else if entry.isExpanded, let folder = entry.folder {
+                // The folder was opened by tapping its door — see
+                // ``ToggleFolderIntent``. Drawn from the same rectangle, so this
+                // is a redraw rather than a presentation; nothing left the Home
+                // Screen to get here.
+                FolderExpandedGrid(entry: entry, folder: folder, family: family)
             } else {
                 FolderGrid(entry: entry, family: family)
                 // No inset applied out here any more. The widget disables the
@@ -235,23 +241,35 @@ private struct FolderGrid: View {
     /// missing ones as "behind the door" would promise apps the user is not going
     /// to find there.
     private func overflowCount(shown: Int) -> Int {
-        max(0, entry.totalTileCount - shown)
+        // Counted from what the door actually holds rather than as
+        // `totalTileCount - shown`. Those two agree only while every tile has
+        // artwork: a tile with none is dropped from the grid, so `shown` falls
+        // below the capacity while the door keeps hiding everything past it —
+        // and the badge would then undercount by exactly the tiles that were
+        // dropped. The badge, the preview and the expansion all read this one
+        // list, so they cannot promise different things.
+        entry.hiddenTiles.count
     }
 }
 
 /// The grid's last cell when a folder holds more apps than cells: a small grid of
 /// what is behind it, a count, and a tap that opens the folder.
 ///
-/// ## Why this is a `Link` and not an `OpenURLIntent`
+/// ## Why this is a `Button(intent:)` and no longer a `Link`
 ///
-/// The route that reaches another *app* from a widget is an intent, and it is the
-/// one ``TileButton`` uses. It cannot be used here. `OpenURLIntent` reaches apps
-/// through universal links, and an `appfolder://` link is not one — Apple
-/// requires universal-link support for `URLRepresentableIntent` and states custom
-/// schemes are not supported. A `Link` is the route that *can* carry an arbitrary
-/// scheme, and a `Link` in a widget opens the containing app by definition, which
-/// is exactly the destination this cell wants. The platform rule that makes
-/// `Link` useless for launching third-party apps is what makes it correct here.
+/// It used to be a `Link` to `appfolder://folder?id=…`, which opened AppFolder
+/// and let it present a sheet. That is a visible hop through another app for
+/// something the user asked to see without leaving the Home Screen. The tap now
+/// runs ``ToggleFolderIntent`` in the widget's own process, which stores which
+/// folder is open and asks WidgetKit for a fresh timeline — so the folder opens
+/// *here*, in the same rectangle, with no app launching at all.
+///
+/// The `Link` survives as the fallback for when there is nowhere to store that
+/// state. Note which case that is: **not** "the App Group is unreachable" — the
+/// intent and the render share a process, so the tap works without the App Group
+/// — but the genuinely unavailable case, where ``WidgetState/isAvailable`` is
+/// false and the tap would otherwise do nothing. An app that has to be launched
+/// is worse than an in-place expansion, and better than a dead cell.
 ///
 /// ## What it draws
 ///
@@ -284,7 +302,18 @@ private struct NestedTileButton: View {
     }
 
     var body: some View {
-        if let destination {
+        // In-place expansion is the real path: an intent in the widget's own
+        // process, no app launch, no hop. It needs somewhere to remember which
+        // folder is open — see ``WidgetState/isAvailable`` for what "somewhere"
+        // means and why a broken App Group is not the condition that disables it.
+        if let folderID, WidgetState.isAvailable {
+            Button(intent: ToggleFolderIntent(folderID: folderID.uuidString)) { label }
+                .buttonStyle(.plain)
+        } else if let destination {
+            // Nowhere to store the state, so the only way to show more is the old
+            // one: open AppFolder and let it. Reachable in practice only for a
+            // folder with no id — the same case ``destination`` is already nil
+            // for — which is why the cell then falls through to `label` inert.
             Link(destination: destination) { label }
                 .buttonStyle(.plain)
         } else {
@@ -380,7 +409,7 @@ private struct NestedTileButton: View {
     /// be preserved, not the number.
     @ViewBuilder
     private func miniIcon(at slot: Int) -> some View {
-        let hidden = hiddenTiles
+        let hidden = entry.hiddenTiles
         if hidden.indices.contains(slot) {
             WidgetIcon(tile: hidden[slot], cornerRadius: miniSide * 0.22)
                 .frame(width: miniSide, height: miniSide)
@@ -390,19 +419,183 @@ private struct NestedTileButton: View {
         }
     }
 
-    /// What the door is hiding — the apps the widget is not drawing, in order.
-    ///
-    /// The same `drawable` filter the full cells use would be wrong here: a tile
-    /// excluded for want of artwork is still behind the door, and `overflow`
-    /// counts it.
-    private var hiddenTiles: [FolderTile] {
-        Array(entry.folder?.tiles.dropFirst(capacityShown) ?? [])
     }
 
-    /// How many tiles the widget is drawing as apps, so the hidden ones start
-    /// where they stop.
-    private var capacityShown: Int {
-        entry.totalTileCount - overflow
+/// The expanded folder: the apps its door was hiding, a way back, and a way
+/// forward when there is more than one page.
+///
+/// Not the whole folder. The apps the collapsed grid already draws are on the
+/// Home Screen behind this widget, and repeating them here would fill the first
+/// page with what the user could already see — burying the apps they tapped the
+/// door to reach. The door previews some of what is behind it; this is all of it.
+///
+/// ## Why this is a second grid rather than a mode of the first
+///
+/// The collapsed grid and this one answer different questions. The collapsed one
+/// draws `grid.capacity` apps and a door, and its whole design is about the door
+/// — the reservation, the position, the rule that adding a tenth app moves
+/// nothing. This one draws however many apps the folder has, paged, with a back
+/// cell where the door was. Folding them into one view would mean every invariant
+/// the collapsed grid is tested for — see `WidgetGridTests`, which is deliberately
+/// untouched by this feature — would need re-deriving under a flag.
+///
+/// So they share what is genuinely shared and nothing more: the same
+/// ``FolderGridMetrics`` for geometry, the same ``TileButton`` for an app, and
+/// the same outer padding and top alignment that position the grid inside the
+/// widget.
+///
+/// ## Sizing
+///
+/// ``FolderGridMetrics`` is handed the **cell count**, not the number of apps on
+/// the page. That keeps `rows` a constant of the family, so pages are
+/// pixel-identical and icons do not resize as the user pages. Passing the app
+/// count instead would make a light final page draw bigger icons than the full
+/// one before it, which reads as the widget zooming.
+private struct FolderExpandedGrid: View {
+    let entry: FolderEntry
+    let folder: Folder
+    let family: WidgetFamily
+
+    /// Laid out over what the door hides, not over the whole folder — see the
+    /// type's own note. `appCount(of:showing:)` takes the number the collapsed
+    /// grid actually drew, so the first app here is the first one the door was
+    /// hiding rather than one the user can already see.
+    private var layout: FolderExpansionLayout {
+        FolderExpansionLayout(
+            family: family,
+            grid: entry.style.grid,
+            appCount: FolderExpansionLayout.appCount(of: folder, showing: entry.tiles.count)
+        )
+    }
+
+    /// The apps to draw: the hidden ones, in folder order.
+    private var tiles: [FolderTile] { entry.hiddenTiles }
+
+    private var page: Int { layout.clampedPage(entry.expandedPage) }
+
+    /// The folder's own answer, at every size — including in the expanded state,
+    /// so opening a folder does not change whether its apps are named.
+    private var showsTitles: Bool { entry.style.showsTitles }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let metrics = FolderGridMetrics(
+                tileCount: layout.cellCount,
+                columns: layout.columns,
+                in: proxy.size,
+                showsTitles: showsTitles,
+                iconScale: entry.style.iconScale
+            )
+
+            Grid(horizontalSpacing: metrics.spacing, verticalSpacing: metrics.spacing) {
+                ForEach(0..<metrics.rows, id: \.self) { row in
+                    GridRow {
+                        ForEach(0..<metrics.columns, id: \.self) { column in
+                            let cell = row * metrics.columns + column
+                            cellView(cell, tiles: tiles, metrics: metrics)
+                        }
+                    }
+                }
+            }
+            // Same shield as the collapsed grid, and for the same reason: the
+            // widget's surface opens AppFolder by default, and the gaps in a
+            // short final page must not be taps that launch another app.
+            .background {
+                InertTapShield()
+                    .contentShape(Rectangle())
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+            }
+            .padding(metrics.margin)
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+        }
+    }
+
+    @ViewBuilder
+    private func cellView(_ cell: Int, tiles: [FolderTile], metrics: FolderGridMetrics) -> some View {
+        switch layout.role(forCell: cell, onPage: page) {
+        case .back:
+            FolderCellButton(
+                systemImage: "chevron.backward",
+                title: "返回",
+                metrics: metrics,
+                showsTitles: showsTitles,
+                style: entry.style,
+                intent: ToggleFolderIntent(folderID: folder.id.uuidString)
+            )
+
+        case .next:
+            // Carries the page it was drawn on, so the advance starts from what
+            // the user saw and the button's identity changes with the page — see
+            // ``AdvanceFolderPageIntent``.
+            FolderCellButton(
+                systemImage: "ellipsis",
+                title: "更多",
+                metrics: metrics,
+                showsTitles: showsTitles,
+                style: entry.style,
+                intent: AdvanceFolderPageIntent(folderID: folder.id.uuidString, page: page)
+            )
+
+        case .app(let index):
+            // Drawn from the full list, and never renumbered: a tile whose
+            // artwork has not been cached still occupies its cell so the paging
+            // arithmetic and what is on screen keep agreeing.
+            if tiles.indices.contains(index) {
+                TileButton(
+                    tile: tiles[index],
+                    style: entry.style,
+                    showsTitles: showsTitles,
+                    metrics: metrics
+                )
+                .frame(width: metrics.iconSide, height: metrics.cellHeight)
+            } else {
+                Color.clear.frame(width: metrics.iconSide, height: metrics.cellHeight)
+            }
+
+        case .empty:
+            Color.clear.frame(width: metrics.iconSide, height: metrics.cellHeight)
+        }
+    }
+}
+
+/// A cell that runs an intent rather than opening an app: the way back, and the
+/// way forward.
+///
+/// Shares ``TileLabel``'s shape — a rounded tile with a symbol and an optional
+/// name — because these sit in a grid of app icons and a differently-shaped cell
+/// would read as chrome rather than as part of the folder.
+private struct FolderCellButton<Intent: AppIntent>: View {
+    let systemImage: String
+    let title: String
+    let metrics: FolderGridMetrics
+    let showsTitles: Bool
+    let style: FolderStyle
+    let intent: Intent
+
+    var body: some View {
+        Button(intent: intent) {
+            VStack(spacing: metrics.titleSpacing) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: metrics.cornerRadius, style: .continuous)
+                        .fill(.fill.tertiary)
+                    Image(systemName: systemImage)
+                        .font(.system(size: metrics.iconSide * 0.34, weight: .semibold))
+                        .foregroundStyle(style.titleStyle)
+                }
+                .frame(width: metrics.iconSide, height: metrics.iconSide)
+
+                if showsTitles {
+                    Text(title)
+                        .font(.system(size: metrics.titleFontSize))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .foregroundStyle(style.titleStyle)
+                        .frame(width: metrics.iconSide)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(width: metrics.iconSide, height: metrics.cellHeight)
     }
 }
 

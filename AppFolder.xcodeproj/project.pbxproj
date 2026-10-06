@@ -14,28 +14,6 @@
 		A1B2C3D4E5F60718293A4B52 /* AppFolderKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F60718293A4B53 /* AppFolderKit */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		A1B2C3D4E5F60718293A4B40 /* WidgetKit overlay */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "WidgetKit overlay";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"$SRCROOT/Scripts/widgetkit-overlay.sh\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXContainerItemProxy section */
 		A1B2C3D4E5F60718293A4B1C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -149,19 +127,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A1B2C3D4E5F60718293A4B30 /* Config */ = {
-			isa = PBXGroup;
-			children = (
-				A1B2C3D4E5F60718293A4B24 /* AppFolder-Info.plist */,
-				A1B2C3D4E5F60718293A4B25 /* AppFolderWidget-Info.plist */,
-				A1B2C3D4E5F60718293A4B56 /* AppFolderShare-Info.plist */,
-				A1B2C3D4E5F60718293A4B26 /* AppFolder.entitlements */,
-				A1B2C3D4E5F60718293A4B27 /* AppFolderWidget.entitlements */,
-				A1B2C3D4E5F60718293A4B57 /* AppFolderShare.entitlements */,
-			);
-			path = Config;
-			sourceTree = "<group>";
-		};
 		A1B2C3D4E5F60718293A4B23 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
@@ -176,6 +141,19 @@
 				A1B2C3D4E5F60718293A4B29 /* Package.swift */,
 			);
 			path = AppFolderKit;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F60718293A4B30 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F60718293A4B24 /* AppFolder-Info.plist */,
+				A1B2C3D4E5F60718293A4B25 /* AppFolderWidget-Info.plist */,
+				A1B2C3D4E5F60718293A4B56 /* AppFolderShare-Info.plist */,
+				A1B2C3D4E5F60718293A4B26 /* AppFolder.entitlements */,
+				A1B2C3D4E5F60718293A4B27 /* AppFolderWidget.entitlements */,
+				A1B2C3D4E5F60718293A4B57 /* AppFolderShare.entitlements */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -338,6 +316,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A1B2C3D4E5F60718293A4B40 /* WidgetKit overlay */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "WidgetKit overlay";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/Scripts/widgetkit-overlay.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A1B2C3D4E5F60718293A4B0A /* Sources */ = {
@@ -571,6 +571,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9WX5LSSM59;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/AppFolderWidget-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = AppFolder;
@@ -581,7 +582,6 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				OTHER_SWIFT_FLAGS = "-I $(TARGET_TEMP_DIR)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.lvyufeng.appfolder.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -601,6 +601,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9WX5LSSM59;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "Config/AppFolderWidget-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = AppFolder;
@@ -611,7 +612,6 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				OTHER_SWIFT_FLAGS = "-I $(TARGET_TEMP_DIR)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.lvyufeng.appfolder.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";

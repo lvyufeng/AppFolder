@@ -89,6 +89,43 @@ struct FolderEntry: TimelineEntry {
     /// empty or malformed has already been given a usable tint by the time
     /// anything draws it — see ``FolderStyle/init(_:)``.
     let style: FolderStyle
+
+    /// Whether this widget is showing the folder expanded rather than as a grid
+    /// with a door.
+    ///
+    /// Resolved against *this* entry's folder rather than read as a bare flag, so
+    /// the shared state — one key for the whole device — cannot expand a widget
+    /// showing a different folder. Two widgets on the same folder do both expand;
+    /// that is consistent rather than wrong, and a per-widget key is not
+    /// available because an intent cannot learn which widget configuration it was
+    /// tapped from.
+    ///
+    /// See ``WidgetState`` for where it comes from and
+    /// ``FolderExpansionLayout`` for what the page does.
+    let isExpanded: Bool
+    /// Which page of the expanded folder to draw. Meaningless unless
+    /// ``isExpanded``; clamped to the folder's real length at draw time.
+    let expandedPage: Int
+}
+
+extension FolderEntry {
+    /// The apps the door is hiding — the ones an expansion shows.
+    ///
+    /// One definition, read by both the door's preview and the expansion, which
+    /// is the point: a door that previewed one set of apps and opened onto
+    /// another would be worse than a door with no preview at all. The count is
+    /// ``FolderExpansionLayout/appCount(of:showing:)``, the same number the
+    /// collapsed grid used to decide it had overflowed.
+    ///
+    /// Taken from `folder.tiles` rather than ``tiles``, which the provider has
+    /// already truncated to the collapsed capacity — the hidden apps are exactly
+    /// the ones that truncation removed.
+    var hiddenTiles: [FolderTile] {
+        guard let folder else { return [] }
+        let shown = tiles.count
+        guard folder.tiles.count > shown else { return [] }
+        return Array(folder.tiles.dropFirst(shown))
+    }
 }
 
 struct FolderTimelineProvider: AppIntentTimelineProvider {
@@ -104,7 +141,13 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
             tiles: Array(FolderEntry.placeholderTiles.prefix(FolderGrid.default.capacity(for: context.family))),
             totalTileCount: FolderEntry.placeholderTiles.count,
             installedSchemes: [],
-            style: FolderStyle()
+            style: FolderStyle(),
+            // Never expanded: the gallery and the placeholder show the resting
+            // state of a folder, which is the grid with its door. A preview that
+            // opened expanded would be showing a state the user has not asked
+            // for yet.
+            isExpanded: false,
+            expandedPage: 0
         )
     }
 
@@ -148,7 +191,9 @@ struct FolderTimelineProvider: AppIntentTimelineProvider {
             tiles: tiles,
             totalTileCount: folder?.tiles.count ?? 0,
             installedSchemes: library.installedSchemes,
-            style: folder.map(FolderStyle.init) ?? FolderStyle()
+            style: folder.map(FolderStyle.init) ?? FolderStyle(),
+            isExpanded: folder.map { $0.id.uuidString == WidgetState.expandedFolderID } ?? false,
+            expandedPage: WidgetState.expandedPage
         )
     }
 

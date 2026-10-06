@@ -89,6 +89,21 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
     /// The tile's target, or `nil` if the stored string is not a URL.
     public var url: URL? { URL(string: urlString) }
 
+    /// Whether there is anything to draw for this tile.
+    ///
+    /// A tile with no artwork draws as a blank rounded rectangle, which reads as
+    /// a broken image rather than as an app, so the widget leaves it out of its
+    /// grid until the app has cached something. The door counts what it is hiding
+    /// from the same set — see ``FolderEntry/hiddenTiles`` — and the app's editor
+    /// makes the same call, so the test lives here rather than in each of them.
+    ///
+    /// A symbol counts as artwork: Apple's own apps have no App Store id to fetch
+    /// a real icon with, and dropping them for it would empty the grid of exactly
+    /// the apps the probe can always find.
+    public var hasArtwork: Bool {
+        appStoreID != nil || customIconName != nil || symbolName != nil
+    }
+
     /// The app's universal link, or `nil` if it has none.
     ///
     /// Shape is checked here rather than at the point of use, because this is the

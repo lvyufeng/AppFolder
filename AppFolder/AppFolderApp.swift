@@ -55,6 +55,14 @@ final class LibraryModel {
         // ``FolderStore/isSharedStorageWritable()`` for why the difference is the
         // whole point.
         isSharedStorageAvailable = store.isSharedStorageWritable()
+        // A folder left expanded on the Home Screen is a transient view state, and
+        // opening the app is a strong signal the user has moved on from it. Left
+        // alone, the widget would still be expanded the next time it is looked at,
+        // showing a page they never asked to keep.
+        if WidgetState.expandedFolderID != nil {
+            WidgetState.collapse()
+            WidgetCenter.shared.reloadAllTimelines()
+        }
         await drainSharedImports()
         await refreshInstalledApps()
     }
