@@ -64,6 +64,15 @@ extension AppCatalog {
                  scheme: "dianping://", appStoreID: 351091731, category: "生活"),
         KnownApp(id: "ctrip", name: "携程", englishName: "Trip.com",
                  scheme: "CtripWireless://", appStoreID: 379395415, category: "出行"),
+        // Below are the schemes the user's own library was carrying as *guesses*
+        // — see ``SchemeGuess``. They are here because that library is the
+        // evidence, not because a vendor documented them: `pner://` was on a
+        // 票牛 tile that opened, which is a measurement nobody can make from a
+        // bundle id (the bundle is `com.ipiaoniu.pner`, and neither `ipiaoniu`
+        // nor `piaoniu` is the scheme). Entries move out of this section only
+        // when someone re-measures them; that is the point of the marker.
+        KnownApp(id: "piaoniu", name: "票牛", englishName: "Piaoniu",
+                 scheme: "pner://", appStoreID: 1052455390, category: "购票"),
 
         // MARK: 影音 / 阅读
         KnownApp(id: "bilibili", name: "哔哩哔哩", englishName: "Bilibili",
