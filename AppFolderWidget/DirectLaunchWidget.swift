@@ -195,16 +195,16 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
 
     private func entry(for configuration: QuickLaunchIntent, family: WidgetFamily) async -> DirectLaunchEntry {
         // The app asks for any expansion to be dropped when it comes to the
-        // foreground, and it says so through the library rather than through
-        // defaults — see ``FolderLibrary/collapseRequest`` for why the library is
-        // the channel that connects the two processes. Applied before the entry is
-        // built so the frame this very reload draws is already collapsed, with no
-        // second beat.
+        // foreground, and it says so through the shared defaults — see
+        // ``WidgetState/requestCollapse()`` for why the request is a counter and
+        // why it moved out of the library file. Applied before the entry is built
+        // so the frame this very reload draws is already collapsed, with no second
+        // beat.
         //
-        // This used to live in the folder widget's provider and moved here with the
-        // generation of the expired: it is the only timeline provider left, so if it
+        // This used to live in the folder widget's provider and moved here when
+        // that widget was deleted: it is the only timeline provider left, so if it
         // does not apply the request, nothing does.
-        WidgetState.applyCollapseRequest(FolderStore().load().collapseRequest)
+        WidgetState.applyCollapseRequest(WidgetState.collapseRequest)
 
         let shortcuts = configuration.slots
         let grid = configuration.style.grid

@@ -3,9 +3,10 @@
 <plist version="1.0">
 <dict>
 	<!-- Not a permission and not a capability that grants data access: both
-	     processes only need to agree on one container path. Personal-team
-	     signing cannot provision App Groups, which is why `FolderStore` has a
-	     documented non-shared fallback — see `isSharedStorageAvailable`. -->
+	     processes only need to agree on one container path. The widget reads
+	     its downloaded icon artwork from here, and reads the app's collapse
+	     request from the defaults this container backs. If it is unavailable
+	     the widget still renders; it just stops expanding in place. -->
 	<!-- Widget side of the same shared container. -->
 	<key>com.apple.security.application-groups</key>
 	<array>

@@ -103,8 +103,7 @@ public enum AppCatalog {
     /// the declared prefix keeps its ranking and this stays a strict superset.
     ///
     /// Anything *not* in `queriedSchemes` and not a system app is unprobeable and
-    /// will come back unknown — which is what ``InstallationProber/status(of:)``
-    /// reports it as, rather than claiming it is absent.
+    /// will come back unknown, rather than claiming it is absent.
     public static var probeableSchemes: [String] {
         var seen: Set<String> = []
         return (queriedSchemes + all.filter(\.isSystemApp).map(\.scheme) + declaredSchemes)
@@ -161,7 +160,7 @@ public enum AppCatalog {
     ///
     /// That makes catalogue size a direct measure of how often the user is asked
     /// to do something hard: every app added here is one fewer trip through
-    /// ``SchemeGuess`` and the "试一下" flow. It is the reason "扩大目录" is worth
+    /// the launch-strategy check. It is the reason "扩大目录" is worth
     /// doing as a separate, continuing effort rather than a one-off.
     ///
     /// Matches on the App Store id rather than the name because the id is exact

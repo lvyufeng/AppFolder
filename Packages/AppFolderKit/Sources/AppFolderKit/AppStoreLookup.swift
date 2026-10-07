@@ -21,7 +21,6 @@ import Foundation
 /// *matchable* against ``AppCatalog``: an app the catalogue already knows yields
 /// its verified URL scheme for free, so the user never has to understand what a
 /// scheme is. Only when no entry matches does the app fall through to
-/// ``SchemeGuess``.
 public struct AppStoreLookup: Sendable, Hashable, Identifiable {
     /// ``trackID``, except for a hand-entered app.
     ///
@@ -30,11 +29,11 @@ public struct AppStoreLookup: Sendable, Hashable, Identifiable {
     /// SwiftUI would treat them as the same sheet. Falls back to the name, which
     /// is what the user typed and therefore what distinguishes them.
     public var id: String { trackID == 0 ? "manual:\(name)" : "store:\(trackID)" }
-    /// The App Store id, which is the same number as `FolderTile.appStoreID`.
+    /// The App Store id, which is the number ``DirectLaunchIcons`` caches artwork under.
     public let trackID: Int
     /// The app's bundle identifier, e.g. `com.gotokeep.keep`.
     ///
-    /// Present in the search response and kept because ``SchemeGuess`` reads it —
+    /// Present in the search response and kept because the system-app lookup reads it —
     /// it is the best available hint at a URL scheme. It is *not* usable for
     /// anything else: iOS gives an app no handle on another app from a bundle id,
     /// which is the whole reason this type has to exist in the first place.
@@ -77,9 +76,8 @@ extension AppStoreLookup {
     /// A placeholder for an app the user is describing by hand.
     ///
     /// Track id 0 is the sentinel ``id`` already uses to mean "not from the App
-    /// Store", so a manual entry needs no new case. Exists because
-    /// ``SchemeEntryView`` takes one of these to render its header, and the manual
-    /// path has a name but nothing else.
+    /// Store", so a manual entry needs no new case — an app the user names
+    /// themselves has a name but nothing else.
     public static func manual(name: String) -> AppStoreLookup {
         AppStoreLookup(trackID: 0, bundleID: nil, name: name, sellerName: nil, artworkURL: nil)
     }

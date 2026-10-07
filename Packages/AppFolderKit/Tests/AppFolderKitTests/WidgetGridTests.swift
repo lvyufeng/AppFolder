@@ -264,30 +264,6 @@ struct WidgetGridTests {
         #expect(abs(standard.spacing - 11.2) < 0.1, "中 must still draw the original gap")
     }
 
-    /// A folder written before the size existed has no key for it, and must come
-    /// back at the size it was already being drawn at rather than at one end of
-    /// the range — otherwise merely *opening* the app would resize the user's
-    /// Home Screen.
-    @Test("A folder from before the size setting keeps its layout")
-    func decodesAtTheStandardSize() throws {
-        let json = """
-        { "id": "\(UUID().uuidString)", "name": "常用", "updatedAt": 0 }
-        """
-        let folder = try FolderCoding.makeDecoder().decode(Folder.self, from: Data(json.utf8))
-        #expect(folder.iconScale == FolderGridMetrics.defaultIconScale)
-    }
-
-    /// And a value outside the range is clamped rather than rejected. A decode
-    /// failure here is not a warning: `FolderStore` quarantines the whole file.
-    @Test("An out-of-range size is clamped, not rejected", arguments: [-3.0, 7.5])
-    func clampsOutOfRangeSize(value: Double) throws {
-        let json = """
-        { "id": "\(UUID().uuidString)", "name": "常用", "iconScale": \(value), "updatedAt": 0 }
-        """
-        let folder = try FolderCoding.makeDecoder().decode(Folder.self, from: Data(json.utf8))
-        #expect(folder.iconScale >= 0 && folder.iconScale <= 1)
-    }
-
     // MARK: - Grid shape
 
     /// The requirement: the small widget draws 3 × 3 or 2 × 2, and each holds one
@@ -393,27 +369,17 @@ struct WidgetGridTests {
         #expect(metrics.iconSide >= 60)
     }
 
-    /// A folder from before the grid setting existed has no key for it and must
-    /// come back as 九宫格 — losing five apps to a setting nobody made would be
-    /// the worst kind of silent data loss, because the tiles are still in the
-    /// library and only the Home Screen stops showing them.
-    @Test("A folder from before the grid setting stays nine")
-    func decodesToNineGrid() throws {
-        let json = """
-        { "id": "\(UUID().uuidString)", "name": "常用", "updatedAt": 0 }
-        """
-        let folder = try FolderCoding.makeDecoder().decode(Folder.self, from: Data(json.utf8))
-        #expect(folder.grid == .nine)
-    }
-
-    /// And an unrecognised value falls back rather than throwing, for the same
-    /// reason `plate` does: a throw here quarantines the whole library.
-    @Test("An unrecognised grid falls back rather than failing")
-    func unrecognisedGridFallsBack() throws {
-        let json = """
-        { "id": "\(UUID().uuidString)", "name": "常用", "grid": "sixteen", "updatedAt": 0 }
-        """
-        let folder = try FolderCoding.makeDecoder().decode(Folder.self, from: Data(json.utf8))
-        #expect(folder.grid == .nine)
+    /// Nine remains the default the widget's configuration falls back on.
+    ///
+    /// This used to be tested through `FolderCoding`, decoding a folder written
+    /// before the grid setting existed. The folder model is gone; what survives is
+    /// the requirement — a widget whose stored grid is absent or unrecognised must
+    /// draw 九宫格, because that is where the user's existing picks still fit. The
+    /// widget's own `LaunchGrid` (an `AppEnum`) is what enforces it now, and it
+    /// does so by declaring `.nine` as its default.
+    @Test("Nine is the grid other code falls back to")
+    func nineIsTheFallbackGrid() {
+        #expect(FolderGrid.default == .nine)
+        #expect(FolderGrid.nine.capacity(for: .systemSmall) == 8)
     }
 }

@@ -101,23 +101,6 @@ public struct FolderExpansionLayout: Sendable, Equatable {
         self.pageCount = fits ? 1 : (count + pageSize - 1) / pageSize
     }
 
-    /// How many apps an expanded folder has to lay out, given the grid it was
-    /// opened from.
-    ///
-    /// ``shown`` is how many the collapsed grid drew, which is the cell count
-    /// less the door — but it is passed in rather than derived, because the
-    /// collapsed view drops tiles it has no artwork for and only it knows how
-    /// many that left. The door counts its previews from the same number
-    /// (``FolderEntry/hiddenTiles``), which is what makes the expansion start
-    /// exactly where the preview stopped instead of merely near it.
-    ///
-    /// Clamped at zero: a folder that fits has no door and so nothing to expand,
-    /// and a caller that asks anyway gets an empty layout rather than a negative
-    /// count that would page backwards.
-    public static func appCount(of folder: Folder, showing shown: Int) -> Int {
-        max(0, folder.tiles.count - max(0, shown))
-    }
-
     // MARK: - Cells
 
     /// The way back, always the first cell so it lands where the eye starts.

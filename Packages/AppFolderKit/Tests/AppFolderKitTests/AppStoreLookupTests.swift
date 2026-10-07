@@ -152,7 +152,7 @@ struct AppStoreLookupTests {
     }
 
     /// An app the catalogue does not know returns nothing, which is what routes
-    /// the user to ``SchemeGuess``. Returning a nearby entry would silently give
+    /// the user to the launch-strategy check. Returning a nearby entry would silently give
     /// them another app's scheme — a tile that looks right and opens the wrong
     /// app, which is worse than one that does not open at all.
     @Test("An unknown App Store id resolves to nothing")

@@ -6,46 +6,28 @@ import Foundation
 /// an entitlement, an Info.plist key, or a widget kind registered by the
 /// extension. Keeping them in one place is the difference between "the widget
 /// renders blank" and "the widget renders blank, and we know why".
+///
+/// What used to be here and no longer is: the library file name, the two
+/// share-import queue directories, and the `UserDefaults` fallback key. All four
+/// served the folder model and the share extension, both of which have been
+/// deleted — see ``DirectLaunchIcons`` for where the direct-launch widget's
+/// state actually lives now.
 public enum AppFolderShared {
-    /// App Group container. Both the app and the widget read the library from it.
+    /// App Group container. The widget reads its downloaded icons from it, and
+    /// both processes share their transient display state through it.
     ///
-    /// Requires the App Groups capability. On a build signed with a Personal
-    /// Team this container is not available — see `FolderStore` for the fallback.
+    /// Requires the App Groups capability. Without it the widget keeps working —
+    /// it resolves and stores its own icons — but the two processes stop being
+    /// able to see each other's widget state; see ``WidgetState/resolveStorage()``.
     public static let appGroupIdentifier = "group.com.lvyufeng.appfolder"
-
-    /// `kind` passed to `WidgetConfiguration`, and the value `WidgetCenter`
-    /// uses to reload timelines. Must match the widget's `kind` exactly.
-    public static let widgetKind = "AppFolderWidget"
 
     /// The kind of the direct-launch widget, whose slots open apps with no hop.
     ///
-    /// A separate kind, and necessarily so: its configuration intent carries
-    /// `SystemShortcut` values, which exist only in a widget's own configuration
-    /// and cannot be stored beside a folder. See ``DirectLaunchWidget``.
+    /// Kept in step with the `kind` passed to `WidgetConfiguration` in
+    /// ``DirectLaunchWidget``. The *folder* widget's kind used to sit beside this
+    /// one; it is gone with the widget. That widget could not simply be repurposed
+    /// into this one: this one's configuration intent carries `SystemShortcut`
+    /// values, which exist only in a widget's own configuration and cannot be
+    /// stored beside a folder.
     public static let directLaunchWidgetKind = "AppFolderDirectLaunch"
-
-    /// File name of the library inside the shared container.
-    public static let libraryFileName = "library.json"
-
-    /// Directory inside the shared container holding one file per app the user
-    /// shared in, waiting for the app to turn into a tile.
-    ///
-    /// A directory rather than a file on purpose — see ``PendingImport`` for why
-    /// appending to a single JSON would put the extension and the app back into
-    /// the same lost-update race the queue exists to avoid.
-    public static let importsDirectoryName = "imports"
-
-    /// Directory inside the shared container holding one file per app the user
-    /// shared in that could not be resolved to a launch target automatically.
-    ///
-    /// Separate from ``importsDirectoryName`` because the two hold opposite things.
-    /// That one is a *decision* — the extension already knows which app and which
-    /// folder — and the app turns it into a tile on sight. This one is a *question*
-    /// the app could not answer on its own: the app is real, the folder is known,
-    /// and how to open it is not. It waits for the user, which is why it is a
-    /// different queue with a different lifetime. See ``PendingResolution``.
-    public static let pendingResolutionsDirectoryName = "pending-resolutions"
-
-    /// `UserDefaults` key used when the App Group container is unavailable.
-    public static let fallbackDefaultsKey = "library.fallback"
 }

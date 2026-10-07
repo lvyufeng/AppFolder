@@ -72,7 +72,7 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
     /// exactly the ones that fill that section.
     ///
     /// A symbol is the honest fallback: not the app's real icon, and not
-    /// pretending to be. See ``FolderTile/init(app:)`` for where it lands.
+    /// pretending to be.
     public let symbolName: String?
 
     public init(

@@ -12,7 +12,7 @@ import Foundation
 /// not expand; the alternative cost was a widget stuck expanded with no way back
 /// except the back cell.
 ///
-/// Deliberately *not* part of ``FolderLibrary``: this changes on every tap and
+/// Deliberately *not* part of a stored, backup-able model: this changes on every tap and
 /// must never end up in a user's backup, whereas the library changes rarely and
 /// is exactly what should be exported.
 ///
@@ -44,15 +44,19 @@ import Foundation
 /// a direct launch runs out of process and the system reports nothing back, so
 /// from inside the widget a successful tap and a tap that did nothing look
 /// identical. Recording every attempt as suspicious would flag working tiles as
-/// broken. Per-tile launch behaviour is therefore configured and tested in the
-/// app, where the user can see what happened — see `FolderEditorView`.
+/// broken. When per-tile launch behaviour was configurable the app let the user
+/// test it by hand and watch the result; that editor is gone, and with it the
+/// route that could fail this way — a direct launch has no URL scheme to guess
+/// wrong.
 public enum WidgetState {
     private enum Key {
         static let expandedPage = "widget.expandedPage"
         /// Written and read back by ``resolveStorage()``; never a real setting.
         static let probe = "widget.probe"
         static let directLaunchKey = "widget.directLaunchKey"
-        /// How far this process has got through ``FolderLibrary/collapseRequest``.
+        /// How far the *app* has got with asking for a collapse.
+        static let collapseRequest = "widget.collapseRequest"
+        /// How far *this process* has got through ``collapseRequest``.
         static let seenCollapseRequest = "widget.seenCollapseRequest"
     }
 
@@ -152,23 +156,59 @@ public enum WidgetState {
     /// at the start.
     ///
     /// Called by the app when it comes to the foreground, so a grid left open on
-    /// the Home Screen is not still open hours later. That request travels through
-    /// the library rather than through these defaults — see
-    /// ``FolderLibrary/collapseRequest`` — because the app and the extension do not
-    /// always resolve to the same domain, and a cross-process write cannot land in
-    /// a per-process fallback. This call is the free half that helps when they do
-    /// share one.
+    /// the Home Screen is not still open hours later. This is the free half that
+    /// only helps when the app and the extension resolve to the same domain; the
+    /// half that reaches across processes is ``requestCollapse()``.
     public static func collapse() {
         directLaunchKey = nil
         expandedPage = 0
     }
 
-    /// The ``FolderLibrary/collapseRequest`` this process has already acted on.
+    /// Asks every widget to drop any expansion, and records that the ask happened.
     ///
-    /// A cursor, not a flag: the request travels in the library so both processes
-    /// can see it, and this records how far this process has got through them.
-    /// Kept in the same defaults as the rest of the state — it is per-process by
-    /// nature, so a domain only this process can read is exactly right for it.
+    /// A counter rather than a flag, and a counter rather than a plain `collapse()`,
+    /// for the reason the display state is stored rather than held: a widget cannot
+    /// hold view state, so a collapse has to be something the *next render* can
+    /// observe. A bare `collapse()` writes the state the app can see; this makes
+    /// the request durable — it survives being read by two widgets, being missed
+    /// because WidgetKit declined a reload, and being followed by the app launching
+    /// again. Nothing here has to know whether anything was actually expanded: the
+    /// request is unconditional and a no-op when nothing is open.
+    ///
+    /// ## Why this lives here and no longer in the library
+    ///
+    /// It used to travel in `FolderLibrary` — a file in the App Group — on the
+    /// argument that the two processes do not always resolve the defaults to the
+    /// same domain, and a cross-process write cannot land in a per-process
+    /// fallback. That argument still holds, and this is the answer to it rather
+    /// than a contradiction of it: the fallback for an *extension* in
+    /// ``resolveStorage()`` is ``UnreadableDefaults``, so a widget whose App Group
+    /// is unreachable never expands in the first place — its
+    /// ``directLaunchKey`` is always `nil`, and there is nothing for this request
+    /// to collapse. The case the library channel was protecting against — a widget
+    /// stuck open with no way back — cannot arise here. The library itself has
+    /// been deleted along with the folder model it served.
+    public static func requestCollapse() {
+        collapseRequest &+= 1
+        collapse()
+    }
+
+    /// How many collapses the app has asked for.
+    ///
+    /// Written by the app, read by the widget's timeline provider, which compares
+    /// it against its own ``seenCollapseRequest`` cursor. See ``requestCollapse()``
+    /// for why it is a counter and why it is stored here.
+    public static var collapseRequest: Int {
+        get { defaults.integer(forKey: Key.collapseRequest) }
+        set { defaults.set(newValue, forKey: Key.collapseRequest) }
+    }
+
+    /// The ``collapseRequest`` this process has already acted on.
+    ///
+    /// A cursor, not a flag: the request is shared so both processes can see it,
+    /// and this records how far this process has got through them. Kept in the
+    /// same defaults as the rest of the state — it is per-process by nature, so a
+    /// domain only this process can read is exactly right for it.
     public static var seenCollapseRequest: Int {
         get { defaults.integer(forKey: Key.seenCollapseRequest) }
         set { defaults.set(newValue, forKey: Key.seenCollapseRequest) }
@@ -177,8 +217,8 @@ public enum WidgetState {
     /// Applies a collapse the app has asked for, if it is newer than the last one
     /// seen here.
     ///
-    /// Called from the timeline provider, which is the only place that has the
-    /// library in hand. Deliberately not a "collapse on every reload": the whole
+    /// Called from the timeline provider, which is where the widget reads its
+    /// shared state. Deliberately not a "collapse on every reload": the whole
     /// point of the counter is that it distinguishes a *new* request from a reload
     /// that merely happened afterwards, so a widget reloading for its own reasons
     /// does not also throw away an expansion the user is looking at.
@@ -258,7 +298,7 @@ public enum WidgetState {
     /// nothing would read it. So the app is given the read-only domain — it
     /// still *reads* widget state, in case the group works, but the collapse it
     /// asks for is carried through the shared library file, which is the channel
-    /// ``FolderStore`` already gates and which both processes can see.
+    /// ``DirectLaunchIcons`` already gates and which both processes can see.
     ///
     /// The probe is a write and a read-back rather than a check that the suite
     /// exists: `UserDefaults(suiteName:)` returns an object for a suite the

@@ -18,16 +18,16 @@ import Foundation
 /// widget's synchronous render always has something to draw, which is the rule the
 /// widget's own icon cache is built on.
 ///
-/// ## Why not `IconStore`
+/// ## Why the lookup lives here, in the shared package
 ///
-/// ``IconStore`` in the app target does the same dance but returns `UIImage`, which
-/// this package cannot import, and it resolves *tiles* by App Store id. Here the
-/// input is a name, and the caller is often the widget extension, which the app
-/// target's type cannot reach. So the lookup lives here, on the plain types both
-/// processes share.
+/// The input is a *name* — the only thing the system hands back for a slot — and
+/// the caller is the widget extension, which cannot reach anything in the app
+/// target. So the lookup has to sit on the plain types both processes share. (The
+/// app used to carry a parallel `IconStore` that resolved *tiles* by App Store id
+/// and returned `UIImage`; it went with the folder editor, which was its only
+/// caller.)
 public enum DirectLaunchIcons {
-    /// Where artwork lives inside the App Group, same directory ``IconStore`` uses
-    /// so the two never write two copies of one icon under two names.
+    /// Where artwork lives inside the App Group.
     public static let directoryName = "Icons"
 
     /// What a slot resolved to, so the caller can draw it without asking again.
@@ -316,7 +316,7 @@ public enum DirectLaunchIcons {
     /// The App Group's icon directory, created if it is missing.
     ///
     /// Public so a caller can tell "no container" apart from "no icon" — the same
-    /// distinction ``IconStore/isCacheSharedWithWidget`` exists to make, and the
+    /// distinction the widget has to make, and the
     /// one that decides whether a widget will find what a preview found.
     public static func containerDirectory() -> URL? {
         guard let container = FileManager.default.containerURL(
@@ -327,8 +327,8 @@ public enum DirectLaunchIcons {
         return directory
     }
 
-    /// The file name an icon is cached under, mirroring ``IconStore``'s scheme so
-    /// the two stores agree on where a given app's artwork lives.
+    /// The file name an icon is cached under, so the resolver and
+    /// ``WidgetIconCache`` agree on where a given app's artwork lives.
     public static func fileName(appStoreID: Int) -> String { "\(appStoreID).png" }
 
     // MARK: - Misses
@@ -455,7 +455,7 @@ public enum DirectLaunchIcons {
     ///
     /// No `country` parameter, so the request resolves to the device's own
     /// storefront — right for an app that is installed here, and the reason the
-    /// full ``AppStoreRegions/lookupOrder`` sweep is not needed: the search that
+    /// full storefront sweep is not needed: the search that
     /// found the id has already established which storefront carries the app.
     static func fetch(appStoreID id: Int) async -> Data? {
         guard let url = AppStoreLookup.lookupURL(ids: [id]) else { return nil }

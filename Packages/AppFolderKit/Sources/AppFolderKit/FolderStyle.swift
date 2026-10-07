@@ -71,7 +71,7 @@ public enum FolderPlate: String, Codable, Sendable, CaseIterable {
     }
 
     /// A one-line explanation for the editor, in the same spirit as
-    /// ``LaunchStrategy/localizedExplanation``: a setting the user cannot see the
+    /// the launch-strategy explanation: a setting the user cannot see the
     /// effect of from inside the app has to say what it will do.
     ///
     /// Written from measurements, not from the API's names. An earlier draft
@@ -207,9 +207,13 @@ extension FolderTint {
 /// One type carrying all three, rather than three parameters threaded through
 /// the widget, the editor and the row thumbnails, because the three have to be
 /// decided together — the label colour depends on the plate, and the plate's
-/// colour is what the labels have to stay legible against. It is also the
-/// natural place for ``init(_:)`` to land, so nothing downstream of the model
-/// has to know how a `Folder` stores its appearance.
+/// colour is what the labels have to stay legible against.
+///
+/// It used to have an `init(_ folder: Folder)` as its natural landing place, so
+/// that nothing downstream of the model had to know how a folder stored its
+/// appearance. The folder model and its editor are gone; the direct-launch
+/// widget builds its style straight from the five settings the user configured
+/// in the Edit Widget sheet.
 public struct FolderStyle: Sendable, Equatable, Hashable {
     public var plate: FolderPlate
     public var tint: FolderTint
@@ -238,17 +242,6 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
         self.showsTitles = showsTitles
         self.iconScale = iconScale
         self.grid = grid
-    }
-
-    /// The appearance a folder asked for, with the missing pieces filled in.
-    public init(_ folder: Folder) {
-        self.init(
-            plate: folder.plate,
-            tint: FolderTint(hex: folder.colorHex) ?? .defaultTint,
-            showsTitles: folder.showsTitles,
-            iconScale: folder.iconScale,
-            grid: folder.grid
-        )
     }
 
     /// Whether the system is allowed to drop the plate.
