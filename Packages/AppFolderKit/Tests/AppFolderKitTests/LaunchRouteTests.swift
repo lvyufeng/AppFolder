@@ -173,4 +173,68 @@ struct LaunchRouteTests {
         let url = try #require(URL(string: "appfolder://folder?id=not-a-uuid"))
         #expect(LaunchLink.folderID(from: url) == nil)
     }
+
+    // MARK: - The tile's name on the link
+
+    /// The name rides along so a failed hand-off can say *which* tile failed.
+    @Test("A bounce link carries the tile's name")
+    func bounceLinkCarriesTheTitle() throws {
+        let request = try #require(
+            LaunchLink.bounceURL(for: URL(string: "piaoniu://home")!, title: "票牛")
+        )
+        let parsed = try #require(LaunchLink.request(from: request))
+
+        #expect(parsed.target.absoluteString == "piaoniu://home")
+        #expect(parsed.title == "票牛")
+    }
+
+    /// A name is optional, and its absence stays absent — no empty `t=` that a
+    /// reader would have to interpret. The notice falls back to a sentence with
+    /// no name in it rather than one with a blank where a name goes.
+    @Test("A bounce link with no name parses back with no name", arguments: [nil, ""])
+    func absentTitleStaysAbsent(title: String?) throws {
+        let url = try #require(LaunchLink.bounceURL(for: URL(string: "weixin://")!, title: title))
+        let parsed = try #require(LaunchLink.request(from: url))
+
+        #expect(parsed.title == nil)
+        // And the link does not carry the key at all.
+        #expect(!url.absoluteString.contains("t="))
+    }
+
+    /// The name is a tile's display name, which for this app's audience is usually
+    /// CJK and may contain anything. It has to survive the round trip rather than
+    /// arrive percent-decoded wrong or truncated at the first reserved character.
+    @Test("A name with reserved characters survives the link")
+    func titleSurvivesEscaping() throws {
+        let name = "微博 & 知乎 #1"
+        let url = try #require(LaunchLink.bounceURL(for: URL(string: "sinaweibo://")!, title: name))
+
+        #expect(LaunchLink.request(from: url)?.title == name)
+    }
+
+    /// The single-value accessor is the old shape and still has to answer, because
+    /// it is what the router used before the title existed — and it is what a link
+    /// written by a previous build carries.
+    @Test("The target-only reader still works on a titled link")
+    func targetReaderIgnoresTheTitle() throws {
+        let url = try #require(LaunchLink.bounceURL(for: URL(string: "weixin://")!, title: "微信"))
+        #expect(LaunchLink.targetURL(from: url)?.absoluteString == "weixin://")
+    }
+
+    /// A launch link with no target at all is not a bounce link, so the app treats
+/// it as an ordinary deep link rather than bouncing to nothing.
+///
+/// The `t`-only case is the interesting one: it is a link the current writer
+/// would never build, but a stale or hand-made one is a URL like any other, and
+/// the reader has to key on the target rather than on "does this look like ours".
+@Test("A launch link with no target resolves to nothing", arguments: [
+    "appfolder://launch",
+    "appfolder://launch?t=微信",
+    "appfolder://launch?u=",
+])
+func missingTargetFails(raw: String) throws {
+    let url = try #require(URL(string: raw))
+    #expect(LaunchLink.request(from: url) == nil)
+    #expect(LaunchLink.targetURL(from: url) == nil)
+}
 }

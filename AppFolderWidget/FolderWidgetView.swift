@@ -703,7 +703,8 @@ private struct TileButton: View {
             }
 
         case .bounce:
-            if let target = tile.url, let bounce = LaunchLink.bounceURL(for: target) {
+            if let target = tile.url,
+               let bounce = LaunchLink.bounceURL(for: target, title: tile.title) {
                 Link(destination: bounce) { label }
                     .buttonStyle(.plain)
             } else {

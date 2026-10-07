@@ -46,17 +46,29 @@ struct RootView: View {
         )) { folder in
             FolderExpandView(folder: folder)
         }
-        .alert(
-            "打不开",
-            isPresented: Binding(
-                get: { router.failure != nil },
-                set: { if !$0 { router.failure = nil } }
-            )
-        ) {
-            Button("好", role: .cancel) {}
-        } message: {
-            Text(router.failure ?? "")
+        // A banner rather than the alert this used to be.
+        //
+        // The gesture that produces this notice is a Home Screen tap, whose whole
+        // contract is "something opens, immediately". An alert puts a dialog and a
+        // 好 button in the middle of that, which is the app inserting itself into
+        // the one place it exists to stay out of — and the older code avoided it
+        // by saying nothing at all, which is how a guessed scheme came to fail
+        // invisibly. A banner can report the failure without taking the gesture
+        // hostage: it sits over the folder list, names the tile, and leaves.
+        .overlay(alignment: .bottom) {
+            if let notice = router.notice {
+                HandoffFailureBanner(notice: notice) {
+                    router.notice = nil
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                // Cross-fade rather than slide: it appears while the launcher is
+                // itself still settling in from the blank hand-off surface, and a
+                // moving element during that reads as part of the glitch.
+                .transition(.opacity)
+            }
         }
+        .animation(.default, value: router.notice)
     }
 
     private var launcher: some View {
@@ -72,6 +84,51 @@ struct RootView: View {
 
             AboutView()
                 .tabItem { Label("关于", systemImage: "info.circle") }
+        }
+    }
+}
+
+/// Reports a widget tap that handed the system a URL and got nowhere.
+///
+/// The one place in this app where a failure is attributable to a *specific* tile,
+/// so it names the tile and shows the URL. Both matter: a user with a folder of
+/// nine cannot tell which scheme is which by sight, and the URL is the thing they
+/// would edit to fix it.
+///
+/// It carries no 去修复 button. The repair is two taps into the app's own editor,
+/// and a button that jumped there would have to know which folder holds the tile —
+/// which this view deliberately does not, because a tile can be in several
+/// folders and the link came from a widget that knows only its own.
+struct HandoffFailureBanner: View {
+    let notice: BounceRouter.HandoffNotice
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+
+            Text(notice.message)
+                .font(.footnote)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.separator, lineWidth: 0.5)
         }
     }
 }
