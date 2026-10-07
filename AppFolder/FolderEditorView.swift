@@ -667,27 +667,19 @@ struct TilePickerView: View {
     private var storeRegionPicker: some View {
         Picker(selection: $storeCountryOverride) {
             Text("跟随设备").tag(String?.none)
-            ForEach(Self.storeRegions, id: \.code) { region in
+            // From ``AppStoreRegions`` rather than a list written out here. The
+            // list used to live on this view as a `private static`, which is how
+            // it escaped testing: 英国 was `uk`, which is not a storefront Apple
+            // accepts, and nothing could reach the array to check. See that type
+            // for what the user saw instead — not "no results", but a network
+            // error, because a 400 and an outage look the same downstream.
+            ForEach(AppStoreRegions.storefronts) { region in
                 Text(region.label).tag(String?.some(region.code))
             }
         } label: {
             Label("搜索地区", systemImage: "globe")
         }
     }
-
-    /// Storefronts worth offering, beyond the device's own.
-    ///
-    /// `us` and `cn` are the two this app's users actually straddle, and `hk` / `jp`
-    /// cover the neighbouring stores someone with a mixed purchase history is
-    /// likely to hold. Kept short on purpose — see ``storeRegionPicker``.
-    private static let storeRegions: [(code: String, label: String)] = [
-        ("us", "美国"),
-        ("cn", "中国大陆"),
-        ("hk", "香港"),
-        ("jp", "日本"),
-        ("tw", "台湾"),
-        ("uk", "英国"),
-    ]
 
     /// One App Store result.
     ///

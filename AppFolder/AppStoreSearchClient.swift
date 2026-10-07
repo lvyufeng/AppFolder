@@ -139,10 +139,20 @@ actor AppStoreSearchClient {
 
     /// Storefronts tried after the link's own and the device's.
     ///
-    /// The same short list the region picker offers, for the same reason: this is
-    /// the handful of stores a mixed-region purchase history actually spans. Each
-    /// is one cheap request, and a miss costs nothing but a round trip.
-    private static let fallbackCountries: [String?] = ["us", "cn", "hk", "jp", "tw", "gb"]
+    /// The same list the region picker offers, and now literally so: it comes
+    /// from ``AppStoreRegions/codes`` rather than being written out again here.
+    /// The two used to be separate literals that had to be kept in step by hand,
+    /// and one of them was wrong — `"uk"` in this array, where the App Store's
+    /// code for the United Kingdom is `gb`.
+    ///
+    /// ``lookup(trackID:region:)`` is where a wrong code is *cheap*: it requires
+    /// `statusCode == 200` and otherwise falls through to the next storefront, so
+    /// a refused code costs one round trip and nothing else. ``search(term:country:)``
+    /// is not so forgiving — it makes the same check and answers `nil`, which the
+    /// picker reads as *"could not reach the App Store"* and reports as a network
+    /// fault. One list, so that the two methods can only ever be wrong together,
+    /// with a test on the code that catches it once.
+    private static let fallbackCountries: [String?] = AppStoreRegions.codes
 
     private func rememberLookup(_ result: AppStoreLookup, for key: String) {
         if lookupCache[key] == nil {

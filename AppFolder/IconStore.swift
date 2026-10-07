@@ -78,7 +78,16 @@ actor IconStore {
     /// Storefronts to try when resolving artwork, in order. `nil` is the request
     /// with no `country` parameter, which is what the device's own store resolves
     /// to — the right first try for almost everyone.
-    private static let lookupCountries: [String?] = [nil, "us", "cn", "hk", "jp", "tw", "uk"]
+    ///
+    /// From ``AppStoreRegions`` rather than spelled out here, which is how this
+    /// list came to carry `"uk"` — a code the endpoint refuses with a `400`
+    /// (`Invalid value(s) for key(s): [country]`). Harmless *here*, and only
+    /// here: ``fetchArtwork(appStoreID:country:)`` never reads the status code,
+    /// so a refused request simply parses to nothing and the task group moves on
+    /// to the next storefront. The same typo in the region picker is what the
+    /// user sees, and it was wrong there too — which is the whole argument for
+    /// one shared list instead of three local copies.
+    private static let lookupCountries: [String?] = AppStoreRegions.lookupOrder
 
     private static func fetch(appStoreID id: Int) async -> Data? {
         // The lookup endpoint is region-scoped, and not in a way that reports
