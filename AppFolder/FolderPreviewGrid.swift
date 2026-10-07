@@ -199,8 +199,9 @@ struct NestedCellView: View {
                     }
                 }
                 // The badge hangs off the block's corner rather than the cell's,
-                // so it reads as a label on the thing it counts — see the same
-                // overlay in `NestedTileButton`.
+                // so it reads as a label on the thing it counts. Pinned to the
+                // cell it would sit outside and below the last miniature with a
+                // gap in between, sharing an alignment with nothing.
                 .overlay(alignment: .bottomTrailing) {
                     Text("+\(nested.count)")
                         .font(.system(size: max(7, side * 0.20), weight: .semibold))
@@ -227,8 +228,14 @@ struct NestedCellView: View {
     }
 
     /// One miniature, or a blank slot when the folder has fewer apps behind the
-    /// door than this density draws. The radius is the mini's own, not the cell's
-    /// — see the same call in `NestedTileButton` for why.
+    /// door than this density draws.
+    ///
+    /// The radius is the *miniature's* own, not the cell's. The first cut passed
+    /// the cell's corner radius through on the reasoning that it is already the
+    /// system icon's 22% proportion — it is, but of the *cell*. At a third the
+    /// size the same absolute radius is 73% of the miniature's side, which draws a
+    /// circle. The proportion is what has to be preserved, not the number. The
+    /// widget's door cell does the same thing for the same reason.
     @ViewBuilder
     private func miniIcon(at slot: Int) -> some View {
         if nested.previews.indices.contains(slot) {

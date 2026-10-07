@@ -54,7 +54,28 @@ struct DirectLaunchWidget: Widget {
         }
         .configurationDisplayName("直接启动")
         .description("每个格子一个 App，点一下直接打开，不经过 AppFolder。")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        // 方形 only. The two wider families are deliberately not offered.
+        //
+        // This grid's shape is square, and the reason is the geometry rather than a
+        // preference. ``FolderGridMetrics/margin`` is a share of the widget's
+        // *width*, and a medium widget is 349 × 166 — so at any given size setting
+        // it spends more of its height on margin than the square does, and what is
+        // left goes to three rows. That is the bug this widget first shipped with:
+        // measured, a nine-slot medium grid came out with **11.4 pt icons** at the
+        // default setting, unreadable and too small to hit. Raising the default
+        // scale fixed the symptom; not offering the shape removes the cause.
+        //
+        // Large is square-ish in neither direction — 349 × 360 — and would draw a
+        // 3 × 3 grid inside a rectangle with a whole unused band under it, because
+        // ``FolderGrid/cellCount(for:)`` charges Large for three rows the same way
+        // it charges Medium. Offering only the shape the layout is built for is
+        // the honest version of that.
+        //
+        // Widgets already placed on a Home Screen at the old sizes keep working —
+        // the system does not evict them — but no new one can be added. There is no
+        // API to enumerate what is already there, so that is the whole of the
+        // handling.
+        .supportedFamilies([.systemSmall])
         // The grid insets itself (``FolderGridMetrics/margin``), so the system's
         // own 18 pt content margin would be a second inset on top of it — the
         // icons would sit in a grid noticeably smaller than the widget and than
@@ -104,10 +125,10 @@ struct DirectLaunchEntry: TimelineEntry {
     let style: FolderStyle
     /// How many slots the user configured, before the grid truncated them.
     ///
-    /// Carried for the same reason ``FolderEntry/totalTileCount`` is: the door is
-    /// drawn when the configuration holds more than the grid shows, and by the
-    /// time the view runs the list has already been cut to the capacity — asking
-    /// it whether anything overflowed would always answer no.
+    /// Carried rather than read off ``slots``, because the door is drawn when
+    /// the configuration holds more than the grid shows and by the time the view
+    /// runs the list has already been cut to the capacity — asking it whether
+    /// anything overflowed would always answer no.
     let totalSlots: Int
     /// Whether *this* widget is the one whose grid the user opened.
     ///
@@ -173,6 +194,18 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
     }
 
     private func entry(for configuration: QuickLaunchIntent, family: WidgetFamily) async -> DirectLaunchEntry {
+        // The app asks for any expansion to be dropped when it comes to the
+        // foreground, and it says so through the library rather than through
+        // defaults — see ``FolderLibrary/collapseRequest`` for why the library is
+        // the channel that connects the two processes. Applied before the entry is
+        // built so the frame this very reload draws is already collapsed, with no
+        // second beat.
+        //
+        // This used to live in the folder widget's provider and moved here with the
+        // generation of the expired: it is the only timeline provider left, so if it
+        // does not apply the request, nothing does.
+        WidgetState.applyCollapseRequest(FolderStore().load().collapseRequest)
+
         let shortcuts = configuration.slots
         let grid = configuration.style.grid
         let capacity = grid.capacity(for: family)
@@ -308,8 +341,8 @@ private struct DirectLaunchView: View {
                 }
             }
             // The widget's whole surface opens AppFolder by default, and the gaps
-            // in a short grid must not be taps that launch it. Same shield, same
-            // reason, as ``FolderGrid`` — see ``InertTapShield``.
+            // in a short grid must not be taps that launch it — see
+            // ``InertTapShieldLike``.
             .background {
                 InertTapShieldLike()
                     .contentShape(Rectangle())
@@ -368,14 +401,16 @@ private struct DirectLaunchView: View {
     /// The last cell of a grid that holds more than it can draw: a small grid of
     /// what is behind it, a count, and a tap that opens it here.
     ///
-    /// The twin of ``NestedTileButton``, and it shares everything that *can* be
-    /// shared — ``MiniGridDensity`` for the miniatures, ``FolderGridMetrics`` for
-    /// the geometry, the same badge, the same 其他 label. What it cannot share is
-    /// the tile type: those cells are `FolderTile`s carrying a cached `UIImage`,
-    /// and these are `DirectLaunchSlot`s carrying an App Store id, because the
-    /// system gives a slot no artwork. So the two views read their own slot type
-    /// and agree by construction on everything else, which is why the numbers here
-    /// are read from the same types rather than written a second time.
+    /// Everything about the cell that is not its content is shared with the app
+    /// editor's preview of the same thing — ``MiniGridDensity`` for the miniatures
+    /// and ``FolderGridMetrics`` for the geometry — so the badge, the block and the
+    /// 其他 label are drawn from the same numbers in both places rather than
+    /// written twice and kept in step by hand.
+    ///
+    /// The folder widget used to draw this cell too, from `FolderTile`s carrying a
+    /// cached `UIImage`. It has been removed; what is left is the app's preview and
+    /// this, which read `DirectLaunchSlot`s carrying an App Store id, because the
+    /// system gives a slot no artwork.
     ///
     /// The tap runs ``ToggleDirectLaunchIntent`` in the widget's own process, so
     /// the group opens in place with no app launched. Its key is the digest the
@@ -395,9 +430,9 @@ private struct DirectLaunchView: View {
         .contentShape(Rectangle())
     }
 
-    /// The same shape ``FolderGrid/columns(for:)`` gives a folder of this size,
-    /// and for the same reason: the icons here are meant to be full size, and a
-    /// wider grid than the widget needs only shrinks them.
+    /// The shape ``FolderGrid/columns(for:)`` gives a grid of this size, and for the
+    /// same reason: the icons here are meant to be full size, and a wider grid than
+    /// the widget needs only shrinks them.
     ///
     /// The choice of 四宫格 over 九宫格 reaches the small widget only — that is the
     /// folder's rule too, and reading it from the same type is what keeps the two
@@ -408,18 +443,18 @@ private struct DirectLaunchView: View {
 /// The apps a door was hiding, a way back, and a way forward when there is more
 /// than one page.
 ///
-/// ## What this shares with ``FolderExpandedGrid`` and what it cannot
+/// ## Where the paging comes from
 ///
-/// The paging arithmetic is ``FolderExpansionLayout`` verbatim — the same two
-/// reserved cells, the same branch, the same clamping — because that type is pure
-/// and takes only a family, a grid and a count. That is the part worth sharing:
-/// "no app is lost and none is drawn twice" is a property of the layout, and two
-/// copies of it would be two chances to lose one.
+/// The arithmetic is ``FolderExpansionLayout`` verbatim — the same two reserved
+/// cells, the same branch, the same clamping — because that type is pure and takes
+/// only a family, a grid and a count. "No app is lost and none is drawn twice" is
+/// a property of the layout rather than of any one widget, so both this and the
+/// app's own expansion view read it instead of reimplementing it, and there is
+/// only one copy to get wrong.
 ///
-/// What it cannot share is the app cell. A folder's expansion draws ``TileButton``,
-/// which routes by URL; a grid's slots carry a `SystemShortcut` and open through
-/// ``RunSystemShortcutIntent``, with no URL involved at all. And the back cell
-/// must run *this* widget's toggle, keyed on the digest, not the folder's id.
+/// The app cell is the part that cannot be shared: a slot carries a
+/// `SystemShortcut` and opens through ``RunSystemShortcutIntent``, with no URL
+/// involved at all, where the folder editor's expansion routes tiles by URL.
 struct DirectLaunchExpandedView: View {
     let entry: DirectLaunchEntry
     let family: WidgetFamily
@@ -453,8 +488,10 @@ struct DirectLaunchExpandedView: View {
     var body: some View {
         GeometryReader { proxy in
             // Sized for the *cell count*, not the app count on this page, so pages
-            // are pixel-identical and the icons do not resize as the user pages —
-            // the same rule, and the same reason, as ``FolderExpandedGrid``.
+            // are pixel-identical and the icons do not resize as the user pages.
+            // Sizing from the apps on the page would make a light final page draw
+            // bigger icons than the full one before it, which reads as the widget
+            // zooming.
             let metrics = FolderGridMetrics(
                 tileCount: layout.cellCount,
                 columns: layout.columns,
@@ -534,11 +571,10 @@ struct DirectLaunchExpandedView: View {
 ///
 /// Shares ``DirectLaunchFace``'s shape — a rounded tile with a symbol and an
 /// optional name — because these sit in a grid of app icons and a differently
-/// shaped cell would read as chrome rather than as part of the group. The folder
-/// widget's ``FolderCellButton`` is the same view over its own intents; the two
-/// are separate because a generic `Button<Intent>` cannot be told to draw *this*
-/// widget's title colours without the `FolderStyle` that both already carry, and
-/// the duplication is a dozen lines of layout against a generic that buys nothing.
+/// shaped cell would read as chrome rather than as part of the group. It carries
+/// the same ``FolderStyle`` both cells draw their title colour from, so a name on
+/// the back cell and a name on an app cell cannot end up needing different
+/// treatments.
 private struct DirectLaunchCellButton<Intent: AppIntent>: View {
     let systemImage: String
     let title: String
@@ -579,11 +615,26 @@ private struct DirectLaunchCellButton<Intent: AppIntent>: View {
 /// publishes no hit-region API. A grid of two apps should not launch AppFolder
 /// because someone tapped the space where the other seven are not.
 ///
-/// The folder widget has the same view, and it is duplicated here rather than
-/// lifted into the package because it is four lines of SwiftUI around
-/// ``InertTapIntent`` and moving it would put a SwiftUI view in a package that
-/// currently imports none — see that type for the reasoning, and
-/// ``FolderWidgetView`` for the two failed attempts that produced the shape.
+/// ## Why it covers the whole widget, and why two simpler attempts failed
+///
+/// It started as one no-op button per *empty cell*, which did not work, for two
+/// reasons that are worth keeping because both make the failure look identical
+/// from the Home Screen:
+///
+/// 1. A transparent `Color.clear` label has no hit area, so the button was never
+///    clickable and every tap went straight through. Fixed by `contentShape`.
+/// 2. Even clickable, the cells were the wrong region. The `Grid` is built from
+///    `metrics.rows`, and `rows` is derived from the *slot count* — so a grid of
+///    two lays out one row and the rest of the widget is not part of that `Grid`
+///    at all. Neither is the outer margin, nor the slack under a grid shorter than
+///    its container. Taps there met no button, empty cell or not.
+///
+/// Covering the whole widget removes the need to reason about which regions the
+/// layout happens to leave bare. It is placed behind the grid, so slots still take
+/// their own taps; everything else lands here.
+///
+/// It draws nothing on purpose: no shape, no tint, no highlight, and no accessible
+/// element for what is genuinely a gap in the grid.
 private struct InertTapShieldLike: View {
     var body: some View {
         Button(intent: InertTapIntent(cell: 0)) {
@@ -623,9 +674,13 @@ private struct DirectLaunchDoorLabel: View {
                         }
                     }
                 }
-                // The badge hangs off the *block's* corner, not the cell's, so it
-                // reads as a label attached to the thing it counts — the same
-                // placement, and the same reason, as ``NestedTileButton``.
+                // The badge hangs off the *block's* corner, not the cell's.
+                //
+                // Anchoring it to the cell would strand it in the margin, sharing
+                // an alignment with nothing: the block is centred and inset, so a
+                // badge pinned to the cell's corner sits visibly outside and below
+                // the last miniature with a gap in between. On the block's corner
+                // it reads as a label attached to the thing it counts.
                 .overlay(alignment: .bottomTrailing) {
                     Text("+\(overflow)")
                         .font(.system(size: max(7, metrics.iconSide * 0.20), weight: .semibold))
@@ -682,9 +737,10 @@ private struct DirectLaunchFace: View {
             DirectLaunchArtwork(slot: slot, cornerRadius: metrics.cornerRadius)
                 .frame(width: metrics.iconSide, height: metrics.iconSide)
 
-            // Same rules as the folder grid's ``TileLabel``: the name is shown only
-            // when the grid asks for it, it shrinks rather than truncates, and its
-            // colour comes from ``FolderStyle/titleStyle`` so it follows the plate.
+            // The name is shown only when the grid asks for it, it shrinks rather
+            // than truncates — a name is worth reading, and 「微信」 cut to 「微…」
+            // tells the user nothing — and its colour comes from
+            // ``FolderStyle/titleStyle`` so it follows the plate.
             if style.showsTitles {
                 Text(slot.name)
                     .font(.system(size: metrics.titleFontSize))
@@ -700,11 +756,14 @@ private struct DirectLaunchFace: View {
 /// A slot's artwork: the downloaded App Store icon, an SF Symbol, or a neutral
 /// square.
 ///
-/// The same three-step fallback the folder grid's ``WidgetIcon`` uses, for the
-/// same reason: a slot with no image must still read as a slot. The folder's
-/// version takes a `FolderTile`; this takes a ``DirectLaunchSlot``, because that
-/// is what a grid has — see ``DirectLaunchIcons`` for why the system hands over a
-/// name and not an icon.
+/// Three steps, in order, because a slot with no image must still read as a slot
+/// rather than as a hole in the grid: the downloaded artwork, an SF Symbol for an
+/// app the catalogue knows but the store does not carry, and a neutral square for
+/// one that resolved to nothing at all.
+///
+/// It takes a ``DirectLaunchSlot`` rather than a tile, because that is what a grid
+/// has — see ``DirectLaunchIcons`` for why the system hands over a name and not an
+/// icon, and what turns that name into artwork.
 private struct DirectLaunchArtwork: View {
     let slot: DirectLaunchSlot
     let cornerRadius: CGFloat

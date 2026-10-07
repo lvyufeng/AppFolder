@@ -6,7 +6,7 @@ import Foundation
 ///
 /// When the App Group is unreachable *from the extension* there is no domain both
 /// processes can share, and the type is readable-only rather than
-/// writable-and-private: see ``resolveStorage()``. In that state ``expandedFolderID``
+/// writable-and-private: see ``resolveStorage()``. In that state ``directLaunchKey``
 /// reports `nil` to an extension, because answering from a private domain would
 /// claim an expansion the app could never clear. The cost is that the widget does
 /// not expand; the alternative cost was a widget stuck expanded with no way back
@@ -16,19 +16,25 @@ import Foundation
 /// must never end up in a user's backup, whereas the library changes rarely and
 /// is exactly what should be exported.
 ///
-/// ## Which folder is expanded, and which page of it
+/// ## Which grid is expanded, and which page of it
 ///
-/// A widget cannot hold view state, so "this folder is open, showing page two"
-/// has to live somewhere both the intent that sets it and the render that reads
-/// it can reach. That is all this type is. See ``ToggleFolderIntent`` for the
-/// write side and ``FolderExpansionLayout`` for what the page number means.
+/// A widget cannot hold view state, so "this grid is open, showing page two" has
+/// to live somewhere both the intent that sets it and the render that reads it can
+/// reach. That is all this type is. See ``ToggleDirectLaunchIntent`` for the write
+/// side and ``FolderExpansionLayout`` for what the page number means.
+///
+/// This used to hold a *folder's* expansion as well, for the 大文件夹 widget. That
+/// widget is gone — its folder-expansion accessors went with it — and what
+/// remains is the direct-launch grid's. The page counter is shared because there
+/// is only one thing to page now; when there were two, sharing it was also right,
+/// since a user has one expansion open at a time.
 ///
 /// ## Why the page is stored even though the widget knows the grid
 ///
 /// The intent that advances the page has no widget family — an `AppIntent` is
 /// handed its parameters by the button, and a button in a grid does not know how
 /// many cells it is drawn among. So the stored page can be past the end of the
-/// folder, or belong to a grid the widget is no longer using. The reader clamps
+/// group, or belong to a grid the widget is no longer using. The reader clamps
 /// rather than the writer, which is why ``expandedPage`` is a plain `Int` and
 /// why ``FolderExpansionLayout/clampedPage(_:)`` exists.
 ///
@@ -42,13 +48,9 @@ import Foundation
 /// app, where the user can see what happened — see `FolderEditorView`.
 public enum WidgetState {
     private enum Key {
-        static let expandedFolderID = "widget.expandedFolderID"
         static let expandedPage = "widget.expandedPage"
         /// Written and read back by ``resolveStorage()``; never a real setting.
         static let probe = "widget.probe"
-        /// Same, for the direct-launch widget's grid. A second key under the same
-        /// lock rather than a shared one: a folder and a grid are two different
-        /// things and opening one must not close the other.
         static let directLaunchKey = "widget.directLaunchKey"
         /// How far this process has got through ``FolderLibrary/collapseRequest``.
         static let seenCollapseRequest = "widget.seenCollapseRequest"
@@ -69,10 +71,10 @@ public enum WidgetState {
 
     /// Whether state written here can be read back at all in this process.
     ///
-    /// False only when even `UserDefaults.standard` refuses a round trip, which
-    /// is the signal for a caller to fall back to a route that does not need
-    /// stored state — see ``ToggleFolderIntent`` and the door in
-    /// `FolderWidgetView`.
+    /// False only when even `UserDefaults.standard` refuses a round trip, which is
+    /// the signal for a caller to fall back to a route that does not need stored
+    /// state — a door that cannot open in place is better drawn as something that
+    /// visibly does nothing than as a control that fails silently.
     ///
     /// Read this as "the in-process round trip works", *not* as "the App Group
     /// is healthy". A widget's intent runs in the widget extension's process, so
@@ -97,31 +99,18 @@ public enum WidgetState {
     /// order.
     public static var isAvailable: Bool { storage.isAvailable }
 
-    /// The folder currently expanded inside the widget, if any.
-    public static var expandedFolderID: String? {
-        get { defaults.string(forKey: Key.expandedFolderID) }
-        set {
-            if let newValue {
-                defaults.set(newValue, forKey: Key.expandedFolderID)
-            } else {
-                defaults.removeObject(forKey: Key.expandedFolderID)
-            }
-        }
-    }
-
     /// The direct-launch grid currently expanded in the widget, if any.
     ///
-    /// A second key rather than a reuse of ``expandedFolderID``, because the two
-    /// widgets are configured independently and their expansions have different
-    /// lifetimes: a folder is expanded by tapping a door the timeline provider
-    /// built, while a grid is expanded by tapping one of the slots the *user*
-    /// configured. Sharing a key would let expanding one collapse the other, and
-    /// the two are on the Home Screen side by side.
+    /// A key of its own rather than something derived from a folder's id, because
+    /// a grid has no id to derive one from: a folder was expanded by tapping a door
+    /// the timeline provider built out of stored tiles, while a grid is expanded by
+    /// tapping one of the slots the *user* configured in the Edit Widget sheet, and
+    /// those slots are opaque to us. See
+    /// ``directLaunchExpansionKey(slotNames:)``.
     ///
-    /// Read and written the same way as the folder's, including through the
-    /// storage probe: a widget whose App Group is unreachable gets `nil` and
-    /// simply does not expand, rather than expanding into a domain the *next*
-    /// render cannot read.
+    /// Read and written through the storage probe: a widget whose App Group is
+    /// unreachable gets `nil` and simply does not expand, rather than expanding
+    /// into a domain the *next* render cannot read.
     public static var directLaunchKey: String? {
         get { defaults.string(forKey: Key.directLaunchKey) }
         set {
@@ -155,25 +144,23 @@ public enum WidgetState {
         DirectLaunchIcons.stableHash(slotNames.joined(separator: "\u{1F}"))
     }
 
-    /// Collapses the direct-launch grid, leaving the folder's expansion alone.
+    /// Collapses the open grid and returns it to the first page.
     ///
-    /// Separate from ``collapse()`` for the reason the two keys are separate. The
-    /// page is shared, though — see ``expandedPage`` — because only one of the two
-    /// things is ever open at a time from the user's point of view, and a single
-    /// page counter cannot open the wrong page in the way a single key can open
-    /// the wrong grid.
-    public static func collapseDirectLaunch() {
+    /// Both keys, always, because they are one piece of state: a stored page with
+    /// no stored key is not a state anything reads, and leaving the page behind
+    /// means the next expand opens on the page the user left last time rather than
+    /// at the start.
+    ///
+    /// Called by the app when it comes to the foreground, so a grid left open on
+    /// the Home Screen is not still open hours later. That request travels through
+    /// the library rather than through these defaults — see
+    /// ``FolderLibrary/collapseRequest`` — because the app and the extension do not
+    /// always resolve to the same domain, and a cross-process write cannot land in
+    /// a per-process fallback. This call is the free half that helps when they do
+    /// share one.
+    public static func collapse() {
         directLaunchKey = nil
         expandedPage = 0
-    }
-
-    /// Which page of the expanded folder is showing, zero-based.
-    ///
-    /// Unclamped on purpose — see the type's discussion. A folder that is not
-    /// expanded ignores this entirely.
-    public static var expandedPage: Int {
-        get { defaults.integer(forKey: Key.expandedPage) }
-        set { defaults.set(newValue, forKey: Key.expandedPage) }
     }
 
     /// The ``FolderLibrary/collapseRequest`` this process has already acted on.
@@ -187,14 +174,14 @@ public enum WidgetState {
         set { defaults.set(newValue, forKey: Key.seenCollapseRequest) }
     }
 
-    /// Applies a collapse the app has asked for, if it is newer than the last
-    /// one seen here.
+    /// Applies a collapse the app has asked for, if it is newer than the last one
+    /// seen here.
     ///
     /// Called from the timeline provider, which is the only place that has the
     /// library in hand. Deliberately not a "collapse on every reload": the whole
-    /// point of the counter is that it distinguishes a *new* request from a
-    /// reload that merely happened afterwards, so a widget reloading because the
-    /// user added an app does not also throw away an expansion they are looking at.
+    /// point of the counter is that it distinguishes a *new* request from a reload
+    /// that merely happened afterwards, so a widget reloading for its own reasons
+    /// does not also throw away an expansion the user is looking at.
     ///
     /// Returns whether it collapsed, so the caller can say so in a log or a test.
     @discardableResult
@@ -205,15 +192,13 @@ public enum WidgetState {
         return true
     }
 
-    /// Collapses whatever is open and returns it to the first page.
+    /// Which page of the expanded grid is showing, zero-based.
     ///
-    /// Both keys, always, because they are one piece of state: a stored page with
-    /// no stored folder is not a state anything reads, and leaving it behind
-    /// means the next expand opens on the page the user left last time rather
-    /// than at the start.
-    public static func collapse() {
-        expandedFolderID = nil
-        expandedPage = 0
+    /// Unclamped on purpose — see the type's discussion. A grid that is not
+    /// expanded ignores this entirely.
+    public static var expandedPage: Int {
+        get { defaults.integer(forKey: Key.expandedPage) }
+        set { defaults.set(newValue, forKey: Key.expandedPage) }
     }
 
     /// What this process should store widget state in, and whether it can.
@@ -262,8 +247,8 @@ public enum WidgetState {
     /// the widget would stay expanded forever, and the only way out would be to
     /// tap the back cell. So the fallback is not merely weaker for cross-process
     /// state, it is silently wrong, and being wrong is worse than being
-    /// unavailable: an unavailable domain degrades to the `Link` route, which
-    /// still works.
+    /// unavailable: an unavailable domain does not expand at all, which is a
+    /// widget that behaves normally rather than one stuck open.
     ///
     /// ## And why the app is not either
     ///

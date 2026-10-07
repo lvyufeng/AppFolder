@@ -8,11 +8,10 @@ import CoreGraphics
 /// *folder*, drawn the way iOS and Android draw one: a few miniature icons with
 /// a count. The cell already did this; what it did not do is decide how many
 /// miniatures to draw from the space it has. That decision is this type, and it
-/// lives in the shared package because **two views draw this cell and neither
-/// can import the other** — the widget's ``NestedTileButton`` and the editor
-/// preview's `NestedCellView`. Before this, each carried its own copy of the
-/// mini size and gap, kept honest only by a comment asking the next person to
-/// change both.
+/// lives in the shared package because **two views draw this cell and neither can
+/// import the other** — the widget's door and the editor preview's
+/// `NestedCellView`. Before this, each carried its own copy of the mini size and
+/// gap, kept honest only by a comment asking the next person to change both.
 ///
 /// ## Why a ladder rather than one density
 ///
