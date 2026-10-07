@@ -17,6 +17,13 @@ public enum AppFolderShared {
     /// uses to reload timelines. Must match the widget's `kind` exactly.
     public static let widgetKind = "AppFolderWidget"
 
+    /// The kind of the direct-launch widget, whose slots open apps with no hop.
+    ///
+    /// A separate kind, and necessarily so: its configuration intent carries
+    /// `SystemShortcut` values, which exist only in a widget's own configuration
+    /// and cannot be stored beside a folder. See ``DirectLaunchWidget``.
+    public static let directLaunchWidgetKind = "AppFolderDirectLaunch"
+
     /// File name of the library inside the shared container.
     public static let libraryFileName = "library.json"
 

@@ -39,15 +39,33 @@ public struct QuickLaunchIntent: WidgetConfigurationIntent {
     public static let title: LocalizedStringResource = "快速启动"
     public static let description: IntentDescription = "选择一个 App 或快捷指令，在小组件上一点即开。"
 
-    /// The action the user configured. The system resolves this; we never learn
-    /// what it is.
+    /// The actions the user configured, one per grid slot.
+    ///
+    /// An array, and that is the whole design: a single slot cannot fill a grid,
+    /// and the system offers a slot as a *list* the user appends to — "Open App"
+    /// repeatedly — so N slots with N buttons is exactly what the API is shaped
+    /// for. Measured on device: three chosen apps produced three working buttons,
+    /// each opening its app directly with no hop through AppFolder.
     @Parameter(title: "动作")
-    public var shortcut: SystemShortcut?
+    public var shortcuts: [SystemShortcut]?
+
+    /// The configured actions in order, capped at what any grid can show.
+    ///
+    /// Capped here rather than at the parameter so the number the user may pick
+    /// does not depend on which widget family they happen to be using yet — the
+    /// system's picker does not know the family, and a slot silently dropped at
+    /// draw time would be worse than one that was never offered.
+    public var slots: [SystemShortcut] {
+        Array((shortcuts ?? []).prefix(QuickLaunchIntent.maximumSlots))
+    }
+
+    /// The largest grid any family draws, so nothing the user picks is unreachable.
+    public static let maximumSlots = 12
 
     public init() {}
 
-    public init(shortcut: SystemShortcut?) {
-        self.shortcut = shortcut
+    public init(shortcuts: [SystemShortcut]?) {
+        self.shortcuts = shortcuts
     }
 }
 #endif

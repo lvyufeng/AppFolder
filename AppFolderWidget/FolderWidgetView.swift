@@ -858,8 +858,32 @@ final class WidgetIconCache: @unchecked Sendable {
 
     /// The tile's artwork, or nil if there is none cached on disk.
     func image(for tile: FolderTile) -> UIImage? {
-        let key = tile.id.uuidString
+        if let name = tile.customIconName, let directory {
+            return load(key: "custom:\(name)", file: directory.appending(path: name))
+        }
+        guard let id = tile.appStoreID else { return nil }
+        // Keyed by the id, not the tile's own UUID, so two tiles for the same app
+        // share one entry — and so ``image(appStoreID:)`` below, which a slot has
+        // no UUID to give, lands on the same one.
+        return image(appStoreID: id)
+    }
 
+    /// Artwork for a direct-launch slot, which knows only the App Store id.
+    ///
+    /// A slot carries no `FolderTile` — the system holds the tile's identity, and
+    /// hands the widget nothing but a display name, see ``DirectLaunchIcons``. So
+    /// this takes the one thing that names the file on disk.
+    func image(appStoreID: Int) -> UIImage? {
+        guard let directory else { return nil }
+        return load(key: "store:\(appStoreID)", file: directory.appending(path: "\(appStoreID).png"))
+    }
+
+    /// Reads one file, through the memory cache, or `nil` if it is not there.
+    ///
+    /// Shared by both entry points above so they cannot drift on how an icon is
+    /// keyed or where it is looked for — the failure that makes a widget draw
+    /// blank while the app's own preview shows the icon.
+    private func load(key: String, file: URL) -> UIImage? {
         lock.lock()
         if let cached = cache[key] {
             lock.unlock()
@@ -867,15 +891,7 @@ final class WidgetIconCache: @unchecked Sendable {
         }
         lock.unlock()
 
-        guard let directory else { return nil }
-
-        var read: URL?
-        if let name = tile.customIconName {
-            read = directory.appending(path: name)
-        } else if let id = tile.appStoreID {
-            read = directory.appending(path: "\(id).png")
-        }
-        guard let read, let data = try? Data(contentsOf: read), let image = UIImage(data: data) else {
+        guard let data = try? Data(contentsOf: file), let image = UIImage(data: data) else {
             return nil
         }
 

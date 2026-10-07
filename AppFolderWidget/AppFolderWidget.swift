@@ -153,5 +153,6 @@ struct AppFolderWidget: Widget {
 struct AppFolderWidgetBundle: WidgetBundle {
     var body: some Widget {
         AppFolderWidget()
+        if #available(iOS 27.0, *) { DirectLaunchWidget() }
     }
 }

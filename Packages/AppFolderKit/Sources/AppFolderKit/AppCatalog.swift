@@ -171,6 +171,31 @@ public enum AppCatalog {
         all.first { $0.appStoreID == appStoreID }
     }
 
+    /// The catalogue entry whose name is the one the system showed for an app.
+    ///
+    /// The system hands a direct-launch slot nothing but a display name — see
+    /// ``DirectLaunchIcons`` — so resolving that name back to an entry is the only
+    /// way to reach the App Store id that names the icon file. It is deliberately
+    /// the *weaker* lookup: an exact match on either name wins, and anything short
+    /// of that falls back to ``search(_:)``'s ranking rather than being rejected,
+    /// because the two strings are written by different people — the system shows
+    /// the app's own display name ("猫眼") and the catalogue stores the storefront
+    /// name ("猫眼电影"), which are frequently not equal.
+    ///
+    /// A wrong answer here costs a wrong *icon*, never a wrong launch: the tap is
+    /// still resolved by the system from the shortcut itself.
+    public static func match(name: String) -> KnownApp? {
+        let needle = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !needle.isEmpty else { return nil }
+
+        if let exact = all.first(where: {
+            $0.name.lowercased() == needle || $0.englishName.lowercased() == needle
+        }) {
+            return exact
+        }
+        return search(name).first
+    }
+
     public static func search(_ query: String, includeUnverified: Bool = false) -> [KnownApp] {
         let pool = includeUnverified ? all : selectable
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
