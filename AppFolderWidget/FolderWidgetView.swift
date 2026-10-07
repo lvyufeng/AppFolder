@@ -113,10 +113,11 @@ private struct FolderGrid: View {
     /// Tiles that actually have artwork, so a sparse folder doesn't leave gaps.
     ///
     /// Artwork only. A tile whose *scheme* is a guess is deliberately not filtered
-    /// out here, and the attempt to do so was reverted: the guesser is right far
-    /// more often than it is wrong — 票牛's `pner://` is its real scheme, and it
-    /// was hidden by this rule for no reason — so withholding every guessed tile
-    /// costs the user the ones that work to spare them the ones that don't.
+    /// out here, and the attempt to do so was reverted: withholding every guessed
+    /// tile costs the user the ones that work to spare them the ones that don't,
+    /// and it is the *wrong* guesses that pay for it — 票牛's guess was `pner://`
+    /// where the real scheme is `piaoniu://`, and this rule would have answered a
+    /// wrong guess by making the app disappear instead of by fixing it.
     ///
     /// The failure it was meant to prevent is not silent and not permanent: a
     /// wrong scheme opens the 打不开 alert, and the editor lists the alternatives

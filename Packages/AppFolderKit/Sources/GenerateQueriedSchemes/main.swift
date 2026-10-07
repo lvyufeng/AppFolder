@@ -199,8 +199,17 @@ struct GenerateQueriedSchemes {
         text.allSatisfy(\.isASCII)
     }
 
+    /// The scheme name alone, which is what `LSApplicationQueriesSchemes` takes.
+    ///
+    /// `KnownApp.schemeName` is the same answer and is the one callers in the app
+    /// use; this stays because the generator works on raw strings pulled straight
+    /// from the catalogue. Both have to cut at the separator and drop the path:
+    /// `piaoniu://home` declares `piaoniu`, and stripping only `://` would write
+    /// `piaoniuhome` into the plist — a name no app registers, spending a slot
+    /// from a budget of 25 to guarantee a `false`.
     private static func bare(_ scheme: String) -> String {
-        scheme.replacingOccurrences(of: "://", with: "")
+        guard let separator = scheme.range(of: "://") else { return scheme }
+        return String(scheme[scheme.startIndex..<separator.lowerBound])
     }
 
     /// The app's `Info.plist`, found by walking up from the working directory.

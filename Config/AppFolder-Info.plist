@@ -60,11 +60,11 @@
 		<string>eleme</string>
 		<string>dianping</string>
 		<string>CtripWireless</string>
+		<string>piaoniu</string>
 		<string>bilibili</string>
 		<string>orpheus</string>
 		<string>qqmusic</string>
 		<string>kugouURL</string>
-		<string>youku</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

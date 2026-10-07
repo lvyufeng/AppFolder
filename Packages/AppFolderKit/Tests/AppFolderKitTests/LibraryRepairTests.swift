@@ -187,4 +187,63 @@ struct LibraryRepairTests {
         // is fixing.
         #expect(tile.universalLinkString == "https://maps.apple.com/?q=coffee")
     }
+
+    /// The repair that would have saved 票牛, and the one that is easiest to
+    /// overreach with.
+    ///
+    /// A tile the catalogue made carries `catalogID`, so the app can tell that
+    /// the scheme on disk is its own earlier, wrong answer — `pner://` was a
+    /// guess derived from the bundle id, and the app registers it nowhere. The
+    /// catalogue is not consulted again after a tile is made, so without this a
+    /// corrected catalogue entry helps only tiles that do not exist yet.
+    ///
+    /// Measured on the device: `pner://` cannot be opened, `piaoniu://` can.
+    @Test("A catalogue tile whose stored scheme the catalogue has corrected is fixed")
+    func replacesACorrectedScheme() throws {
+        let stale = FolderTile(
+            title: "票牛",
+            urlString: "pner://",
+            appStoreID: 1052455390,
+            catalogID: "piaoniu"
+        )
+        let tile = try onlyTile(LibraryRepair.repair(library(stale)))
+
+        #expect(tile.urlString == "piaoniu://home")
+        #expect(tile.canLaunch)
+    }
+
+    /// The other half of that repair, and the reason it identifies by id rather
+    /// than by name.
+    ///
+    /// The same title with no `catalogID` is a tile the user made. Rewriting its
+    /// scheme would be the app overriding a URL the user typed, on the strength
+    /// of a name — and the library this was written against really does contain
+    /// hand-added 票牛 tiles whose scheme is wrong. They keep it. An
+    /// identifiability limit is a smaller harm than a repair that edits user
+    /// data it only suspects.
+    @Test("A user-made tile with the same name keeps the scheme they chose")
+    func doesNotRewriteUnidentifiableTiles() throws {
+        let handmade = FolderTile(
+            title: "票牛",
+            urlString: "pner://",
+            appStoreID: 1052455390
+        )
+        #expect(handmade.catalogID == nil)
+
+        let tile = try onlyTile(LibraryRepair.repair(library(handmade)))
+
+        #expect(tile.urlString == "pner://")
+    }
+
+    @Test("A catalogue tile already carrying the right scheme is left alone")
+    func leavesACorrectSchemeAlone() throws {
+        let current = FolderTile(
+            title: "票牛",
+            urlString: "piaoniu://home",
+            appStoreID: 1052455390,
+            catalogID: "piaoniu"
+        )
+        let tile = try onlyTile(LibraryRepair.repair(library(current)))
+        #expect(tile.urlString == "piaoniu://home")
+    }
 }

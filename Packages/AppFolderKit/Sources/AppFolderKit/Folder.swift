@@ -27,6 +27,12 @@ public struct FolderTile: Codable, Sendable, Hashable, Identifiable {
     /// App Store id, used to fetch real icon artwork from the iTunes Search API.
     public var appStoreID: Int?
     /// `KnownApp.id` this tile came from, so a re-scan can refresh the scheme.
+    ///
+    /// The refresh itself is ``LibraryRepair``, applied on every load in both the
+    /// app and the widget. A tile carrying this can have its `urlString` replaced
+    /// when the catalogue's entry disagrees — see ``LibraryRepair/repair(_:)``.
+    /// That is what makes a catalogue correction reach tiles that were already
+    /// saved, which otherwise never hear about it.
     public var catalogID: String?
     /// Overrides the artwork fetched via `appStoreID` — a user-chosen photo or symbol.
     public var customIconName: String?

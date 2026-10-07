@@ -101,7 +101,19 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
 
     /// The scheme without `://`, which is the form `LSApplicationQueriesSchemes`
     /// and `URL.scheme` both use.
+    ///
+    /// Only the part before the `://` — what follows is the URL's *path*, and a
+    /// scheme name has never contained one. 票牛's entry is `piaoniu://home`,
+    /// where `home` picks the destination inside the app; stripping only the
+    /// separator would yield `piaoniuhome`, which is not a scheme any app
+    /// registers and would spend one of the 25 declaration slots on a name that
+    /// can only ever answer `false`.
+    ///
+    /// This was that bug, briefly, and it is worth leaving the reason here: the
+    /// previous spelling looked correct because every other entry in the
+    /// catalogue is a bare scheme with nothing after the separator.
     public var schemeName: String {
-        scheme.replacingOccurrences(of: "://", with: "")
+        guard let separator = scheme.range(of: "://") else { return scheme }
+        return String(scheme[scheme.startIndex..<separator.lowerBound])
     }
 }

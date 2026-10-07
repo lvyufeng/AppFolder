@@ -44,10 +44,15 @@ public enum SchemeGuess {
     /// held since before the app existed, so the address bar is the test:
     ///
     /// 1. **A domain-shaped tail.** `com.ipiaoniu.pner` — the last two non-noise
-    ///    components — is the registrable domain `ipiaoniu.pner`. Reachable at
-    ///    `ipiaoniu.pner` ⇒ `pner://`. This is the one rule that would have saved
-    ///    票牛, where the plain "last component" answer, `ipiaoniu`, is the
-    ///    company and the answer was `pner`.
+    ///    components — is the registrable domain `ipiaoniu.pner`.
+    ///
+    ///    This rule used to be justified by 票牛, on the grounds that it reaches
+    ///    past the "last component" answer `ipiaoniu` (the company) to `pner`.
+    ///    Measured on the device, `pner` is **not** a scheme 票牛 registers, so
+    ///    that example was an argument for a rule that fails on its own case.
+    ///    The real scheme is `piaoniu`, and nothing in the bundle id or the store
+    ///    name leads there — the name is 票牛, whose characters a scheme cannot
+    ///    contain. Not every app is guessable, and this is one of them.
     /// 2. **A product-ish tail**, left-to-right: `com.zhang333.dd` → `zhang333`
     ///    then `dd`, `com.burbn.instagram` → `burbn` then `instagram`. Both
     ///    shapes are common — Keep is `com.gotokeep.keep` → `gotokeep://`, the
