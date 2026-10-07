@@ -164,13 +164,24 @@ struct NestedCellView: View {
     let titleFontSize: CGFloat
     let titleSpacing: CGFloat
 
-    /// Proportions of the cell, matched to the widget's own — see the same
-    /// constants in `NestedTileButton`. Two views draw this cell and neither can
-    /// import the other's constants, so the numbers are repeated; what keeps them
-    /// honest is that they are stated as shares of the cell rather than as points,
-    /// and that a change to one is visibly wrong in the other.
-    private var miniSide: CGFloat { side * 0.28 }
-    private var miniSpacing: CGFloat { side * 0.08 }
+    /// How many miniatures to draw, and how big.
+    ///
+    /// Read from ``MiniGridDensity`` rather than written out here, which is what
+    /// this cell used to do — a second copy of the widget's shares, kept in step
+    /// only by a comment asking the next person to change both. The two targets
+    /// cannot import each other, so the shared package is the only place the
+    /// numbers can live.
+    ///
+    /// Deliberately the same rule the widget applies: this cell is *the same
+    /// cell*, drawn at a different size, and a preview that showed four where the
+    /// Home Screen shows nine would be the drift the shared metrics type exists
+    /// to prevent.
+    private var density: MiniGridDensity {
+        MiniGridDensity(cellSide: side)
+    }
+
+    private var miniSide: CGFloat { density.miniSide }
+    private var miniSpacing: CGFloat { density.spacing }
 
     var body: some View {
         VStack(spacing: titleSpacing) {
@@ -179,13 +190,12 @@ struct NestedCellView: View {
                     .fill(.fill.tertiary)
 
                 VStack(spacing: miniSpacing) {
-                    HStack(spacing: miniSpacing) {
-                        miniIcon(at: 0)
-                        miniIcon(at: 1)
-                    }
-                    HStack(spacing: miniSpacing) {
-                        miniIcon(at: 2)
-                        miniIcon(at: 3)
+                    ForEach(0..<density.rows, id: \.self) { row in
+                        HStack(spacing: miniSpacing) {
+                            ForEach(0..<density.columns, id: \.self) { column in
+                                miniIcon(at: row * density.columns + column)
+                            }
+                        }
                     }
                 }
                 // The badge hangs off the block's corner rather than the cell's,
@@ -204,7 +214,9 @@ struct NestedCellView: View {
             .frame(width: side, height: side)
 
             if showsTitle {
-                Text("更多")
+                // Matches the widget's own label — see the note there for why it
+                // is 其他 and not 更多.
+                Text("其他")
                     .font(.system(size: titleFontSize))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -214,9 +226,9 @@ struct NestedCellView: View {
         }
     }
 
-    /// One miniature, or a blank slot when the folder has fewer than four apps
-    /// behind the door. The radius is the mini's own, not the cell's — see the
-    /// same call in `NestedTileButton` for why.
+    /// One miniature, or a blank slot when the folder has fewer apps behind the
+    /// door than this density draws. The radius is the mini's own, not the cell's
+    /// — see the same call in `NestedTileButton` for why.
     @ViewBuilder
     private func miniIcon(at slot: Int) -> some View {
         if nested.previews.indices.contains(slot) {

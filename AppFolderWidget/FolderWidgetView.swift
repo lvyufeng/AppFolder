@@ -334,24 +334,18 @@ private struct NestedTileButton: View {
         }
     }
 
-    /// How big one miniature is, and how far apart they sit, as a share of the cell.
+    /// How many miniatures to draw, and how big, from the cell this is drawing in.
     ///
-    /// Proportions of ``FolderGridMetrics/iconSide`` rather than points, because
-    /// this cell is drawn at wildly different sizes — about 37 pt in a small
-    /// widget, roughly twice that in the editor's preview — and a fixed number
-    /// would be a speck at one end and a smear at the other.
-    ///
-    /// The first cut of this filled the cell: a flexible 2 × 2 grid with 1 pt
-    /// gaps, which made the four miniatures read as one blurry rectangle rather
-    /// than as four apps, and what a preview of a folder has to be is legible as
-    /// *things*. A miniature is a little under a third of the cell with a gap
-    /// near 8% of it, so the block covers about 64% and the rest is the room the
-    /// cell's rounded corner and the badge need.
-    private static let miniShare: CGFloat = 0.28
-    private static let miniSpacingShare: CGFloat = 0.08
+    /// The arithmetic lives in ``MiniGridDensity`` rather than here because the
+    /// editor's preview draws this same cell and cannot import this view — see
+    /// that type for why the block is inset rather than filling the cell, and why
+    /// the density follows the size instead of being fixed at four.
+    private var density: MiniGridDensity {
+        MiniGridDensity(cellSide: metrics.iconSide)
+    }
 
-    private var miniSide: CGFloat { metrics.iconSide * Self.miniShare }
-    private var miniSpacing: CGFloat { metrics.iconSide * Self.miniSpacingShare }
+    private var miniSide: CGFloat { density.miniSide }
+    private var miniSpacing: CGFloat { density.spacing }
 
     private var label: some View {
         VStack(spacing: metrics.titleSpacing) {
@@ -359,18 +353,17 @@ private struct NestedTileButton: View {
                 RoundedRectangle(cornerRadius: metrics.cornerRadius, style: .continuous)
                     .fill(.fill.tertiary)
 
-                // Two rows of two rather than a `LazyVGrid` of flexible columns:
-                // with a fixed size the four have to be placed, not stretched,
-                // and an `HStack` of fixed frames says that without a
-                // `GridItem(.flexible())` suggesting otherwise.
+                // Fixed-size miniatures placed in rows, not a `LazyVGrid` of
+                // flexible columns: with a fixed size they have to be positioned,
+                // and an `HStack` of explicit frames says that without a
+                // `GridItem(.flexible())` suggesting they are stretched to fit.
                 VStack(spacing: miniSpacing) {
-                    HStack(spacing: miniSpacing) {
-                        miniIcon(at: 0)
-                        miniIcon(at: 1)
-                    }
-                    HStack(spacing: miniSpacing) {
-                        miniIcon(at: 2)
-                        miniIcon(at: 3)
+                    ForEach(0..<density.rows, id: \.self) { row in
+                        HStack(spacing: miniSpacing) {
+                            ForEach(0..<density.columns, id: \.self) { column in
+                                miniIcon(at: row * density.columns + column)
+                            }
+                        }
                     }
                 }
                 // The badge hangs off the *block's* corner, not the cell's.
@@ -395,9 +388,17 @@ private struct NestedTileButton: View {
 
             if showsTitles {
                 // A name, not a count: the count is already on the badge, and
-                // "更多" is what the cell does. Every other cell in this grid
-                // carries the app it opens, so a word is the consistent choice.
-                Text("更多")
+                // every other cell in this grid carries the app it opens, so a
+                // word is the consistent choice.
+                //
+                // 其他 rather than the 更多 this used to say. The cell stopped
+                // being a "show me the rest" button the moment it started drawing
+                // a mini-grid: it is a folder, and what is inside it is the
+                // leftover apps. 更多 reads as "more of the same" or "next page",
+                // which is what the expansion's own next cell says — see
+                // ``FolderCellButton`` — so the two were using one word for two
+                // different actions.
+                Text("其他")
                     .font(.system(size: metrics.titleFontSize))
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -407,12 +408,19 @@ private struct NestedTileButton: View {
         }
     }
 
-    /// One miniature, or a blank if the folder has fewer than four apps behind
-    /// the door.
+    /// One miniature, or a blank if the folder has fewer apps behind the door
+    /// than this density draws.
     ///
-    /// A blank rather than a repeat or a symbol: with three apps hidden, three
-    /// miniatures plus one empty slot is the truth, and filling the fourth would
-    /// overstate what the door opens onto.
+    /// A blank rather than a repeat or a symbol: with three apps hidden and room
+    /// for four, three miniatures plus an empty slot is the truth, and filling
+    /// the fourth would overstate what the door opens onto.
+    ///
+    /// Note this counts the miniatures *drawn*, while the badge counts every app
+    /// that overflowed. The two numbers are meant to disagree — the badge is the
+    /// number the user acts on, and the miniatures are only a sample of it. Do
+    /// not "fix" this by making the badge report the drawn count; a folder of
+    /// thirty behind a nine-miniature block would then claim nine.
+    ///
     /// The radius follows the *miniature's* side, not the cell's.
     ///
     /// The first cut passed ``FolderGridMetrics/cornerRadius`` straight through

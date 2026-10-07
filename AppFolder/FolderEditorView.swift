@@ -96,7 +96,7 @@ struct FolderEditorView: View {
         }
         let shown = folder.grid.capacity(for: .systemSmall)
         return FolderPreviewGrid.NestedCell(
-            previews: Array(folder.tiles.dropFirst(shown).prefix(4)),
+            previews: Array(folder.tiles.dropFirst(shown).prefix(MiniGridDensity.maximumCapacity)),
             count: max(0, folder.tiles.count - shown)
         )
     }
