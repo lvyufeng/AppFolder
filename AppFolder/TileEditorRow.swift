@@ -148,11 +148,17 @@ struct TileEditorRow: View {
     ///
     /// It does not gate anything. An earlier version hid every guessed tile from
     /// the widget until the user confirmed it, on the theory that a tile which
-    /// opens nothing is worse than an absent one — and that was wrong twice over.
-    /// The guesser is right most of the time (票牛's `pner://` is its real
-    /// scheme), so the rule hid working apps; and a *missing* icon tells the user
-    /// nothing, where a failing tap at least raises the 打不开 alert that points
-    /// here. Offering the alternatives is the fix; withholding the tile was not.
+    /// opens nothing is worse than an absent one — and that was wrong.
+    ///
+    /// The argument first written here for keeping it — that the guesser is right
+    /// most of the time, 票牛's `pner://` being its real scheme — does not survive
+    /// measurement: `pner://` is not 票牛's scheme at all. The real one is
+    /// `piaoniu://home`, and 票牛 is therefore an example of the guesser being
+    /// *wrong*, not of it being reliable. What the example does establish is the
+    /// second half of the rule: a missing icon tells the user nothing, so the
+    /// earlier design would have answered a wrong guess by making the app vanish
+    /// instead of by fixing it. Offering the alternatives is the fix; withholding
+    /// the tile was not.
     ///
     /// The stored scheme is marked rather than duplicated, and picking another
     /// rewrites the tile instead of adding a second one.
