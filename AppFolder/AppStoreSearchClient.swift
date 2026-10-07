@@ -51,13 +51,14 @@ actor AppStoreSearchClient {
     /// could not be a `static let`.
     private var resolvedCountry: String?
 
-    /// Searches, or returns `nil` if the request could not be made.
+    /// Searches, and says which of the three things happened.
     ///
-    /// An empty array means "the search worked and found nothing", which the
-    /// caller must show differently from `nil` — "could not reach the App Store".
-    /// Collapsing the two would tell a user with no signal that their app does not
-    /// exist.
-    func search(term: String, country overrideCountry: String? = nil) async -> [AppStoreLookup]? {
+    /// Was `[AppStoreLookup]?`, whose `nil` meant *"could not reach the App Store"*
+    /// and therefore meant it for a 400, a 429 and a 5xx as well — see
+    /// ``AppStoreOutcome`` for the bug that shipped behind that. The caller keeps
+    /// the same next action for every refusal; what it no longer has to do is
+    /// pretend they are all the network.
+    func search(term: String, country overrideCountry: String? = nil) async -> AppStoreOutcome {
         // Resolved into a local first, so the `await` is a statement rather than an
         // async call sitting inside the `??` autoclosure — which is not allowed to
         // be async.
@@ -68,9 +69,15 @@ actor AppStoreSearchClient {
             storefront = await self.storefront()
         }
         let key = "\(storefront)|\(term)"
-        if let cached = cache[key] { return cached }
+        if let cached = cache[key] { return .answered(cached) }
 
-        guard let url = AppStoreLookup.searchURL(term: term, country: storefront) else { return [] }
+        // A URL this app could not build is a bug in the app, not a condition of
+        // the world — so it is a refusal rather than the `[]` this used to return,
+        // which said "the search worked and found nothing" about a search that
+        // never happened.
+        guard let url = AppStoreLookup.searchURL(term: term, country: storefront) else {
+            return .refused(status: 400, message: "could not build a search URL")
+        }
 
         var request = URLRequest(url: url)
         // The default timeout is 60s, which for a search field is an eternity —
@@ -78,17 +85,26 @@ actor AppStoreSearchClient {
         // land against a stale query.
         request.timeoutInterval = 8
 
-        guard
-            let (data, response) = try? await URLSession.shared.data(for: request),
-            let http = response as? HTTPURLResponse,
-            http.statusCode == 200
-        else { return nil }
+        // Separated deliberately: `try?` failing is the request never producing a
+        // response, which is the only outcome that implicates the network. Folding
+        // this into the status check — as the old
+        // `guard let (data, response) = try? …, http.statusCode == 200 else { return nil }`
+        // did — is exactly what made a 400 indistinguishable from no signal.
+        guard let (data, response) = try? await URLSession.shared.data(for: request) else {
+            return .unreachable
+        }
+        let outcome = AppStoreOutcome.classify(
+            status: (response as? HTTPURLResponse)?.statusCode,
+            body: data
+        )
 
-        // Parsed off the main actor: JSON decoding of a 12-result payload is
-        // small but this is the actor's whole job.
-        let results = AppStoreLookup.parse(data)
-        remember(results, for: key)
-        return results
+        // Only a real answer is worth remembering. Caching a refusal would pin it
+        // for the life of the actor, so a moment of throttling would keep the
+        // picker empty until relaunch.
+        if case .answered(let results) = outcome {
+            remember(results, for: key)
+        }
+        return outcome
     }
 
     /// Resolves a track id to the app it names.

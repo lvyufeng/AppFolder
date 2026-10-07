@@ -458,9 +458,12 @@ struct TilePickerView: View {
     let onDone: ([FolderTile]) -> Void
     /// Results from the App Store, or `nil` if the search has not run or failed.
     @State private var storeResults: [AppStoreLookup]?
-    /// Set when the search could not be made at all — distinct from "found
-    /// nothing", which is what it says.
-    @State private var storeFailed = false
+    /// Why the search produced no results, when it did not produce any.
+    ///
+    /// Was a `Bool` named `storeFailed`, which is what made every non-200 render
+    /// the same sentence about the user's Wi-Fi — including a 429 and a 400. See
+    /// ``AppStoreOutcome`` for the storefront bug that hid behind it.
+    @State private var storeRefusal: AppStoreOutcome?
     @State private var storeSearching = false
     /// The result awaiting a scheme.
     @State private var pendingLookup: AppStoreLookup?
@@ -656,7 +659,7 @@ struct TilePickerView: View {
             .task(id: storeSearchKey) {
                 guard shouldOfferStoreSearch else {
                     storeResults = nil
-                    storeFailed = false
+                    storeRefusal = nil
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(350))
@@ -742,11 +745,18 @@ struct TilePickerView: View {
                         Text("正在搜索 App Store…")
                             .foregroundStyle(.secondary)
                     }
-                } else if storeFailed {
+                } else if let storeRefusal {
+                    // The message follows the *cause*, which is the whole point
+                    // of carrying an outcome instead of a `Bool`. Sending someone
+                    // whose connection is fine off to check their connection is
+                    // worse than saying nothing: they come back having found
+                    // nothing wrong and no further forward.
                     Label {
-                        Text("连不上 App Store，检查一下网络。")
+                        Text(storeRefusalMessage(storeRefusal))
                     } icon: {
-                        Image(systemName: "wifi.exclamationmark")
+                        Image(systemName: storeRefusal.isUnreachable
+                            ? "wifi.exclamationmark"
+                            : "exclamationmark.triangle")
                     }
                     .foregroundStyle(.secondary)
                 } else if let storeResults {
@@ -881,15 +891,52 @@ struct TilePickerView: View {
         defer { storeSearching = false }
 
         let country = storeCountry
-        let results = await AppStoreSearchClient.shared.search(term: term, country: country)
+        let outcome = await AppStoreSearchClient.shared.search(term: term, country: country)
         // The query may have moved on while this was in flight; a result for a
         // term the user has since deleted would flash the wrong list. The region
         // is checked the same way — switching it mid-flight must not let the
         // previous store's answer land under the new store's label.
         guard term == query.trimmingCharacters(in: .whitespaces), country == storeCountry else { return }
 
-        storeFailed = results == nil
-        storeResults = results ?? []
+        // Anything that is not a real answer is a refusal to report. Spelled as
+        // "not answered" rather than "unreachable or refused" so a future outcome
+        // case cannot be silently dropped on the floor here.
+        if case .answered = outcome {
+            storeRefusal = nil
+        } else {
+            storeRefusal = outcome
+        }
+        storeResults = outcome.results
+    }
+
+    /// What to say about a search that produced nothing.
+    ///
+    /// Three sentences rather than one, because the three causes want different
+    /// things from the user and only the first is about them. Each names the
+    /// status code, which is the difference between a report and a guess — and
+    /// the App Store's own `errorMessage` is appended when it sent one, since that
+    /// is what would have made the `uk` storefront a one-line fix.
+    private func storeRefusalMessage(_ outcome: AppStoreOutcome) -> String {
+        let detail = outcome.diagnosticSuffix
+        switch outcome.refusalKind {
+        case .throttled:
+            return "App Store 在限流，等一会儿再试。\(detail)"
+        case .server:
+            return "App Store 自己出问题了，不是你的网络。\(detail)"
+        case .malformedRequest:
+            // A request this app built wrong. Saying so plainly is the honest
+            // report, even though the user cannot act on it — the alternative is
+            // the false network diagnosis this bug was.
+            return "这个请求被 App Store 拒了，多半是这里的代码有问题。\(detail)"
+        case .other:
+            // A status this app has no story for is still a *refusal*, and saying
+            // "check your network" about a response that arrived would be the same
+            // mistake this whole change is undoing.
+            return "App Store 返回了意料之外的状态。\(detail)"
+        case nil:
+            // No response at all. The only case that is actually about the network.
+            return "连不上 App Store，检查一下网络。\(detail)"
+        }
     }
 
     /// Splits the folder's current tiles into the two things this screen tracks.
