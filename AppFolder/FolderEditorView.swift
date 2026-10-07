@@ -403,13 +403,14 @@ struct TilePickerView: View {
 
     @State private var query = ""
     /// The apps the folder will end up holding: seeded from the folder's own
-    /// tiles, then toggled. A set of catalogue ids for catalogue entries, plus the
-    /// tiles that never had one.
-    @State private var selectedIDs: Set<String> = []
-    /// Hand-added tiles, which have no catalogue id to be keyed by — see
-    /// ``FolderTile/catalogID``. Kept whole rather than reduced to an id, because
-    /// the tile itself is the only record of its name and scheme.
-    @State private var extraTiles: [FolderTile] = []
+    /// tiles, then toggled.
+    ///
+    /// One value rather than the two `@State`s this used to be, because the split
+    /// between "catalogue entries" and "hand-built tiles" only means anything at
+    /// the point they are merged back together — and having them as separate state
+    /// let one half be written and the other forgotten. See ``TileSelection`` for
+    /// the bug that came of it.
+    @State private var selection = TileSelection()
     @State private var didSeed = false
     let currentTiles: [FolderTile]
     /// The folder's apps after the user is done, in catalogue order with any
@@ -483,11 +484,11 @@ struct TilePickerView: View {
                     }
                 }
 
-                if !extraTiles.isEmpty {
+                if !selection.extraTiles.isEmpty {
                     Section {
-                        ForEach(extraTiles) { tile in
+                        ForEach(selection.extraTiles) { tile in
                             Button {
-                                extraTiles.removeAll { $0.id == tile.id }
+                                selection.removeTile(id: tile.id)
                             } label: {
                                 HStack(spacing: 12) {
                                     AsyncTileIcon(appStoreID: tile.appStoreID, symbolName: "app.dashed")
@@ -564,9 +565,22 @@ struct TilePickerView: View {
                 guard !Task.isCancelled else { return }
                 await runStoreSearch()
             }
+            // The scheme screen hands back a finished tile, and the picker **adds** it
+// rather than finishing on it.
+            //
+            // It used to call `onDone([tile])`, which is this screen's own exit —
+            // so adding one app by hand replaced the folder's entire contents with
+            // that one app. Invisible from here: the sheet closes and the result
+            // is handed over in the same turn, so the list the user was looking at
+            // is never re-rendered with the loss in it. The merge is in
+            // ``TileSelection/add(_:)`` now, with tests.
+            //
+            // Dismissing the *scheme* sheet lands back on this list, where the new
+            // tile appears in the 手动添加的 section and a second tap on 完成
+            // commits it — the same shape as ticking a catalogue row.
             .sheet(item: $pendingLookup) { lookup in
                 SchemeEntryView(lookup: lookup, title: lookup.name) { tile in
-                    onDone([tile])
+                    selection.add(tile)
                 }
             }
             .toolbar {
@@ -574,7 +588,7 @@ struct TilePickerView: View {
                     Button("取消") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { onDone(resolvedTiles); dismiss() }
+                    Button("完成") { onDone(selection.resolved); dismiss() }
                 }
             }
             .task {
@@ -690,10 +704,19 @@ struct TilePickerView: View {
     /// Tapping resolves against the catalogue first. An app the catalogue holds
     /// yields a verified scheme, so the user never sees the scheme screen; only a
     /// genuine stranger reaches ``SchemeEntryView``.
+    ///
+    /// Either way it **adds** to the selection and leaves the picker open. This is
+    /// the second door into the same bug the manual path had: it used to call
+    /// `onDone([FolderTile(app: entry)])`, which is this screen's exit, so a
+    /// catalogue hit from an App Store search replaced everything the folder held.
+    ///
+    /// Staying open is also the only version that makes sense of the icon on this
+    /// row being a `plus.circle`: it means "add this", and the user can add three
+    /// apps from one search instead of repeating the search per app.
     private func storeRow(_ result: AppStoreLookup) -> some View {
         Button {
             if let entry = AppCatalog.entry(appStoreID: result.trackID) {
-                onDone([FolderTile(app: entry)])
+                selection.add(FolderTile(app: entry))
             } else {
                 pendingLookup = result
             }
@@ -714,8 +737,14 @@ struct TilePickerView: View {
 
                 Spacer()
 
-                Image(systemName: "plus.circle")
-                    .foregroundStyle(Color.accentColor)
+                // Reflects what the tap did, because the row now stays open and a
+                // control that looks identical after it has been pressed reads as
+                // one that did nothing. A stranger has no id to check against —
+                // it goes to the scheme screen instead — so it keeps the plus.
+                let isAdded = AppCatalog.entry(appStoreID: result.trackID)
+                    .map { selection.catalogIDs.contains($0.id) } ?? false
+                Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle")
+                    .foregroundStyle(isAdded ? Color.accentColor : Color.secondary)
             }
         }
         .buttonStyle(.plain)
@@ -747,26 +776,18 @@ struct TilePickerView: View {
     /// kept whole and always travels back, whether or not it appears in any list
     /// here.
     private func seedFromCurrentTiles() {
-        selectedIDs = Set(currentTiles.compactMap(\.catalogID))
-        extraTiles = currentTiles.filter { $0.catalogID == nil }
-    }
-
-    /// The folder's apps as they stand, catalogue entries restored from their
-    /// fresh entries (so recent repairs and renames land) with hand-added tiles
-    /// kept as they are.
-    private var resolvedTiles: [FolderTile] {
-        extraTiles + AppCatalog.all.filter { selectedIDs.contains($0.id) }.map { FolderTile(app: $0) }
+        selection = .seeded(from: currentTiles)
     }
 
     /// Whether anything is picked, so the screen can tell "you removed them all"
     /// apart from "this folder was already empty".
-    private var hasSelection: Bool { !selectedIDs.isEmpty || !extraTiles.isEmpty }
+    private var hasSelection: Bool { !selection.isEmpty }
 
     private func row(_ app: KnownApp) -> some View {
-        let isPicked = selectedIDs.contains(app.id)
+        let isPicked = selection.catalogIDs.contains(app.id)
 
         return Button {
-            if isPicked { selectedIDs.remove(app.id) } else { selectedIDs.insert(app.id) }
+            selection.setCatalog(app.id, isSelected: !isPicked)
         } label: {
             HStack(spacing: 12) {
                 AsyncTileIcon(appStoreID: app.appStoreID, symbolName: app.symbolName ?? "app.dashed")
