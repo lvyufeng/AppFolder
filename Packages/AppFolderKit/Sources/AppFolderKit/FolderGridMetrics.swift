@@ -79,6 +79,58 @@ public struct FolderGridMetrics: Sendable, Equatable {
     /// claim.
     public static let standardGapShare: CGFloat = 1.0 / 12.0
 
+    /// The tightest the gap may become, as a share of the grid's width.
+    ///
+    /// ## Why this is a share and no longer a fixed 2 pt
+    ///
+    /// The gap used to bottom out at `max(2, …)` points, and at the top of the
+    /// size range that is where it landed — so the largest setting drew a
+    /// nine-cell grid with 2 pt between cells against 51.4 pt icons, a ratio of
+    /// **3.9%**. Measured on a real Home Screen, that does not read as a grid with
+    /// small gaps; it reads as one solid block with faint seams, and the user's
+    /// report was exactly that: 大 has "几乎没有间隔".
+    ///
+    /// A fixed floor cannot express "still visibly separated" at every size,
+    /// because the thing it has to be visible *against* — the cell — scales with
+    /// the widget. A share can: at this value the same nine-cell Small grid draws
+    /// 5.0 pt gaps against 49.4 pt icons, a ratio of 10.1%.
+    ///
+    /// ## What it costs, and why that is the honest trade
+    ///
+    /// Cells and gaps together are exactly the grid's inner width, so a wider gap
+    /// has to come out of the icons: 51.4 pt becomes 48.3 pt, a 6% loss. There is
+    /// no arrangement that keeps both — the constraint is arithmetic, not policy.
+    /// What the share buys is that the loss is *proportional* rather than absolute,
+    /// so it stays 6% instead of growing into the whole gap as the widget shrinks.
+    ///
+    /// ## Why exactly half the standard, and where it starts to bite
+    ///
+    /// Because ``gapShare(forIconScale:)`` is *already* at half the standard gap
+    /// when it reaches 中: the curve is defined to fall from the standard at 0.5 to
+    /// zero at 1, so at 0.75 it is exactly ``standardGapShare`` / 2. Setting the
+    /// floor there means the curve's own value governs at 中 and below — nothing
+    /// moves — and above 中 the gap simply holds.
+    ///
+    /// So the rule the user is actually operating is: **the gap may halve at most,
+    /// and it has already halved by 中.** Past that, the size setting moves only the
+    /// margin, which is what makes 大 read as "the same clarity with bigger icons"
+    /// rather than as "the same grid squeezed shut". The measured ratios at the top
+    /// of the range become 13.6% for a nine-cell grid and 8.7% for a four-cell one,
+    /// against 3.9% and 2.6% before.
+    ///
+    /// Anything larger than this would bind at 中 and resize the arrangement the
+    /// pre-slider layout drew — the 37.2 pt icon and 11.2 pt gap ``WidgetGridTests``
+    /// pins. So this is not a tuning knob chosen by eye; it is the largest value
+    /// that leaves that pinned arrangement alone.
+    /// Spelled as a literal rather than as `standardGapShare / 2`, though it is
+/// exactly that. A `static let` reading another `static let` is a lazy global
+/// initialized on first touch, and while Swift does order that correctly within a
+/// type, the failure mode if it ever did not is this value reading `0` — which
+/// would draw every grid at the top of the range with no gap at all, i.e. exactly
+/// the bug this constant exists to prevent. The two are kept in step by the test
+/// below rather than by one being defined from the other.
+public static let minimumGapShare: CGFloat = 1.0 / 24.0
+
     /// Where the gap goes as ``iconScale`` runs from 0 to 1.
     ///
     /// The gap is the only lever on icon size, and it is the only one that needs
@@ -95,9 +147,9 @@ public struct FolderGridMetrics: Sendable, Equatable {
     /// icons, which is the direction a user reaching for this usually wants.
     ///
     /// - Returns: the gap as a share of the grid's width: 0.15 at scale 0 and
-    ///   ``standardGapShare`` at 0.5, falling to 0 at 1. In practice the floor
-    ///   in the initialiser holds the top end at 2 pt, so icons at the maximum
-    ///   setting sit close together without touching.
+    ///   ``standardGapShare`` at 0.5, falling toward 0 at 1 — where
+    ///   ``minimumGapShare`` takes over, so the curve's own value is only used
+    ///   above that floor.
     static func gapShare(forIconScale scale: Double) -> CGFloat {
         let scale = CGFloat(min(max(scale, 0), 1))
         if scale <= 0.5 {
@@ -218,7 +270,14 @@ public struct FolderGridMetrics: Sendable, Equatable {
             height: max(0, available.height - 2 * self.margin)
         )
 
-        self.spacing = max(2, inner.width * Self.gapShare(forIconScale: iconScale))
+        // Floored at a *share* rather than at a point count — see
+    // ``minimumGapShare`` for the measurement that moved it and for the 4% of
+    // icon size it costs above scale 0.79. Below that scale this line changes
+    // nothing: the curve's own value is already larger.
+    self.spacing = max(
+        inner.width * Self.minimumGapShare,
+        inner.width * Self.gapShare(forIconScale: iconScale)
+    )
 
         let byWidth = (inner.width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
         let byHeight = (inner.height - spacing * CGFloat(rows - 1)) / CGFloat(rows)

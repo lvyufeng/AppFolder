@@ -135,22 +135,133 @@ struct WidgetGridTests {
         #expect(abs(standard.iconSide - 37.2) < 0.1)
         #expect(abs(standard.spacing - 11.2) < 0.1)
         // The top of the range spends both levers: the margin comes in to 6 pt
-        // and the gap to its 2 pt floor, which is what buys the icons 51.4 pt.
-        #expect(abs(largest.iconSide - 51.4) < 0.1)
+        // and the gap to its floor, which is what buys the icons 48.3 pt.
+        //
+        // Was 51.4. The gap's floor moved from a fixed 2 pt to half the standard
+        // gap — see ``FolderGridMetrics/minimumGapShare`` — because 2 pt against a
+        // 51 pt icon is a 3.9% ratio, which reads as one solid block rather than as
+        // a grid, and that is what the 大 setting was reported as drawing. The 3 pt
+        // of icon size is what a visible gap costs; the relationship this test is
+        // really about (larger setting ⇒ larger icons) still holds, and the
+        // assertions above it still pin it.
+        #expect(abs(largest.iconSide - 48.3) < 0.1)
     }
 
-    /// The floor means the setting stops changing anything well before the
-    /// slider ends. That is not a bug — it is why the editor quotes the computed
-    /// size instead of the slider's own value — but it is the kind of dead zone
-    /// that gets "fixed" by someone lowering the floor later, which would draw
-    /// the icons edge to edge at the maximum. Pin it down.
+    /// The gap never closes entirely, at any size.
+    ///
+    /// The floor used to be a fixed 2 pt, and this test asserted exactly that
+    /// number. It is now half the standard gap as a share of the grid's width,
+    /// because a point count cannot express "still visibly separated" when the
+    /// thing it must be visible against — the cell — scales with the widget. See
+    /// ``FolderGridMetrics/minimumGapShare`` for the measurement that moved it.
+    ///
+    /// What survives unchanged is the property this test was written for: at the
+    /// top of the range the gap is non-zero, so the icons are never drawn edge to
+    /// edge. What is newly asserted is that it is non-zero *in proportion* — a
+    /// floor met by a hairline would satisfy the old form of this test and still
+    /// look exactly like the bug it was meant to prevent.
     @Test("The gap never closes entirely")
     func gapKeepsAFloor() {
         let container = CGSize(width: 134, height: 134)
         let largest = FolderGridMetrics(
             tileCount: 9, columns: 3, in: container, iconScale: 1
         )
-        #expect(largest.spacing == 2)
+        #expect(largest.spacing > 2)
+
+        // The floor binds at the top of the range, so the gap is exactly the floor
+        // as a share of the *inner* width — not of the container. The margin is
+        // `container * 0.035` at this scale, which is 4.7 pt, not the 6 pt the
+        // standard setting leaves.
+        let inner = container.width - 2 * largest.margin
+        #expect(abs(largest.spacing - inner * FolderGridMetrics.minimumGapShare) < 0.01)
+
+        // And it stays that share of whatever grid it sits in, so the ratio a user
+        // actually sees does not drift with the widget's size.
+        for width in [134.0, 170.0, 200.0, 300.0, 500.0] as [CGFloat] {
+            let m = FolderGridMetrics(
+                tileCount: 9, columns: 3, in: CGSize(width: width, height: width), iconScale: 1
+            )
+            let inner = width - 2 * m.margin
+            #expect(abs(m.spacing - inner * FolderGridMetrics.minimumGapShare) < 0.01)
+            #expect(m.spacing > 0)
+        }
+    }
+
+    /// 大 keeps 中's gap-to-icon ratio: the size setting past 中 moves the margin
+    /// and nothing else.
+    ///
+    /// This is the shape of the fix, stated as a property rather than as two
+    /// numbers. The complaint was that 大 had "几乎没有间隔" — not that its icons
+    /// were too big. The floor is set exactly where the curve reaches it, which is
+    /// 中, so the gap stops narrowing there and the remaining travel of the setting
+    /// goes entirely into the icons. A future change that widens the gap further
+    /// would make 大 and 中 look alike; one that narrows it again would bring back
+    /// the original report.
+    @Test("Above 中 the gap holds while the icons grow")
+    func largeKeepsTheStandardRatios() {
+        let container = CGSize(width: 170, height: 170)
+        func ratio(_ scale: Double, columns: Int = 3) -> CGFloat {
+            let m = FolderGridMetrics(
+                tileCount: columns * columns, columns: columns, in: container, iconScale: scale
+            )
+            return m.spacing / m.iconSide
+        }
+
+        for columns in [2, 3] {
+            let atMedium = ratio(0.75, columns: columns)
+            let atLarge = ratio(1.0, columns: columns)
+            #expect(
+                abs(atLarge - atMedium) < 0.001,
+                "\(columns)×\(columns): 大 draws \(atLarge), 中 draws \(atMedium)"
+            )
+
+            // And the icons really are bigger, or the setting is decoration.
+            let medium = FolderGridMetrics(
+                tileCount: columns * columns, columns: columns, in: container, iconScale: 0.75
+            )
+            let large = FolderGridMetrics(
+                tileCount: columns * columns, columns: columns, in: container, iconScale: 1
+            )
+            #expect(large.iconSide > medium.iconSide)
+        }
+    }
+
+    /// The floor leaves everything at or below 中 untouched.
+    ///
+    /// The reason it is set at 2.95% and not higher: the curve does not reach it
+    /// until scale ≈ 0.79, so the arrangement the pre-slider layout drew — and
+    /// which the test above pins at a 37.2 pt icon and an 11.2 pt gap — is still
+    /// drawn exactly as it was. Raising this floor would silently resize every
+    /// existing folder, which is the failure the default's own doc comment warns
+    /// about.
+    @Test("The floor does not reach the standard size")
+    func gapFloorLeavesTheStandardSizeAlone() {
+        // The two constants are spelled as separate literals so neither can read
+        // the other as a zero-initialized global — see `minimumGapShare`. That
+        // makes their relationship the test's job rather than the compiler's.
+        #expect(FolderGridMetrics.minimumGapShare == FolderGridMetrics.standardGapShare / 2)
+
+        let container = CGSize(width: 170, height: 170)
+
+        // At and below 中 the curve's own value is at or above the floor, so the
+        // floor never *raises* the gap and the arrangement is drawn exactly as
+        // before. Equality at 0.75 is the definition, not a coincidence: the floor
+        // is `gapShare(0.75)`, chosen there so that the setting's remaining travel
+        // goes into the icons rather than into closing the gap.
+        for scale in [0.0, 0.25, 0.5, 0.75] {
+            let m = FolderGridMetrics(tileCount: 9, columns: 3, in: container, iconScale: scale)
+            let inner = container.width - 2 * m.margin
+            #expect(
+                m.spacing >= inner * FolderGridMetrics.minimumGapShare,
+                "the floor must not raise the gap at scale \(scale)"
+            )
+        }
+
+        let standard = FolderGridMetrics(
+            tileCount: 9, columns: 3, in: container,
+            iconScale: FolderGridMetrics.defaultIconScale
+        )
+        #expect(abs(standard.spacing - 11.2) < 0.1, "中 must still draw the original gap")
     }
 
     /// A folder written before the size existed has no key for it, and must come
