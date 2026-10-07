@@ -28,6 +28,17 @@ public enum AppFolderShared {
     /// the same lost-update race the queue exists to avoid.
     public static let importsDirectoryName = "imports"
 
+    /// Directory inside the shared container holding one file per app the user
+    /// shared in that could not be resolved to a launch target automatically.
+    ///
+    /// Separate from ``importsDirectoryName`` because the two hold opposite things.
+    /// That one is a *decision* — the extension already knows which app and which
+    /// folder — and the app turns it into a tile on sight. This one is a *question*
+    /// the app could not answer on its own: the app is real, the folder is known,
+    /// and how to open it is not. It waits for the user, which is why it is a
+    /// different queue with a different lifetime. See ``PendingResolution``.
+    public static let pendingResolutionsDirectoryName = "pending-resolutions"
+
     /// `UserDefaults` key used when the App Group container is unavailable.
     public static let fallbackDefaultsKey = "library.fallback"
 }

@@ -154,6 +154,28 @@ struct TroubleshootingView: View {
         widgetVisible.folders.reduce(0) { $0 + $1.tiles.count }
     }
 
+    /// What to say about the badge permission.
+    ///
+    /// Asked for lazily — only once there is something to count — so the answer is
+    /// `.notRequested` before the question has ever been put. Reporting that as a
+    /// refusal would be inventing a decision the user never made.
+    @State private var badgeAvailability: PendingResolutionBadge.Availability = .notRequested
+
+    private var badgeStatus: String {
+        switch badgeAvailability {
+        case .notRequested: "还没申请过（下一次有待确认时会问）"
+        case .available: "正常"
+        case .refused: "被拒绝，数字不会显示"
+        case .unsupported: "这台设备不支持，数字不会显示"
+        }
+    }
+
+    /// Orange only for a state where the numeral will *not* appear. "Not yet asked"
+    /// is the normal state before the first share and must not read as a problem.
+    private var badgeStatusNeedsAttention: Bool {
+        badgeAvailability == .refused || badgeAvailability == .unsupported
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -189,12 +211,36 @@ struct TroubleshootingView: View {
                     Text("下面两行走的是小组件完全相同的读取路径。如果它们比上面的数字少，桌面上的小组件就是空的——问题在共享存储，不在文件夹。")
                 }
 
+                Section {
+                    LabeledContent("待确认的分享") {
+                        Text("\(model.pendingResolutions.count) 个")
+                    }
+                    if !model.pendingResolutions.isEmpty {
+                        LabeledContent("角标") {
+                            Text(badgeStatus)
+                                .foregroundStyle(badgeStatusNeedsAttention ? .orange : .secondary)
+                        }
+                    }
+                } header: {
+                    Text("等待确认的分享")
+                } footer: {
+                    // Stated because the failure is silent in both directions: a
+                    // refused badge permission produces no error and no badge, so
+                    // the only symptom is a number that is not there — which reads
+                    // as "nothing is waiting" rather than "you said no once".
+                    Text("分享进来的 App 如果猜不到启动链接，就不会有图块，只会在 App 图标上记一个数。角标需要单独的通知权限；拒绝了的话数字不会出现，但文件夹编辑器里的待确认列表照常有。")
+                }
+
                 Section("小组件点不动的时候") {
                     Text("图块点下去没反应，只有三种可能：目标 App 没装、链接写错了、或者这个图块选了「直接打开」但目标 App 没有通用链接。")
                     Text("回到文件夹点开那个图块，用「试一下」逐个排除。第三种编辑器会直接标出来。")
                 }
             }
             .navigationTitle("排查")
+            // Read on appear rather than stored anywhere: the authorization state
+            // can change in Settings while the app is backgrounded, and this
+            // screen exists to report what is true *now*.
+            .task { badgeAvailability = await PendingResolutionBadge.availability() }
         }
     }
 }

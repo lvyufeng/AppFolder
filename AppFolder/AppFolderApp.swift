@@ -34,6 +34,12 @@ final class LibraryModel {
     /// Set when the build has no App Group, which makes widgets read nothing.
     /// Surfaced in the UI because it is otherwise invisible and baffling.
     var isSharedStorageAvailable = true
+    /// Shared-in apps that could not be resolved to a launch target, oldest first.
+    ///
+    /// Held in memory so the editor can list them, and reloaded whenever the queue
+    /// changes. The queue is the *only* trace these apps leave: they produce no
+    /// tile, so nothing else on screen would show that a share happened at all.
+    var pendingResolutions: [PendingResolution] = []
 
     var folders: [Folder] { library.folders }
     var installedSchemes: Set<String> { prober.installedSchemes }
@@ -75,6 +81,9 @@ final class LibraryModel {
         // hold the answer, and answering "nothing to collapse" on the strength of
         // it is the bug being fixed.
         collapseExpandedWidget()
+        // Read before draining, so a queue left over from a previous launch is on
+        // screen immediately rather than one shared-import later.
+        reloadPendingResolutions()
         await drainSharedImports()
         await refreshInstalledApps()
     }
@@ -133,43 +142,93 @@ final class LibraryModel {
                 ?? library.folders.indices.first
             else { continue }  // no folders at all; nothing to add to
 
-            let tile: FolderTile?
             if let entry = AppCatalog.entry(appStoreID: item.trackID) {
-                tile = FolderTile(app: entry)
-            } else if let lookup = await AppStoreSearchClient.shared.lookup(
-                trackID: item.trackID, region: item.region
-            ) {
-                // Known to the App Store but not to the catalogue: a name, an
-                // icon and an id, but no verified scheme. The tile is still worth
-                // making — the app's editor is where a scheme gets filled in and
-                // tried, and that is a better place to land than dropping it.
-                //
-                // The scheme is a guess, so the tile is flagged as one. That flag
-                // is what keeps a tile that opens nothing out of the widget and
-                // puts a 待确认 warning on it in the editor, where 试一下 is one
-                // tap away. Without it the user's only signal was the 打不开 alert
-                // on the Home Screen, which names neither the tile nor the reason.
-                //
-                // The bundle id is stored alongside because it is the guesser's
-                // input and the network is the only way to get it. Keeping it
-                // means a later improvement — like the one that demoted `iphone`
-                // — can repair this tile in place, instead of asking the user to
-                // share the app again.
-                tile = FolderTile(
-                    title: lookup.name,
-                    scheme: SchemeGuess.candidates(bundleID: lookup.bundleID, name: lookup.name).first ?? "",
-                    appStoreID: lookup.trackID,
-                    bundleID: lookup.bundleID
-                )
-            } else {
-                tile = nil
+                // The catalogue knows this app, so its scheme is verified and the
+                // tile is finished without asking anyone anything.
+                var next = library
+                next.folders[index].tiles.append(FolderTile(app: entry))
+                apply(next)
+                continue
             }
 
-            guard let tile else { continue }
-            var next = library
-            next.folders[index].tiles.append(tile)
-            apply(next)
+            // Anything else is a *question*, not a tile.
+            //
+            // This used to take `SchemeGuess.candidates(...).first` and save it
+            // straight away, which meant one tap from the user produced a tile with
+            // roughly even odds of doing nothing — and the failure is invisible on
+            // the Home Screen, so there was no way to tell a guess that worked from
+            // one that did not. 票牛 is the example: the guess was `pner://`, the
+            // real scheme is `piaoniu://home`, and nothing in the bundle id or the
+            // store name leads from one to the other.
+            //
+            // So it becomes a ``PendingResolution`` — recorded, counted on the app
+            // icon, and left for the editor, where ``SchemeEntryView`` can try
+            // candidates against the real device instead of guessing.
+            //
+            // The record carries only what the link carried. No lookup happens
+            // here on purpose: this runs on launch and on every return to the
+            // foreground, and the network is not always there. Resolving eagerly
+            // would make an offline share lose the name and the icon — and, since
+            // ``PendingImportStore/drain()`` removes records as it reads them,
+            // losing them silently. The editor resolves when it can actually reach
+            // the store.
+            let pending = PendingResolution(
+                trackID: item.trackID,
+                region: item.region,
+                folderID: item.folderID
+            )
+            PendingResolutionStore().deposit(pending)
         }
+        // Once per drain, not once per record: the badge is one number and this
+        // is the only place the queue grows.
+        reloadPendingResolutions()
+        PendingResolutionBadge.refresh()
+    }
+
+    /// Re-reads the unresolved-share queue and republishes it for the editor.
+    ///
+    /// Also the one place that keeps the badge's number honest on the way *down*:
+    /// draining only ever adds, so a confirmed or discarded entry has to come
+    /// through here to take the numeral off the icon.
+    func reloadPendingResolutions() {
+        pendingResolutions = PendingResolutionStore().all()
+        PendingResolutionBadge.refresh()
+    }
+
+    /// Turns a confirmed share into a real tile.
+    ///
+    /// The tile lands in the folder the user picked in the share sheet, falling
+    /// back to the first folder when that one is gone — the folder can be deleted
+    /// between sharing and confirming, and losing the user's chosen destination is
+    /// a much smaller harm than losing the share. Same reasoning as
+    /// ``drainSharedImports``, and the same shape of guard.
+    func resolve(_ pending: PendingResolution, into tile: FolderTile) {
+        var next = library
+        if let index = next.folders.firstIndex(where: { $0.id == pending.folderID }) {
+            next.folders[index].tiles.append(tile)
+        } else if let first = next.folders.indices.first {
+            next.folders[first].tiles.append(tile)
+        } else {
+            // No folders at all. Dropping the record would lose the app, so the
+            // confirmation is refused rather than half-applied — the editor
+            // disables the button in this case, and this is the backstop.
+            return
+        }
+        apply(next)
+        PendingResolutionStore().remove(pending.id)
+        reloadPendingResolutions()
+    }
+
+    /// Throws one away without making a tile.
+    ///
+    /// A first-class outcome rather than a hidden one: the app may genuinely not be
+    /// on the device any more, or the user may have changed their mind about the
+    /// share. Either way the queue has to be clearable, or the badge becomes
+    /// permanent. See ``resolve(_:into:)`` for why removal is separate from
+    /// resolution.
+    func discard(_ pending: PendingResolution) {
+        PendingResolutionStore().remove(pending.id)
+        reloadPendingResolutions()
     }
 
     /// Re-probes which apps are installed and persists the result for the widget.

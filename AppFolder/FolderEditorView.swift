@@ -280,6 +280,44 @@ struct FolderContentEditorView: View {
         folder.grid.capacity(for: .systemSmall)
     }
 
+    /// Shared-in apps that never became tiles, because how to open them is not
+    /// known.
+    ///
+    /// ## Why this section is load-bearing rather than tidy
+    ///
+    /// These apps leave **no trace anywhere else**. They produce no tile, no
+    /// placeholder, nothing in the widget — so without this, the person who just
+    /// shared an app from the Home Screen would be looking at a folder that had
+    /// not changed, with no way to tell whether the share worked. The app icon's
+    /// badge says *that* something is waiting; this says *what*, and is the only
+    /// way to resolve it.
+    ///
+    /// ## Why it shows the whole queue, not just this folder's
+    ///
+    /// The queue is global — it belongs to the app, not to a folder — and a share
+    /// can name a folder the user is not currently editing. Filtering to this
+    /// folder would hide a waiting app behind a screen the user has no reason to
+    /// open. Each row says which folder it will land in, so the list is still
+    /// unambiguous about where confirming will put things.
+    @ViewBuilder
+    private var pendingSection: some View {
+        if !model.pendingResolutions.isEmpty {
+            Section {
+                ForEach(model.pendingResolutions) { pending in
+                    NavigationLink {
+                        PendingResolutionView(pending: pending)
+                    } label: {
+                        PendingResolutionRow(pending: pending)
+                    }
+                }
+            } header: {
+                Text("待确认的分享")
+            } footer: {
+                Text("这些是从桌面分享进来的 App，但 AppFolder 猜不到能打开它们的链接。点进去试一下，确认后才会有图块——猜错的图块点不动，比没有更糟。")
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -323,6 +361,8 @@ struct FolderContentEditorView: View {
                         Text("桌面上按顺序显示，多余的会收进最后一格的「更多」入口。")
                     }
                 }
+
+                pendingSection
 
                 if !model.isSharedStorageAvailable {
                     Section {
