@@ -444,14 +444,65 @@ struct TilePickerView: View {
         AppCatalog.search(query)
     }
 
-    /// Whether the App Store row should be offered at all.
+    /// Whether the App Store section should be shown for this query.
     ///
-    /// Only when the catalogue did not already answer. If the user typed a name
-    /// the catalogue knows, the entry is right there with a verified scheme, and
-    /// sending them to the App Store to re-find the same app is the WidgetLoft
-    /// detour this feature exists to avoid.
+    /// Two ways in, and the second one is the change:
+    ///
+    /// 1. **The catalogue came up empty.** The original rule, and still the
+    ///    common case: type a name the catalogue has never heard of and the
+    ///    online search is the only door.
+    /// 2. **The user asked for it.** A non-empty *non-matching* query is
+    ///    deliberately not enough — the catalogue having an answer is not the same
+    ///    as its answer being the app the user wants, but it is a good enough
+    ///    guess that re-searching online on every keystroke would be the WidgetLoft
+    ///    detour this feature exists to remove. So the second path is opened by a
+    ///    tap, not by typing.
+    ///
+    /// ## Why (2) exists at all
+    ///
+    /// The catalogue matches on **name**, and a name is not an identity. Search
+    /// "Keep" and the catalogue answers with 健身 Keep — correct, and possibly not
+    /// the app the user has, because the store also sells a step counter called
+    /// Keep. Before this, that answer was terminal: `filtered` was non-empty, so
+    /// the App Store section never appeared, and the user could not reach the app
+    /// they could see on their own Home Screen. There was nothing to retype,
+    /// because the query was already right.
+    ///
+    /// ## Why it is a tap rather than automatic
+    ///
+    /// `search` is a network request per term, debounced at 350 ms. Firing one for
+    /// every query the catalogue happens to answer would put a request behind
+    /// every keystroke of the common path — which is the path that works. One tap
+    /// from the user who has actually found the catalogue's answer wrong is a much
+    /// better trigger than a heuristic that cannot know.
     private var shouldOfferStoreSearch: Bool {
-        !query.trimmingCharacters(in: .whitespaces).isEmpty && filtered.isEmpty
+        let term = query.trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty else { return false }
+        return filtered.isEmpty || wantsStoreSearch
+    }
+
+    /// Set by the user tapping 「还是搜 App Store」, cleared as soon as the query
+    /// changes.
+    ///
+    /// Handled outside ``TileSelection`` because none of this is selection state —
+    /// it is which of two *sources* the query is being answered from, and it does
+    /// not outlive the query it was asked about.
+    ///
+    /// Cleared in an `onChange` rather than inside the search task. The task is
+    /// keyed on ``storeSearchKey``, which includes this flag, so a task that reset
+    /// its own trigger would cancel itself on the way in. Splitting the two — reset
+    /// on the query edge, run the search on the key — keeps each doing one thing.
+    @State private var wantsStoreSearch = false
+
+    /// What the debounced search is keyed on.
+    ///
+    /// Carries ``wantsStoreSearch`` as well as the query, which is what lets the
+    /// tap start a search: `task(id:)` re-runs whenever the id changes, and the
+    /// flag going up is a change. The region is in here for the same reason it
+    /// always was — switching storefront has to re-issue the request rather than
+    /// leave the previous store's answer on screen under the new store's label.
+    private var storeSearchKey: String {
+        "\(storeCountry ?? "")|\(wantsStoreSearch)|\(query)"
     }
 
     /// Which storefront the App Store search runs against.
@@ -540,9 +591,16 @@ struct TilePickerView: View {
                     }
                 }
 
+                catalogueAnsweredSection
                 storeSection
             }
             .searchable(text: $query, prompt: "搜索 App")
+            .onChange(of: query) { _, _ in
+                // A new term is a new question, and it starts on the catalogue's
+                // answer — see ``wantsStoreSearch``. Only the *query* resets it, so
+                // a mid-search region change does not throw the user back.
+                wantsStoreSearch = false
+            }
             .navigationTitle("选择 App")
             .navigationBarTitleDisplayMode(.inline)
             // Debounced on the query, so a five-letter word is one request rather
@@ -555,7 +613,7 @@ struct TilePickerView: View {
             // results on screen under a label that says otherwise. The id is a
             // string because a tuple is not `Equatable` enough for `task(id:)` in
             // the way this needs, and the separator cannot appear in either part.
-            .task(id: "\(storeCountry ?? "")|\(query)") {
+            .task(id: storeSearchKey) {
                 guard shouldOfferStoreSearch else {
                     storeResults = nil
                     storeFailed = false
@@ -608,6 +666,32 @@ struct TilePickerView: View {
     /// otherwise the answer is already on screen — and a second, slower, online
     /// path to the same app is exactly the detour this feature was built to
     /// remove.
+    /// The way out when the catalogue answered, but with the wrong app.
+    ///
+    /// Rendered only in the case that needs it — the catalogue found something and
+    /// the user has not already asked for the online search. Every other state has
+    /// the App Store section on screen already, and a second control pointing at it
+    /// would be two doors to one room.
+    ///
+    /// The wording matters here more than it looks. "还是搜 App Store" is a
+    /// correction, not a suggestion: it tells the user their query was understood
+    /// and that the list above it may still be the wrong app, which is exactly the
+    /// situation — the catalogue matches on name, and a name is not an identity.
+    @ViewBuilder
+    private var catalogueAnsweredSection: some View {
+        if !wantsStoreSearch, !query.trimmingCharacters(in: .whitespaces).isEmpty, !filtered.isEmpty {
+            Section {
+                Button {
+                    wantsStoreSearch = true
+                } label: {
+                    Label("还是搜 App Store", systemImage: "magnifyingglass")
+                }
+            } footer: {
+                Text("上面按名字匹配，同名的不一定是你装的那个。App Store 里有图标和开发者，能认出来。")
+            }
+        }
+    }
+
     @ViewBuilder
     private var storeSection: some View {
         if shouldOfferStoreSearch {
