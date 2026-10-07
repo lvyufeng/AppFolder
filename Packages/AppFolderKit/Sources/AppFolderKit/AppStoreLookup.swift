@@ -89,7 +89,14 @@ extension AppStoreLookup {
     /// No key and no authentication: it is the same endpoint the App Store web
     /// pages use. `entity=software` restricts results to iOS apps, which is what
     /// keeps a search for "微信" from returning music and books.
-    public static func searchURL(term: String, country: String = defaultCountry, limit: Int = 12) -> URL? {
+    ///
+    /// - Parameter country: a storefront code, or `nil` to omit the parameter and
+    ///   let the request resolve against the device's own store. `nil` is not the
+    ///   same as any code — the endpoint scopes results by storefront and an app
+    ///   not sold in the one that resolves comes back as an empty `results`, so a
+    ///   caller looking for an app it knows is installed here should try the
+    ///   device's store first and only then a specific country.
+    public static func searchURL(term: String, country: String? = defaultCountry, limit: Int = 12) -> URL? {
         let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
@@ -99,10 +106,12 @@ extension AppStoreLookup {
         components.path = "/search"
         components.queryItems = [
             URLQueryItem(name: "term", value: trimmed),
-            URLQueryItem(name: "country", value: country),
             URLQueryItem(name: "entity", value: "software"),
             URLQueryItem(name: "limit", value: String(limit)),
         ]
+        if let country, !country.isEmpty {
+            components.queryItems?.append(URLQueryItem(name: "country", value: country))
+        }
         return components.url
     }
 

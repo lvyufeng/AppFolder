@@ -46,6 +46,10 @@ public enum WidgetState {
         static let expandedPage = "widget.expandedPage"
         /// Written and read back by ``resolveStorage()``; never a real setting.
         static let probe = "widget.probe"
+        /// Same, for the direct-launch widget's grid. A second key under the same
+        /// lock rather than a shared one: a folder and a grid are two different
+        /// things and opening one must not close the other.
+        static let directLaunchKey = "widget.directLaunchKey"
         /// How far this process has got through ``FolderLibrary/collapseRequest``.
         static let seenCollapseRequest = "widget.seenCollapseRequest"
     }
@@ -103,6 +107,64 @@ public enum WidgetState {
                 defaults.removeObject(forKey: Key.expandedFolderID)
             }
         }
+    }
+
+    /// The direct-launch grid currently expanded in the widget, if any.
+    ///
+    /// A second key rather than a reuse of ``expandedFolderID``, because the two
+    /// widgets are configured independently and their expansions have different
+    /// lifetimes: a folder is expanded by tapping a door the timeline provider
+    /// built, while a grid is expanded by tapping one of the slots the *user*
+    /// configured. Sharing a key would let expanding one collapse the other, and
+    /// the two are on the Home Screen side by side.
+    ///
+    /// Read and written the same way as the folder's, including through the
+    /// storage probe: a widget whose App Group is unreachable gets `nil` and
+    /// simply does not expand, rather than expanding into a domain the *next*
+    /// render cannot read.
+    public static var directLaunchKey: String? {
+        get { defaults.string(forKey: Key.directLaunchKey) }
+        set {
+            if let newValue {
+                defaults.set(newValue, forKey: Key.directLaunchKey)
+            } else {
+                defaults.removeObject(forKey: Key.directLaunchKey)
+            }
+        }
+    }
+
+    /// The name of the grid the user has open, from the slots it holds.
+    ///
+    /// A direct-launch grid has nothing stable to key an expansion on: its slots
+    /// are `SystemShortcut`s, which the system will not let us read, compare or
+    /// serialise, and the display names are not unique. What *is* available to
+    /// both the tap and the render is the list of names — the same list, in the
+    /// same order, produced by the same `displayRepresentation` — so the key is a
+    /// digest of that.
+    ///
+    /// Order matters and is part of the key, because it is part of what the user
+    /// configured: reordering the slots is a different grid and should not
+    /// inherit an expansion.
+    ///
+    /// Deliberately not the *number* of slots: two grids of nine with different
+    /// apps are different grids, and a key that only counted them would expand
+    /// the wrong one. `DirectLaunchIcons.stableHash` is the digest because it is
+    /// the one hash this package already guarantees is identical in the intent's
+    /// process and the render's.
+    public static func directLaunchExpansionKey(slotNames: [String]) -> String {
+        DirectLaunchIcons.stableHash(slotNames.joined(separator: "\u{1F}"))
+    }
+
+    /// Collapses the direct-launch grid, leaving the folder's expansion alone.
+    ///
+    /// Separate from ``collapse()`` for the reason the two keys are separate. The
+    /// page is shared, though — see ``expandedPage`` — because only one of the two
+    /// things is ever open at a time from the user's point of view, and a single
+    /// page counter cannot open the wrong page in the way a single key can open
+    /// the wrong grid.
+    public static func collapseDirectLaunch() {
+        directLaunchKey = nil
+        expandedPage = 0
     }
 
     /// Which page of the expanded folder is showing, zero-based.

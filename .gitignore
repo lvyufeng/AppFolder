@@ -30,6 +30,21 @@ playground.xcworkspace
 .build/
 /Package.resolved
 
+# Build output.
+#
+# `build/` is not Xcode's default location — it is what a command-line build with
+# `-derivedDataPath build` leaves behind, and there are two of them because the
+# package builds in place as well. Both are the *product* of a build, never its
+# input, and together they are a few hundred MB of object files.
+#
+# These were untracked-but-not-ignored, which is worse than either: `git add -A`
+# would have committed them, and `git status` listed them on every run, burying
+# the changes that mattered.
+build/
+# Xcode's module cache, written under the project when a `-Xcc` flag points there.
+# Generated, large, and rebuilt on demand — same argument.
+-Xcc/
+
 # CocoaPods
 #
 # We recommend against adding the Pods directory to your .gitignore. However

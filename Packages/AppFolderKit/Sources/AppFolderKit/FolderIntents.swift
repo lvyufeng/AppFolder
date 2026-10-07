@@ -108,3 +108,91 @@ public struct AdvanceFolderPageIntent: AppIntent {
         return .result()
     }
 }
+
+/// Opens or closes a direct-launch grid, in the widget's own process.
+///
+/// The twin of ``ToggleFolderIntent``, for the widget whose slots are
+/// `SystemShortcut`s rather than apps from a folder. Everything the folder's
+/// intent has to say about living in the extension's process and about not
+/// launching AppFolder applies here unchanged; what differs is only what the
+/// state is keyed on.
+///
+/// ## Why the key is computed, not stored
+///
+/// A folder has an id. A grid does not: the system will not let us read, compare
+/// or store the shortcuts, so `ToggleFolderIntent(folderID:)` has nothing
+/// equivalent to carry. What both the tap and the render *can* see is the slots'
+/// display names — the same names, in the same order, from the same
+/// `displayRepresentation` — so both sides compute the key from them and agree
+/// without either having to write it down. See
+/// ``WidgetState/directLaunchExpansionKey(slotNames:)``.
+///
+/// That is also why the key is passed in rather than derived here: this intent
+/// lives in the app-binary-safe part of the package and cannot import
+/// `SystemShortcut`, which is why ``DirectLaunchWidget``'s own intent is the only
+/// place the shortcuts themselves exist.
+public struct ToggleDirectLaunchIntent: AppIntent {
+    public static let title: LocalizedStringResource = "展开/收起直开分组"
+
+    /// The grid to open, or the same value again to close it.
+    ///
+    /// The door and the back cell pass the *same* key, so one intent serves both
+    /// and the widget does not have to carry two — the same trick
+    /// ``ToggleFolderIntent`` uses, with a digest standing in for the folder id.
+    @Parameter(title: "分组")
+    public var key: String
+
+    public init() {}
+
+    public init(key: String) {
+        self.key = key
+    }
+
+    public func perform() async throws -> some IntentResult {
+        if WidgetState.directLaunchKey == key {
+            WidgetState.collapseDirectLaunch()
+        } else {
+            WidgetState.directLaunchKey = key
+            // Always page one, for the reason the folder's does the same: a fresh
+            // look at the group, not whatever page it was left on.
+            WidgetState.expandedPage = 0
+        }
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
+/// Turns to the next page of an expanded direct-launch grid.
+///
+/// The twin of ``AdvanceFolderPageIntent``, and it carries the drawn page for the
+/// same two reasons — the widget renders from a *clamped* page, and a `Button`
+/// whose intent value never changes can be reused for another cell across a
+/// reload. See that type for both in full.
+public struct AdvanceDirectLaunchPageIntent: AppIntent {
+    public static let title: LocalizedStringResource = "直开分组翻页"
+
+    @Parameter(title: "分组")
+    public var key: String
+
+    /// The page the button was drawn on, so the advance starts from what the user
+    /// actually saw rather than from whatever is stored.
+    @Parameter(title: "当前页")
+    public var page: Int
+
+    public init() {}
+
+    public init(key: String, page: Int) {
+        self.key = key
+        self.page = page
+    }
+
+    public func perform() async throws -> some IntentResult {
+        // Ignored unless that grid is the one open — a tap arriving after the
+        // widget collapsed, or after the other widget's grid opened, must not
+        // move a page belonging to it.
+        guard WidgetState.directLaunchKey == key else { return .result() }
+        WidgetState.expandedPage = page + 1
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
