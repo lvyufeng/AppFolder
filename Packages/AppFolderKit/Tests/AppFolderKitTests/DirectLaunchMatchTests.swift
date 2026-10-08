@@ -51,6 +51,32 @@ struct DirectLaunchMatchTests {
         #expect(id == 6511224711)
     }
 
+    /// When several apps share the name, **the store's ranking decides** — not the
+    /// shortest name.
+    ///
+    /// This is the 头像 bug, in the shape it actually takes. A slot read
+    /// "Authenticator" and got **"Authenticator ·" by SMM service**: a tiny app
+    /// that merely had the shortest name containing the word. The store, which
+    /// knows the vendor, returns **Microsoft Authenticator first** — and the vendor
+    /// is exactly the signal the slot cannot supply, because ``SystemShortcut``
+    /// hands the widget a name and nothing else (measured: subtitle nil, image nil,
+    /// synonyms empty, one opaque token — see the probe in `DirectLaunchWidget`).
+    ///
+    /// So the store's order is not a heuristic to be improved on; it is the only
+    /// vendor-aware information in the whole pipeline. The rows below are the live
+    /// `us` response, in its real order.
+    @Test func aNameCollisionIsResolvedByTheStoresOrdering() async throws {
+        let data = payload([
+            ("Microsoft Authenticator", "com.microsoft.azureauthenticator", 983156458),
+            ("Google Authenticator", "com.google.Authenticator", 388497605),
+            ("Authenticator App", "com.2stable.2fa", 1538761576),
+            ("Authenticator ·", "com.smmservice.authenticator", 1602061522),
+            ("Duo Mobile", "com.duosecurity.DuoMobile", 422663827),
+        ])
+        let id = await DirectLaunchIcons.matchForTesting(payload: data, name: "Authenticator", url: stubURL())
+        #expect(id == 983156458, "the shortest containing name is SMM's; the store ranks Microsoft first")
+    }
+
     /// A short term must not be matched against bundle ids — "AI" appears in
     /// countless identifiers and would attach a stranger's icon to the slot.
     @Test func aShortNameDoesNotMatchByBundleID() async throws {
@@ -79,8 +105,9 @@ struct DirectLaunchMatchTests {
     /// This is the whole reason the system-app lookup exists. Searching `Calendar`
     /// on a Chinese storefront returns *Calendars* by Readdle **first** and
     /// `Google 日历` second, and Apple's own last — so ``bestMatch(payload:name:)``,
-    /// which ranks by name containment and takes the shortest, lands on a stranger's
-    /// calendar. The rows below are the live response, in its real order.
+    /// which takes the first name-containment hit, lands on a stranger's calendar
+    /// (and the exact-name rule ``appleAppID(payload:terms:)`` is what corrects it,
+    /// not the ranking). The rows below are the live response, in its real order.
     @Test func anAppleAppIsPickedByBundleIDNotByName() async throws {
         let data = payload([
             ("Calendars – 日历、待办事项列表和日程表", "com.readdle.calendars.app", 608834326),

@@ -264,7 +264,7 @@ public enum DirectLaunchIcons {
     /// file. The stale files are left behind rather than deleted — they are a few
     /// bytes each, and scanning the container root to remove them would run on the
     /// render path for no visible benefit.
-    private static let systemAppCacheGeneration = "v2"
+    private static let systemAppCacheGeneration = "v3"
 
     private static func systemAppCacheURL(name: String) -> URL? {
         containerDirectory()?.appending(path: "system-\(systemAppCacheGeneration)-\(stableHash(name)).txt")
@@ -333,12 +333,31 @@ public enum DirectLaunchIcons {
         // store names carry decoration the display name drops, so 涨乐's slot
         // arrives as "AI涨乐" and the store calls it "涨乐 - AI涨乐". An earlier
         // version of this only accepted a whole-name or prefix match and threw that
-        // correct answer away. Shortest match wins, on the theory that the app whose
-        // name is closest to the display name is where the display name came from.
-        let containing = rows
-            .filter { normalized($0.name).contains(needle) }
-            .min { normalized($0.name).count < normalized($1.name).count }
-        if let containing { return containing.trackID }
+        // correct answer away.
+        //
+        // Among several containing rows, **the store's own order wins** — the first
+        // row, not the shortest. This used to take the shortest name, on the theory
+        // that the app whose name is closest to the display name is where the
+        // display name came from. That theory is wrong exactly when it matters most:
+        // a *name collision*. "Authenticator" alone matches eight apps, and the
+        // shortest is "Authenticator ·" by SMM service — a tiny app that merely
+        // named itself well — while the store, which knows the vendor, returns
+        // Microsoft Authenticator first. So the shortest-name rule handed the slot
+        // an icon belonging to a different app, which is a worse failure than a
+        // miss: the user sees a real, plausible, wrong icon.
+        //
+        // The store's ranking is the vendor-aware signal we do not have. We cannot
+        // read the developer from the slot (``SystemShortcut`` gives a name and
+        // nothing else — see the probe in `DirectLaunchWidget`), so the only party
+        // that can weigh the vendor is Apple, and its order already does.
+        //
+        // This is safe because the ranking was always trustworthy for the case that
+        // is *not* ambiguous: 阿里邮箱 is still returned first for "Alimail", and
+        // 涨乐 for "AI涨乐", so taking the first containing row agrees with every
+        // measurement the shortest-name rule was introduced to satisfy.
+        if let containing = rows.first(where: { normalized($0.name).contains(needle) }) {
+            return containing.trackID
+        }
 
         // 3. The bundle id contains it — the fallback for a name with no shared
         // characters at all, which is what 阿里邮箱 looks like from a slot the
