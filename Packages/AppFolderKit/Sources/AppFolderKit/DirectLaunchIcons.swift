@@ -35,21 +35,77 @@ public enum DirectLaunchIcons {
         public let name: String
         public let appStoreID: Int?
         public let symbolName: String?
+        /// Which rule produced ``appStoreID``.
+        ///
+        /// Carried so the caller can tell a name the user pinned from one that was
+        /// guessed, and so the widget's log says *why* it drew what it drew — the
+        /// question that had to be reconstructed by hand every time an icon was
+        /// wrong. See ``Source``.
+        public let source: Source
+    }
+
+    /// How a slot's app was decided.
+    ///
+    /// The raw values are written into the app's observed-slot records, so they are
+    /// a wire format between the widget and the app: rename one only with a decoder
+    /// that maps an unknown value to ``Source/none``.
+    public enum Source: String, Sendable, Equatable {
+        /// The user said so. See ``DirectLaunchOverrides``.
+        case override
+        /// A catalogue entry, which is exact and needs no request.
+        case catalogue
+        /// Apple's own app, found by bundle id.
+        case system
+        /// An App Store search, which is a guess that can be wrong.
+        case search
+        /// Asked before and the store could not name it.
+        case miss
+        /// Nothing resolved; the slot draws its placeholder.
+        case none
     }
 
     /// Resolves the app behind a slot's display name and makes sure its icon is cached.
+    ///
+    /// ## The order, and why it is this order
+    ///
+    /// 1. **The user's own answer** (``DirectLaunchOverrides``). It wins over
+    ///    everything, including a catalogue hit and a previous miss, because a
+    ///    collision has no correct automatic answer and the user is the only party
+    ///    who knows which app they installed.
+    /// 2. **The miss cache**, which is a *negative* memory: a name the store could
+    ///    not resolve is not asked about again. It sits below the override so that
+    ///    pinning a name a search gave up on still works.
+    /// 3. The catalogue, Apple's own apps, and finally a live search.
+    ///
+    /// Steps 1 and 2 are both file and defaults reads — no network — so moving the
+    /// miss check in here from the caller costs nothing on the render path.
     ///
     /// - Parameter name: the display name the system showed, which is the app's own
     ///   name and not necessarily the storefront's.
     /// - Returns: the id and symbol to draw, after the artwork is on disk.
     public static func resolve(name: String) async -> Resolved {
+        // The user's answer first. `ensureIcon` reads from disk when the app has
+        // already fetched the icon — which it does when the override is set — so
+        // the common case here is one file read and no request.
+        if let id = DirectLaunchOverrides.appStoreID(name: name) {
+            _ = await ensureIcon(appStoreID: id)
+            return Resolved(name: name, appStoreID: id, symbolName: nil, source: .override)
+        }
+
+        // A name already given up on is not searched again. Checked *after* the
+        // override so a pin always beats a recorded failure, and *before* the
+        // catalogue so the cheap negative answer still short-circuits the work.
+        if hasMiss(name: name) {
+            return Resolved(name: name, appStoreID: nil, symbolName: nil, source: .miss)
+        }
+
         // The catalogue is tried first because it needs no request and answers
         // exactly; the App Store is the fallback that makes this work for the apps
         // the catalogue has never heard of.
         if let known = AppCatalog.match(name: name) {
             if let id = known.appStoreID {
                 _ = await ensureIcon(appStoreID: id)
-                return Resolved(name: name, appStoreID: known.appStoreID, symbolName: known.symbolName)
+                return Resolved(name: name, appStoreID: known.appStoreID, symbolName: known.symbolName, source: .catalogue)
             }
 
             // A catalogue entry with no App Store id is one of Apple's own apps,
@@ -86,7 +142,7 @@ public enum DirectLaunchIcons {
                 // already there — so there is nothing to save.
                 if let id = known.storeAppID {
                     _ = await ensureIcon(appStoreID: id)
-                    return Resolved(name: name, appStoreID: id, symbolName: known.symbolName)
+                    return Resolved(name: name, appStoreID: id, symbolName: known.symbolName, source: .system)
                 }
 
                 // The id is remembered, because the lookup is not free and this
@@ -100,30 +156,30 @@ public enum DirectLaunchIcons {
                     // different things: `nil` here is "asked before and the store
                     // has no listing", which must not become another request.
                     guard let id = cached else {
-                        return Resolved(name: name, appStoreID: nil, symbolName: known.symbolName)
+                        return Resolved(name: name, appStoreID: nil, symbolName: known.symbolName, source: .none)
                     }
                     // Reads from disk when the artwork is already there, so this
                     // is not a network call — see ``ensureIcon(appStoreID:)``.
                     _ = await ensureIcon(appStoreID: id)
-                    return Resolved(name: name, appStoreID: id, symbolName: known.symbolName)
+                    return Resolved(name: name, appStoreID: id, symbolName: known.symbolName, source: .system)
                 }
                 if let id = await systemAppID(name: name, englishName: known.englishName) {
                     cacheSystemAppID(id, name: name)
                     _ = await ensureIcon(appStoreID: id)
-                    return Resolved(name: name, appStoreID: id, symbolName: known.symbolName)
+                    return Resolved(name: name, appStoreID: id, symbolName: known.symbolName, source: .system)
                 }
             }
-            return Resolved(name: name, appStoreID: nil, symbolName: known.symbolName)
+            return Resolved(name: name, appStoreID: nil, symbolName: known.symbolName, source: .none)
         }
 
         guard let id = await searchAppStoreID(name: name) else {
             // Not found: cached as a miss (see ``markMiss(name:)``) so the next
             // timeline does not spend another request on the same unknown name.
             markMiss(name: name)
-            return Resolved(name: name, appStoreID: nil, symbolName: nil)
+            return Resolved(name: name, appStoreID: nil, symbolName: nil, source: .miss)
         }
         _ = await ensureIcon(appStoreID: id)
-        return Resolved(name: name, appStoreID: id, symbolName: nil)
+        return Resolved(name: name, appStoreID: id, symbolName: nil, source: .search)
     }
 
     // MARK: - App Store
@@ -383,11 +439,30 @@ public enum DirectLaunchIcons {
     // MARK: - Disk
 
     /// The PNG bytes for a resolved id, from disk if present and the network if not.
-    static func ensureIcon(appStoreID id: Int) async -> Data? {
+    ///
+    /// Public because the app calls it too: when the user pins a slot to an app,
+    /// the app fetches that app's artwork *before* asking WidgetKit to reload, so
+    /// the first render after the change already has the icon on disk. The widget
+    /// never does network at draw time, so without this the tile would blink to a
+    /// placeholder while the fetch happened later.
+    ///
+    /// Idempotent and cheap when the bytes are already there — the disk read wins
+    /// over the request — so calling it from both processes is safe.
+    public static func ensureIcon(appStoreID id: Int) async -> Data? {
         if let cached = read(id: id) { return cached }
         guard let data = await fetch(appStoreID: id) else { return nil }
         write(id: id, data: data)
         return data
+    }
+
+    /// The artwork already on disk for an id, or `nil` if it has not been fetched.
+    ///
+    /// The read half of ``ensureIcon(appStoreID:)``, and public for the app's
+    /// benefit: the app shows the user the icon the widget will draw, and the only
+    /// way to show *that* icon rather than a fresh download is to read the same
+    /// file. Fetches nothing — a miss is a miss, not a request.
+    public static func cachedIcon(appStoreID id: Int) -> Data? {
+        read(id: id)
     }
 
     /// The App Group's icon directory, created if it is missing.
@@ -436,6 +511,17 @@ public enum DirectLaunchIcons {
     static func markMiss(name: String) {
         guard let url = missFileURL(name: name) else { return }
         try? Data().write(to: url, options: .atomic)
+    }
+
+    /// Forgets that a name could not be resolved.
+    ///
+    /// Called when the user pins a name to an app: the pin would win anyway — see
+    /// the order in ``resolve(name:)`` — but clearing the marker means *unpinning*
+    /// later falls back to a fresh search instead of to a "the store has never
+    /// heard of this" that was written under an older matching rule.
+    static func clearMiss(name: String) {
+        guard let url = missFileURL(name: name) else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 
     /// A file-name-safe digest of a name.

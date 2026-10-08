@@ -73,6 +73,23 @@ public enum WidgetState {
     /// The defaults every accessor goes through.
     private static var defaults: UserDefaults { storage.defaults }
 
+    /// The same defaults, for another type that needs to share this storage.
+    ///
+    /// Internal rather than public on purpose: the storage *resolution* carries the
+    /// subtle argument for why an extension must never fall back to `.standard`,
+    /// and a second copy of it would drift. ``DirectLaunchOverrides`` is the public
+    /// face of the second thing that lives here — durable user configuration
+    /// rather than the transient render state the rest of this type holds — and it
+    /// reads through this seam rather than repeating the lookup.
+    static var widgetDefaults: UserDefaults { storage.defaults }
+
+    /// Whether widget state can be read here at all, for the same caller.
+    ///
+    /// ``DirectLaunchOverrides`` guards its *writes* on this rather than on a plain
+    /// read-back, because a record written into a domain nobody else can see is
+    /// worse than one not written: it would look like it worked.
+    static var widgetStateIsAvailable: Bool { storage.isAvailable }
+
     /// Whether state written here can be read back at all in this process.
     ///
     /// False only when even `UserDefaults.standard` refuses a round trip, which is
@@ -265,6 +282,15 @@ public enum WidgetState {
         override func removeObject(forKey defaultName: String) {}
         override func string(forKey defaultName: String) -> String? { nil }
         override func integer(forKey defaultName: String) -> Int { 0 }
+        // Overridden for the same reason as the four above: this subclass has no
+        // backing store, so an accessor it does not override falls through to the
+        // base class and reads the *process's own* domain. That is the exact
+        // "silently wrong" state this type exists to avoid — a widget would read a
+        // private answer and believe it was the shared one. ``DirectLaunchOverrides``
+        // reads a dictionary and the observed-slot list as `Data`, so both are
+        // covered here rather than left to inherit.
+        override func dictionary(forKey defaultName: String) -> [String: Any]? { nil }
+        override func data(forKey defaultName: String) -> Data? { nil }
     }
 
     /// Picks the defaults to use, and reports whether they can round-trip.
@@ -292,13 +318,26 @@ public enum WidgetState {
     ///
     /// ## And why the app is not either
     ///
-    /// The same argument in the other direction, which is the state this device
-    /// is actually in: the app cannot reach the group container while the
-    /// extension can. If the app wrote the expansion to its own `.standard`,
-    /// nothing would read it. So the app is given the read-only domain — it
-    /// still *reads* widget state, in case the group works, but the collapse it
-    /// asks for is carried through the shared library file, which is the channel
-    /// ``DirectLaunchIcons`` already gates and which both processes can see.
+    /// The same argument in the other direction. It used to be true on this very
+    /// device that the app could not reach the group while the extension could,
+    /// which is why an earlier version of this comment said so — but that is no
+    /// longer the case and the comment was left behind by the fix. Measured from
+    /// the device's App Group plist:
+    ///
+    /// * `widget.collapseRequest => 9` is present in
+    ///   `group.com.lvyufeng.appfolder.plist`. The app is the only writer of that
+    ///   counter, so the app is writing into the group.
+    /// * The app's *own* `Library/Preferences/com.lvyufeng.appfolder.plist` holds
+    ///   no `widget.*` keys at all, so the app is not quietly resolving this state
+    ///   to `.standard` either.
+    ///
+    /// That matters beyond this type: it is the evidence that the group is a
+    /// working two-way channel on this build, which is what lets
+    /// ``DirectLaunchOverrides`` store a user setting in the group defaults and
+    /// have the widget actually see it. If a future signing change removes the
+    /// entitlement, the app falls back to `.standard` — the state described above —
+    /// and the override list would read as empty in the widget rather than as
+    /// wrong. Check the group plist before believing otherwise.
     ///
     /// The probe is a write and a read-back rather than a check that the suite
     /// exists: `UserDefaults(suiteName:)` returns an object for a suite the

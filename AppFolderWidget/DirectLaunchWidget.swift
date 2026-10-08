@@ -159,6 +159,17 @@ struct DirectLaunchEntry: TimelineEntry {
     /// any test that only cares about the slots do not have to invent a family.
     /// ``DirectLaunchProvider`` always supplies the real one.
     var capacity: Int = .max
+
+    /// A token that moves whenever the user's icon overrides change.
+    ///
+    /// Present for one reason: to make a requested reload provably produce a
+    /// *different* entry. WidgetKit may serve a byte-identical entry from its
+    /// cache, so "call `reloadAllTimelines()` after editing" can silently show no
+    /// change at all — and the user, having just fixed an icon and seen nothing
+    /// happen, would conclude the fix did not work. This field is what differs.
+    ///
+    /// Defaulted so the placeholder and tests need not supply it.
+    var iconRevision: String = ""
 }
 
 struct DirectLaunchProvider: AppIntentTimelineProvider {
@@ -227,29 +238,33 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
         let hasOverflow = grid.nestedCell(for: family, tileCount: names.count) != nil
         let isExpanded = hasOverflow && WidgetState.directLaunchKey == key
 
+        // One instant for the whole build: it stamps the observed-slot records and
+        // the entry together, so a single timeline is internally consistent.
+        let now = Date()
+
         var slots: [DirectLaunchSlot] = []
+        var observed: [DirectLaunchOverrides.SlotRecord] = []
         for (index, shortcut) in shortcuts.enumerated() {
             let name = String(localized: shortcut.displayRepresentation.title)
-
-            // A name the store could not resolve is remembered and not asked about
-            // again — see ``DirectLaunchIcons/hasMiss(name:)``. The slot still
-            // draws; it simply has no artwork, which is the honest outcome.
-            if DirectLaunchIcons.hasMiss(name: name) {
-                DirectLaunchIcons.diagnose("slot \(index) name=«\(name)» MISS-CACHED")
-                slots.append(DirectLaunchSlot(id: index, name: name, appStoreID: nil, symbolName: nil))
-                continue
-            }
 
             // Resolved here, not at draw time: a widget's body cannot wait on the
             // network, so everything a slot needs must already be on disk by the
             // time the view runs.
+            //
+            // The "already gave up on this name" check used to be a branch right
+            // here, in front of this call. It moved *inside* ``resolve(name:)``
+            // because it was shadowing the user's own answer: a name the store once
+            // failed to resolve was skipped before the override map was ever
+            // consulted, so pinning such a name did nothing. Precedence belongs in
+            // one place, and that place is the resolver.
             let resolved = await DirectLaunchIcons.resolve(name: name)
             let icon = resolved.appStoreID.flatMap { id in
                 WidgetIconCache.shared.image(appStoreID: id)
             }
             DirectLaunchIcons.diagnose(
                 "slot \(index) name=«\(name)» id=\(resolved.appStoreID.map(String.init) ?? "nil") "
-                + "symbol=\(resolved.symbolName ?? "nil") iconOnDisk=\(icon != nil)"
+                + "symbol=\(resolved.symbolName ?? "nil") source=\(resolved.source.rawValue) "
+                + "iconOnDisk=\(icon != nil)"
             )
             slots.append(
                 DirectLaunchSlot(
@@ -259,10 +274,28 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
                     symbolName: resolved.symbolName
                 )
             )
+            observed.append(
+                DirectLaunchOverrides.SlotRecord(
+                    name: resolved.name,
+                    appStoreID: resolved.appStoreID,
+                    source: resolved.source.rawValue,
+                    // One timestamp for the whole build, so the records of a single
+                    // timeline tie rather than ordering against each other by the
+                    // microseconds between iterations.
+                    updatedAt: now
+                )
+            )
         }
         DirectLaunchIcons.diagnose(
             "-- timeline done, \(slots.count) slot(s), capacity \(capacity), expanded \(isExpanded) --"
         )
+
+        // Tell the app which slots are on a widget. It cannot find out any other
+        // way — the configuration lives in the system, and the app can neither read
+        // it nor enumerate the Home Screen — so this is what fills the "修正图标"
+        // screen. Merged, not replaced: there can be more than one widget, and this
+        // build only knows its own. See ``DirectLaunchOverrides/noteObservedSlots(_:)``.
+        DirectLaunchOverrides.noteObservedSlots(observed)
 
         return DirectLaunchEntry(
             date: .now,
@@ -273,7 +306,8 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
             isExpanded: isExpanded,
             expandedPage: WidgetState.expandedPage,
             expansionKey: key,
-            capacity: capacity
+            capacity: capacity,
+            iconRevision: DirectLaunchOverrides.revision
         )
     }
 }

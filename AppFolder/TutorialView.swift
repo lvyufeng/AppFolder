@@ -87,8 +87,19 @@ struct TutorialView: View {
                 Section {
                     Text("小组件里的 App 只能在系统的配置面板里选，App 里做不到。这不是还没做：iOS 给小组件配置项的是一组不透明的「系统动作」，App 拿不到、也构造不出任何可选的 App 列表。")
                     Text("同样地，点图标时是系统直接切换过去，AppFolder 不会被唤起，也不会在中间闪一下。")
+                    Text("能改的是**图标**。图标是按格子上的名字去 App Store 找回来的，同名 App 多的时候会认错——比如两个 App 都叫 Authenticator。去「修正图标」告诉它该用哪一个。")
                 } header: {
                     Text("为什么不能在 App 里配")
+                }
+
+                Section {
+                    NavigationLink {
+                        IconFixView()
+                    } label: {
+                        Label("修正图标", systemImage: "wand.and.stars")
+                    }
+                } footer: {
+                    Text("图标认错了、或者某格一直是占位方块时，从这里指定正确的 App。")
                 }
 
                 Section("权限") {
@@ -96,7 +107,7 @@ struct TutorialView: View {
                         Text("不读取")
                     }
                     LabeledContent("联网") {
-                        Text("仅用于拉取 App 图标")
+                        Text("搜索 App、拉取图标")
                     }
                     LabeledContent("账号 / 追踪") {
                         Text("无")
