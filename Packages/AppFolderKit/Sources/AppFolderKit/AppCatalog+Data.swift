@@ -321,9 +321,10 @@ extension AppCatalog {
                  // The name search cannot rescue this either: searching 「App Store」
                  // returns App Store Connect and 「Apple Store」, both of which the
                  // exact-name rule in ``DirectLaunchIcons/appleAppID(payload:terms:)``
-                 // now rejects. Milestone 5, which adds the derived system-symbol
-                 // tree, resolves the icon at mount time from the ``SystemShortcut``
-                 // itself, so the tile stops depending on a store lookup at all.
+                 // now rejects. The real artwork would have to come from the system
+                 // itself rather than from a store lookup — the tile knows the app by
+                 // its ``SystemShortcut``, which is the one handle the system gives us
+                 // and which already names the app the user picked.
                  ),
         KnownApp(id: "facetime", name: "FaceTime 通话", englishName: "FaceTime",
                  scheme: "facetime://", category: "系统", isSystemApp: true,
