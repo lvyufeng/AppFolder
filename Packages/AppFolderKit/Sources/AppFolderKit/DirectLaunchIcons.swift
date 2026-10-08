@@ -73,6 +73,22 @@ public enum DirectLaunchIcons {
             // The symbol is kept even on success: if the artwork fetch fails later,
             // ``DirectLaunchArtwork`` still has something to draw.
             if known.isSystemApp {
+                // The entry's own bundle-id lookup first, because it is exact and
+                // the search below is not. See ``KnownApp/storeAppID`` for the two
+                // mis-assignments that made this necessary — searching "设置"
+                // returns Safari, and searching "App Store" returns App Store
+                // Connect.
+                //
+                // Deliberately outside the App Group cache below: this id is in
+                // the bundle at compile time, so caching it would only add a way
+                // for the bundle and the cache to disagree. It costs no request —
+                // ``ensureIcon(appStoreID:)`` reads from disk when the artwork is
+                // already there — so there is nothing to save.
+                if let id = known.storeAppID {
+                    _ = await ensureIcon(appStoreID: id)
+                    return Resolved(name: name, appStoreID: id, symbolName: known.symbolName)
+                }
+
                 // The id is remembered, because the lookup is not free and this
                 // path is not rare: expanding any grid that holds one of these
                 // runs a whole new timeline, so without the cache every tap on a
@@ -144,6 +160,12 @@ public enum DirectLaunchIcons {
     static func systemAppID(name: String, englishName: String?) async -> Int? {
         var tried: Set<String> = []
         for term in [name, englishName].compactMap({ $0 }) where tried.insert(term).inserted {
+            // Every name this entry answers to, so a row matching either the
+            // localised or the Latin one is accepted — see ``appleAppID(payload:terms:)``
+            // for why the match has to be exact.
+            let terms = Set([name, englishName].compactMap { $0 }.map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            })
             // The device's own storefront first, then `cn`, matching
             // ``searchAppStoreID(name:)``: the first is where an installed app
             // lives, and the second is the answer for a device whose storefront
@@ -151,7 +173,7 @@ public enum DirectLaunchIcons {
             for country in [nil, "cn"] as [String?] {
                 guard let url = AppStoreLookup.searchURL(term: term, country: country, limit: 6),
                       let (payload, _) = try? await URLSession.shared.data(from: url),
-                      let id = appleAppID(payload: payload)
+                      let id = appleAppID(payload: payload, terms: terms)
                 else { continue }
                 return id
             }
@@ -159,20 +181,39 @@ public enum DirectLaunchIcons {
         return nil
     }
 
-    /// The first row in a search response that is unambiguously Apple's, or `nil`.
+    /// The row in a search response that is Apple's app *and* goes by one of the
+    /// names asked for, or `nil`.
     ///
-    /// Keyed on `com.apple.` alone, deliberately. Requiring the seller name as
-    /// well would be redundancy rather than caution — the seller string differs by
-    /// storefront (`Apple Inc.` here, `Apple Distribution International` in `cn`)
-    /// while the bundle prefix does not — and a second condition can only reject
-    /// correct rows, never admit a wrong one.
+    /// ## Why the bundle prefix alone was not enough
     ///
-    /// The bundle id is checked rather than the name for the same reason: a name
-    /// match is what the ordinary matcher already does, and its failure on exactly
-    /// these apps is the bug this exists to fix.
-    static func appleAppID(payload: Data) -> Int? {
+    /// This used to take the first `com.apple.*` row and stop. The prefix is a
+    /// sound test of *Apple*, but it says nothing about *which* Apple app, and the
+    /// search endpoint matches a term against the whole row — so a slot named
+    /// 「设置」 came back with **Safari** and was drawn with Safari's icon, and a
+    /// slot named 「App Store」 came back with **App Store Connect**. Both were
+    /// measured on the live endpoint; neither is visible as a failure, because a
+    /// plausible wrong icon looks like a working tile.
+    ///
+    /// ## Why an exact name and not a containment match
+    ///
+    /// Because containment is what produced the Safari answer. Apple's own rows
+    /// are indexed under names the user's device does not use — the storefront
+    /// calls Maps 「Apple地图」 and Health 「Apple 健康」 — so a *loose* match is
+    /// wrong in both directions: too loose and it finds a sibling, too strict and
+    /// it finds nothing. Rather than tune that, the apps the exact match misses are
+    /// named explicitly in the catalogue via ``KnownApp/storeAppID``, which is a
+    /// lookup by bundle id and cannot match a sibling at all.
+    ///
+    /// - Parameter terms: the names this entry is known by, already lowercased.
+    ///   Every one the caller tried, so a row answering to either the localised or
+    ///   the Latin name is accepted.
+    static func appleAppID(payload: Data, terms: Set<String>) -> Int? {
         AppStoreLookup.parse(payload)
-            .first { $0.bundleID?.hasPrefix("com.apple.") == true }?
+            .first { listing in
+                guard listing.bundleID?.hasPrefix("com.apple.") == true else { return false }
+                let name = listing.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return terms.contains(name)
+            }?
             .trackID
     }
 
@@ -208,8 +249,25 @@ public enum DirectLaunchIcons {
         return stored > 0 ? .some(stored) : .some(nil)
     }
 
+    /// The generation of the system-app id cache, and **bump it whenever the rule
+    /// that produces the id changes.**
+    ///
+    /// The cache is keyed on the app's *name*, not on the rule, so a corrected rule
+    /// would otherwise keep reading the answers the broken one wrote — forever,
+    /// since nothing expires these. That is not hypothetical: `v1` holds the id
+    /// ``appleAppID(payload:terms:)`` used to return for 「设置」, which was
+    /// **Safari's**. Shipping the fix without this bump would have left the slot
+    /// drawing exactly the wrong icon it was fixed to stop drawing, on every device
+    /// that had already run the old build.
+    ///
+    /// Bumping costs one lookup per system app, once, on devices that had the old
+    /// file. The stale files are left behind rather than deleted — they are a few
+    /// bytes each, and scanning the container root to remove them would run on the
+    /// render path for no visible benefit.
+    private static let systemAppCacheGeneration = "v2"
+
     private static func systemAppCacheURL(name: String) -> URL? {
-        containerDirectory()?.appending(path: "system-v1-\(stableHash(name)).txt")
+        containerDirectory()?.appending(path: "system-\(systemAppCacheGeneration)-\(stableHash(name)).txt")
     }
 
     /// The App Store id for an app, by name, or `nil` if the store cannot name it.

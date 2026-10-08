@@ -247,7 +247,8 @@ extension AppCatalog {
                  // `?ll=0,0` drops the camera in the Atlantic off Africa (the
                  // screenshot is unambiguous), `?q=coffee` pins a search, and the
                  // bare `?q=` / `?ll=` / `?t=` forms fall through to Safari.
-                 universalLink: "https://maps.apple.com/?t=m", symbolName: "map"),
+                 universalLink: "https://maps.apple.com/?t=m", symbolName: "map",
+                 storeAppID: 915056765),
         KnownApp(id: "photos", name: "照片", englishName: "Photos",
                  scheme: "photos-redirect://", category: "系统", isSystemApp: true, symbolName: "photo"),
         KnownApp(id: "calendar", name: "日历", englishName: "Calendar",
@@ -255,22 +256,78 @@ extension AppCatalog {
         KnownApp(id: "messages", name: "信息", englishName: "Messages",
                  scheme: "sms://", category: "系统", isSystemApp: true, symbolName: "message"),
         KnownApp(id: "health", name: "健康", englishName: "Health",
-                 scheme: "x-apple-health://", category: "系统", isSystemApp: true, symbolName: "heart"),
+                 scheme: "x-apple-health://", category: "系统", isSystemApp: true, symbolName: "heart",
+                 storeAppID: 1242545199),
         KnownApp(id: "reminders", name: "提醒事项", englishName: "Reminders",
                  scheme: "x-apple-reminderkit://", category: "系统", isSystemApp: true, symbolName: "checklist"),
         KnownApp(id: "files", name: "文件", englishName: "Files",
                  scheme: "shareddocuments://", category: "系统", isSystemApp: true, symbolName: "folder"),
         KnownApp(id: "wallet", name: "钱包", englishName: "Wallet",
-                 scheme: "shoebox://", category: "系统", isSystemApp: true, symbolName: "creditcard"),
+                 scheme: "shoebox://", category: "系统", isSystemApp: true, symbolName: "creditcard",
+                 storeAppID: 1160481993),
         KnownApp(id: "safari", name: "Safari", englishName: "Safari",
                  scheme: "x-web-search://", category: "系统", isSystemApp: true, symbolName: "safari"),
         KnownApp(id: "news", name: "新闻", englishName: "News",
                  scheme: "applenews://", category: "系统", isSystemApp: true,
                  universalLink: "https://apple.news/", symbolName: "newspaper"),
         KnownApp(id: "fitness", name: "健身", englishName: "Fitness",
-                 scheme: "fitnessapp://", category: "系统", isSystemApp: true, symbolName: "figure.run"),
+                 scheme: "fitnessapp://", category: "系统", isSystemApp: true, symbolName: "figure.run",
+                 storeAppID: 1208224953),
         KnownApp(id: "settings", name: "设置", englishName: "Settings",
-                 scheme: "App-prefs://", category: "系统", isSystemApp: true, symbolName: "gearshape"),
+                 scheme: "App-prefs://", category: "系统", isSystemApp: true, symbolName: "gearshape",
+                 // ## Why some entries carry `storeAppID` and this one does not
+                 //
+                 // It is the fallback for an app whose store listing the *name
+                 // search* cannot reach. Measured on the live endpoint:
+                 //
+                 // * **设置** has **no listing at all** —
+                 //   `lookup?bundleId=com.apple.Preferences` returns
+                 //   `resultCount: 0`. Searching for 「设置」 does return rows, but
+                 //   the App Store's fuzzy search matched **Safari** by
+                 //   containment, and that is what the slot used to draw. There is
+                 //   no right answer to fetch here, so the entry keeps its symbol
+                 //   — the grey gear — and ``DirectLaunchIcons/appleAppID(payload:)``
+                 //   now requires an exact name match so the search cannot hand
+                 //   back Safari again.
+                 //
+                 // The four below *do* have listings; they are listed under
+                 // different names (「Apple地图」「Apple 健康」「Apple 钱包」「Apple 健身」),
+                 // so the name search misses them even though the listing exists.
+                 // See ``KnownApp/storeAppID``.
+                 ),
+        KnownApp(id: "appstore", name: "App Store", englishName: "App Store",
+                 scheme: "itms-apps://", category: "系统", isSystemApp: true,
+                 symbolName: "app.badge",
+                 // ## Why this entry deliberately has no id at all
+                 //
+                 // The App Store app is **not in any store**: `lookup?bundleId=`
+                 // returns `resultCount: 0` for `com.apple.AppStore` on the `us`
+                 // and `cn` storefronts alike, and an `entity=macSoftware` lookup
+                 // for the Mac App Store's bundle id returns nothing either. So its
+                 // real artwork cannot be fetched by any route the public API
+                 // offers, and an id on this entry cannot mean "the App Store" — it
+                 // can only name a *different* app and paste that app's icon here.
+                 //
+                 // That is not hypothetical. This entry previously carried
+                 // `com.apple.AppStoreConnect` (1234793120) as a "closest sibling",
+                 // and because ``DirectLaunchWidget``'s artwork view prefers a
+                 // downloaded icon over the symbol whenever one exists, the slot
+                 // drew **App Store Connect's** logo. That is the wrong icon that
+                 // was reported, and it was self-inflicted. An id is worse than no
+                 // id whenever no correct answer exists — the symbol below is at
+                 // least the same honest stand-in every other unlisted system app
+                 // gets, and it cannot misrepresent a different app.
+                 //
+                 // The name search cannot rescue this either: searching 「App Store」
+                 // returns App Store Connect and 「Apple Store」, both of which the
+                 // exact-name rule in ``DirectLaunchIcons/appleAppID(payload:terms:)``
+                 // now rejects. Milestone 5, which adds the derived system-symbol
+                 // tree, resolves the icon at mount time from the ``SystemShortcut``
+                 // itself, so the tile stops depending on a store lookup at all.
+                 ),
+        KnownApp(id: "facetime", name: "FaceTime 通话", englishName: "FaceTime",
+                 scheme: "facetime://", category: "系统", isSystemApp: true,
+                 symbolName: "video", storeAppID: 1110145091),
 
         // MARK: 待验证
         // Real apps whose scheme we have only from a single unverified source.

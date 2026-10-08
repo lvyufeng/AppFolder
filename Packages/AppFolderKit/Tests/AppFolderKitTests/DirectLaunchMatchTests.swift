@@ -87,7 +87,72 @@ struct DirectLaunchMatchTests {
             ("Google 日历", "com.google.calendar", 909319292),
             ("日历", "com.apple.mobilecal", 1108185179),
         ])
-        #expect(DirectLaunchIcons.appleAppID(payload: data) == 1108185179)
+        #expect(DirectLaunchIcons.appleAppID(payload: data, terms: ["日历", "calendar"]) == 1108185179)
+    }
+
+    /// The bug that shipped: 「设置」 is not in the store, and the fuzzy search
+    /// answered with **Safari**. Taking the first `com.apple.*` row drew Safari's
+    /// icon on the 设置 slot.
+    ///
+    /// The row order here is the live response, captured 2026-10-08 from the `cn`
+    /// storefront. The fix is that the name has to match, so Safari cannot stand in
+    /// for an app whose listing does not exist.
+    @Test func theSearchCannotSubstituteASiblingForAnUnlistedApp() async throws {
+        let data = payload([
+            ("Safari", "com.apple.mobilesafari", 1146562112),
+            ("手机设置助手", "com.expatlife.settings", 6761478056),
+            ("Apple Store", "com.apple.store.Jolly", 375380948),
+        ])
+        #expect(DirectLaunchIcons.appleAppID(payload: data, terms: ["设置", "settings"]) == nil)
+    }
+
+    /// The same class, one step further out: 「App Store」 is *not* matched, even
+    /// though **App Store Connect**'s name contains it.
+    ///
+    /// The measurement behind this: the real App Store has no store listing on any
+    /// storefront (`lookup?bundleId=com.apple.AppStore` → `resultCount: 0`), so
+    /// there is no artwork to fetch and no id that could be correct. The catalogue
+    /// used to record Connect's id here as a "closest sibling", and the widget then
+    /// drew Connect's logo on the App Store slot — the wrong icon that was reported.
+    /// The entry now carries no id and falls back to its ``KnownApp/symbolName``.
+    /// What this pins is that the *search* does not decide either way: only an
+    /// exact name may match, so Connect can never stand in.
+    @Test func aLongerNameDoesNotStandInForAShorterOne() async throws {
+        let data = payload([
+            ("App Store Connect", "com.apple.AppStoreConnect", 1234793120),
+            ("App Store 助手", "com.someone.appstore", 222222),
+        ])
+        #expect(DirectLaunchIcons.appleAppID(payload: data, terms: ["app store"]) == nil)
+    }
+
+    /// The App Store has no listing anywhere, so its entry must carry **no** id —
+    /// an id there can only name a different app.
+    ///
+    /// This is the regression guard for the reported bug. The entry once held
+    /// Connect's id; because the artwork view prefers a downloaded icon over the
+    /// symbol, that silently drew Connect's logo. A future "fix" that adds an id
+    /// back — Connect's, or anyone else's — would reintroduce exactly that.
+    @Test func theAppStoreCarriesNoIDBecauseNoCorrectOneExists() throws {
+        let entry = try #require(AppCatalog.all.first { $0.id == "appstore" })
+        #expect(entry.appStoreID == nil)
+        #expect(entry.storeAppID == nil)
+        #expect(entry.symbolName != nil, "with no id it must at least have the symbol to draw")
+    }
+
+    /// A system app the storefront renamed still resolves, by whichever name is
+    /// the one it actually answers to.
+    ///
+    /// Maps is stored as 「Apple地图」 on the `cn` storefront — not 「地图」, which is
+    /// what the device calls it. A strict match would miss it, so the catalogue
+    /// names its id explicitly rather than relying on the search; this checks the
+    /// other half, that a row *does* resolve when the name really is the one asked
+    /// for.
+    @Test func aRenamedSystemAppResolvesByTheNameItActuallyUses() async throws {
+        let data = payload([
+            ("Apple地图", "com.apple.Maps", 915056765),
+        ])
+        #expect(DirectLaunchIcons.appleAppID(payload: data, terms: ["apple地图"]) == 915056765)
+        #expect(DirectLaunchIcons.appleAppID(payload: data, terms: ["地图", "maps"]) == nil)
     }
 
     /// The English storefront's ordering, which is worse for a name matcher: the
@@ -98,7 +163,7 @@ struct DirectLaunchMatchTests {
             ("Google Calendar: Get Organized", "com.google.calendar", 909319292),
             ("Calendars: Schedule Planner", "com.readdle.calendars.app", 608834326),
         ])
-        #expect(DirectLaunchIcons.appleAppID(payload: data) == 1108185179)
+        #expect(DirectLaunchIcons.appleAppID(payload: data, terms: ["calendar", "日历"]) == 1108185179)
     }
 
     /// A seller called "Apple" is not enough — only the bundle prefix is.
@@ -112,7 +177,7 @@ struct DirectLaunchMatchTests {
             ("Calendar", "com.someone.apple.calendar", 111111),
             ("Apple 日历", "com.example.calendar", 222222),
         ])
-        #expect(DirectLaunchIcons.appleAppID(payload: data) == nil)
+        #expect(DirectLaunchIcons.appleAppID(payload: data, terms: ["calendar", "日历"]) == nil)
     }
 
     /// A store with no listing for a system app yields nothing rather than a
@@ -122,7 +187,7 @@ struct DirectLaunchMatchTests {
             ("APN Settings", "com.natureweb.apn", 1072681526),
             ("手机设置助手", "com.expatlife.settings", 6761478056),
         ])
-        #expect(DirectLaunchIcons.appleAppID(payload: data) == nil)
+        #expect(DirectLaunchIcons.appleAppID(payload: data, terms: ["calendar", "日历"]) == nil)
     }
 
     /// Every entry in the catalogue that carries no App Store id, is one of Apple's
@@ -145,6 +210,38 @@ struct DirectLaunchMatchTests {
 
         for app in missing where app.isSystemApp {
             #expect(app.symbolName != nil, "\(app.name) has no id and no symbol to fall back to")
+        }
+    }
+
+    /// A system app whose storefront name differs from the name the device shows
+    /// **must** carry ``KnownApp/storeAppID``, because the name search cannot find
+    /// it.
+    ///
+    /// This is the invariant behind the fix for the App Store / 设置 bug. The
+    /// search matches a term against the whole row, so the only entries that are
+    /// safe without an explicit id are the ones whose storefront name is exactly
+    /// the name the catalogue uses. The renamed ones are listed below — measured,
+    /// not guessed — and every one of them is a silent failure if the id goes
+    /// missing: the slot falls back to a grey symbol, or worse, matches a sibling.
+    @Test func renamedSystemAppsCarryAnExplicitID() {
+        let renamed = [
+            "maps": "Apple地图",
+            "health": "Apple 健康",
+            "wallet": "Apple 钱包",
+            "fitness": "Apple 健身",
+        ]
+        for (id, storefrontName) in renamed {
+            let app = AppCatalog.all.first { $0.id == id }
+            let entry = try? #require(app, "\(id) left the catalogue; update this list")
+            guard let entry else { continue }
+            #expect(
+                entry.storeAppID != nil,
+                "\(entry.name) is listed as \(storefrontName) on the storefront, so the name search misses it"
+            )
+            #expect(
+                entry.storeAppID != entry.appStoreID,
+                "\(entry.name) carries two ids; one of them is a guess"
+            )
         }
     }
 }

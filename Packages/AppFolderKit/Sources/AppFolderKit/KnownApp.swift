@@ -75,6 +75,44 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
     /// pretending to be.
     public let symbolName: String?
 
+    /// The App Store id of this app *when the name search cannot find it*, found
+    /// instead by its bundle id.
+    ///
+    /// ## Why a second id is needed at all
+    ///
+    /// ``appStoreID`` is not enough for Apple's own apps, and the reason is that a
+    /// name search returns whatever *contains* the name. Measured on the live
+    /// endpoint: searching "设置" returned **Safari** (`com.apple.mobilesafari`) as
+    /// the first `com.apple.*` row. It would have been pasted onto the slot as if
+    /// it were right — see ``DirectLaunchIcons/appleAppID(payload:terms:)``, which
+    /// is the fix for that half.
+    ///
+    /// The bundle id is the one field that cannot be spoofed or mistranslated:
+    /// `com.apple.mobilesafari` is Safari in every storefront. So a listing that is
+    /// known but unreachable by name gets recorded here, and the runtime looks it
+    /// up through `lookup?bundleId=` rather than searching for it. That covers the
+    /// apps whose listing *exists* but is stored under a different name than the
+    /// device shows — 地图 is listed as 「Apple地图」, and the name search misses it.
+    ///
+    /// It does **not** cover an app with no listing at all. 设置 is one; the App
+    /// Store is the other, and the App Store is worse, because there *is* a
+    /// plausible wrong answer sitting one search away (App Store Connect). Neither
+    /// gets an id here: when no correct artwork exists, an id can only name a
+    /// *different* app, and the symbol is the honest outcome. See the `appstore`
+    /// entry in ``AppCatalog`` for what went wrong when one was recorded anyway.
+    ///
+    /// ## Why it is optional and mostly empty
+    ///
+    /// It is a *fallback*, not the preferred path: the live search is tried first
+    /// because it adapts to the storefront, and this only answers when the search
+    /// fails. `nil` for every third-party app — they do not have this problem, and
+    /// adding ids by hand is the fragility this field exists to avoid, not to
+    /// introduce.
+    ///
+    /// Left at the end of the initializer on purpose, so every existing entry that
+    /// does not set it reads exactly as before.
+    public let storeAppID: Int?
+
     public init(
         id: String,
         name: String,
@@ -85,7 +123,8 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         confidence: Confidence = .verified,
         isSystemApp: Bool = false,
         universalLink: String? = nil,
-        symbolName: String? = nil
+        symbolName: String? = nil,
+        storeAppID: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -97,6 +136,7 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         self.isSystemApp = isSystemApp
         self.universalLink = universalLink
         self.symbolName = symbolName
+        self.storeAppID = storeAppID
     }
 
     /// The scheme without `://`, which is the form `LSApplicationQueriesSchemes`
