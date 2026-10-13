@@ -28,6 +28,12 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
     /// Latin-script name, so search works when the user types "wechat".
     public let englishName: String
     /// The URL scheme, always including the trailing `://`.
+    ///
+    /// Retained as reference data, not because anything reads it: the widget that
+    /// probed with `canOpenURL` and the `.bounce` route that opened a scheme were
+    /// both deleted, and ``DirectLaunchWidget`` now reaches its target through
+    /// `RunSystemShortcutIntent`, which needs no URL at all. Kept because it is
+    /// hand-researched and correct — see `docs/research/02-平台限制.md`.
     public let scheme: String
     /// App Store id, for `artworkUrl512` from the iTunes Search API.
     public let appStoreID: Int?
@@ -36,28 +42,20 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
     public let confidence: Confidence
     /// Whether this is one of Apple's own apps rather than a third-party one.
     ///
-    /// Not cosmetic — it changes what the probe can learn. `canOpenURL` enforces
-    /// `LSApplicationQueriesSchemes` against third-party apps and not against
-    /// Apple's, so a system app can be detected without spending any of the
-    /// budget. See ``AppCatalog/queriedSchemes`` for the measurements.
+    /// Live, not cosmetic: ``DirectLaunchIcons/resolve(name:)`` reads it to decide
+    /// whether a catalogue entry with no App Store id should have its artwork
+    /// looked up by bundle id. Apple's apps have no store listing, so the name
+    /// search cannot find them and the bundle id is the only exact handle.
     public let isSystemApp: Bool
 
     /// An `https://` URL that opens this app without AppFolder appearing, if one
     /// is known to work.
     ///
-    /// Separate from ``scheme`` because the two are not interchangeable. The
-    /// scheme is what `.bounce` needs — it is exact, and `open(_:)` routes it
-    /// straight to the app. This is what `.universalLink` needs, and it only
-    /// exists for apps that publish such a URL *and* that we have measured
-    /// landing in the app rather than in a browser.
-    ///
-    /// Being here is a claim backed by a measurement on a real runtime, not a
-    /// guess from a domain name. A wrong value produces a tile that opens Safari,
-    /// which looks like a working tap and is therefore worse than no entry.
-    ///
-    /// `nil` for almost everything. Very few apps publish a link whose whole
-    /// purpose is "open me", and a deep link into a specific screen is not a
-    /// substitute: a launcher tile should land where the Home Screen icon does.
+    /// Retained as reference data, like ``scheme``: it is what the deleted
+    /// `.universalLink` route used, and nothing reads it now. Kept because the
+    /// two values that exist (`?t=m` for 地图, `apple.news/` for 新闻) are
+    /// measurements on a real runtime, and the comment on the 地图 entry records
+    /// the whole sweep that produced them.
     public let universalLink: String?
 
     /// An SF Symbol standing in for the app's icon, when there is no App Store id
@@ -137,23 +135,5 @@ public struct KnownApp: Sendable, Hashable, Identifiable {
         self.universalLink = universalLink
         self.symbolName = symbolName
         self.storeAppID = storeAppID
-    }
-
-    /// The scheme without `://`, which is the form `LSApplicationQueriesSchemes`
-    /// and `URL.scheme` both use.
-    ///
-    /// Only the part before the `://` — what follows is the URL's *path*, and a
-    /// scheme name has never contained one. 票牛's entry is `piaoniu://home`,
-    /// where `home` picks the destination inside the app; stripping only the
-    /// separator would yield `piaoniuhome`, which is not a scheme any app
-    /// registers and would spend one of the 25 declaration slots on a name that
-    /// can only ever answer `false`.
-    ///
-    /// This was that bug, briefly, and it is worth leaving the reason here: the
-    /// previous spelling looked correct because every other entry in the
-    /// catalogue is a bare scheme with nothing after the separator.
-    public var schemeName: String {
-        guard let separator = scheme.range(of: "://") else { return scheme }
-        return String(scheme[scheme.startIndex..<separator.lowerBound])
     }
 }

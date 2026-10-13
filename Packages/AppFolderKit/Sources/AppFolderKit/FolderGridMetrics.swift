@@ -123,13 +123,13 @@ public struct FolderGridMetrics: Sendable, Equatable {
     /// pins. So this is not a tuning knob chosen by eye; it is the largest value
     /// that leaves that pinned arrangement alone.
     /// Spelled as a literal rather than as `standardGapShare / 2`, though it is
-/// exactly that. A `static let` reading another `static let` is a lazy global
-/// initialized on first touch, and while Swift does order that correctly within a
-/// type, the failure mode if it ever did not is this value reading `0` — which
-/// would draw every grid at the top of the range with no gap at all, i.e. exactly
-/// the bug this constant exists to prevent. The two are kept in step by the test
-/// below rather than by one being defined from the other.
-public static let minimumGapShare: CGFloat = 1.0 / 24.0
+    /// exactly that. A `static let` reading another `static let` is a lazy global
+    /// initialized on first touch, and while Swift does order that correctly within
+    /// a type, the failure mode if it ever did not is this value reading `0` —
+    /// which would draw every grid at the top of the range with no gap at all,
+    /// i.e. exactly the bug this constant exists to prevent. The two are kept in
+    /// step by the test below rather than by one being defined from the other.
+    public static let minimumGapShare: CGFloat = 1.0 / 24.0
 
     /// Where the gap goes as ``iconScale`` runs from 0 to 1.
     ///
@@ -509,18 +509,6 @@ public static let minimumGapShare: CGFloat = 1.0 / 24.0
     /// a fixed 8 pt and the preview drew `side * 0.22`, so a 3×3 grid was making
     /// two different shapes of the same artwork depending on where you looked.
     public var cornerRadius: CGFloat { iconSide * 0.22 }
-
-    /// The column count a folder of this size reads best at.
-    ///
-    /// 1–4 tiles → 2 columns, 5–9 → 3 (the classic 大文件夹 square), 10+ → 4,
-    /// which is only reachable in the Extra Large widget.
-    public static func columns(forTileCount count: Int) -> Int {
-        switch count {
-        case 0...4: 2
-        case 5...9: 3
-        default: 4
-        }
-    }
 }
 
 /// How many icons a folder puts across, which is the one thing the grid's shape

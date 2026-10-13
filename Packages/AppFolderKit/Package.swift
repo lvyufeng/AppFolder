@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.4
 import PackageDescription
 
 /// Code shared between the app and its widget extension.
@@ -12,29 +12,21 @@ let package = Package(
     name: "AppFolderKit",
     defaultLocalization: "zh-Hans",
     platforms: [
-        .iOS(.v18),
+        // The app and its widget both deploy to iOS 27: the whole product turns on
+        // iOS 27's `RunSystemShortcutIntent`, and there is no older fallback. The
+        // package states the same floor so a target cannot link it and quietly
+        // build for a version the shipping app never runs on.
+        .iOS(.v27),
         // Not a shipping target. Declaring macOS lets `swift build` run on the
         // host for a fast syntax/type check without a full Xcode device build.
-        // 15.0 rather than 14: `OpenURLIntent` — the API the whole app turns on —
-        // starts at macOS 15 / iOS 18.
         .macOS(.v15)
     ],
     products: [
-        .library(name: "AppFolderKit", targets: ["AppFolderKit"]),
-        .executable(name: "appfolder-schemes", targets: ["GenerateQueriedSchemes"])
+        .library(name: "AppFolderKit", targets: ["AppFolderKit"])
     ],
     targets: [
         .target(
             name: "AppFolderKit",
-            swiftSettings: [
-                .swiftLanguageMode(.v6)
-            ]
-        ),
-        // Keeps `LSApplicationQueriesSchemes` in the app's Info.plist in sync
-        // with `AppCatalog`. Run with `--check` in CI.
-        .executableTarget(
-            name: "GenerateQueriedSchemes",
-            dependencies: ["AppFolderKit"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

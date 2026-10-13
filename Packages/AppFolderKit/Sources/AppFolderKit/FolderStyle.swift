@@ -244,23 +244,6 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
         self.grid = grid
     }
 
-    /// Whether the system is allowed to drop the plate.
-    ///
-    /// Always true, and it is worth writing down why it is not a function of
-    /// ``plate``, which is what it looks like it should be. The switch that
-    /// grants this, `containerBackgroundRemovable`, is a method on
-    /// **`WidgetConfiguration`** — it is applied once to the widget, not per
-    /// timeline entry — so a folder cannot decide it. See the call site in
-    /// `AppFolderWidget.swift` for what that does and does not cost.
-    ///
-    /// The reason to grant it at all is ``FolderPlate/automatic``: Apple's words
-    /// are that marking the container removable lets the system drop it "to
-    /// allow people to place the widget in as many contexts as possible", and
-    /// that without the mark "the system always displays the background
-    /// container". A plate nobody chose should be droppable; that is the whole
-    /// design.
-    public static let isPlateRemovableToSystem = true
-
     /// The same style, but on the system's plate instead of the user's.
     ///
     /// ## Why a whole style, and not just "skip the fill"

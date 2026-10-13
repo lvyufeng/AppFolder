@@ -48,13 +48,10 @@ swift test --package-path Packages/AppFolderKit
 # 构建 App
 xcodebuild -project AppFolder.xcodeproj -scheme AppFolder \
   -sdk iphoneos -destination 'generic/platform=iOS' build
-
-# 检查 Info.plist 里的 LSApplicationQueriesSchemes 与目录是否一致
-swift run --package-path Packages/AppFolderKit appfolder-schemes --check
 ```
 
 - Xcode 27.0+ / Swift 6.4（本仓库用 Swift 6 语言模式，严格并发）
-- 最低部署目标 iOS 18.0
+- 最低部署目标 iOS 27.0（产品依赖 iOS 27 的 `RunSystemShortcutIntent`，没有更低版本的退路）
 
 > ⚠️ App Group 是 App 与 widget 之间唯一的共享通道。少了它在真机上 widget 仍能渲染（图标由扩展自己取），但 App 发的「收回展开」请求传不过去。
 

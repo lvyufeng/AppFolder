@@ -2,12 +2,11 @@ import Foundation
 
 // Data file. `AppCatalog.swift` holds the logic; everything here is content.
 //
-// To regenerate the `LSApplicationQueriesSchemes` array in
-// `Config/AppFolder-Info.plist`:
-//
-//     swift run --package-path Packages/AppFolderKit appfolder-schemes
-//
-// `--check` fails if the plist and the catalog disagree, which CI should run.
+// What is *live* in an entry: `name` / `englishName` (matched against the name
+// the system gives a slot), `appStoreID` / `storeAppID` / `symbolName` (how the
+// widget finds and caches a slot's artwork), and `isSystemApp`. `scheme` and
+// `universalLink` are kept as reference data with no runtime reader — see
+// ``KnownApp/scheme``.
 extension AppCatalog {
     /// Every app we can draw a tile for.
     ///
@@ -173,9 +172,10 @@ extension AppCatalog {
         // is *nothing but* these — and a launcher that can't hold the apps you
         // actually have is a launcher you delete on day one. Second, and more
         // usefully: `canOpenURL` enforces `LSApplicationQueriesSchemes` against
-        // third-party apps and not against Apple's, so every entry below can be
-        // detected as installed **without spending a single slot of the 25-entry
-        // budget**. Measured; see ``AppCatalog/queriedSchemes``.
+        // third-party apps and not against Apple's. (Both facts were measured for
+        // the install probe; that probe and its 25-entry `LSApplicationQueriesSchemes`
+        // budget have since been deleted, so the schemes below now live on only as
+        // reference data — see ``KnownApp/scheme``.)
         //
         // Every scheme here was verified by opening it on iOS 27 — `simctl` errors
         // out when nothing handles a URL, which makes this checkable rather than
@@ -192,6 +192,9 @@ extension AppCatalog {
         // the built-in apps is arguably more correct anyway.
         //
         // ## Universal links for Apple's apps: almost none, and that is the finding
+        //
+        // (Historical. This measured the deleted `.universalLink` route; the two
+        // values it produced are kept on the 地图 and 新闻 entries for reference.)
         //
         // "直接打开" needs the target to publish a universal link, so the obvious
         // move for a system app is to look for its `https://` twin. That was
