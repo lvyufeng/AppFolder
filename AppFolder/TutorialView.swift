@@ -102,6 +102,36 @@ struct TutorialView: View {
                     Text("图标认错了、或者某格一直是占位方块时，从这里指定正确的 App。")
                 }
 
+                // Content the app owns, rather than more instructions: the
+                // questions that actually come up once a widget is on the Home
+                // Screen, answered where the user is already looking. It is also
+                // the part of the app that is not a setup step, which is worth
+                // having in a product whose main surface is a widget.
+                Section {
+                    FAQ(
+                        question: "图标为什么半天不出现，或者有的格子是灰块？",
+                        answer: "图标是联网从 App Store 取回来、存在本地的。第一次放到桌面上可能慢一拍；取不到时会先显示一个占位方块，不会空着。某个格子一直是方块，或者图标认错了，去「修正图标」指定正确的 App。"
+                    )
+                    FAQ(
+                        question: "格子里的 App 被删了会怎样？",
+                        answer: "那一格会点不开。把被删掉的 App 从小组件里移除，或者换一个；系统不会自己帮你换。"
+                    )
+                    FAQ(
+                        question: "改了 App 的名字或图标，桌面上没跟着变？",
+                        answer: "系统会缓存小组件的画面，改完可能要等一会儿才刷新。图标是按格子上的名字去 App Store 查回来的，名字变了就要在「修正图标」里重新指定一次。"
+                    )
+                    FAQ(
+                        question: "AppFolder 会上传我的数据吗？",
+                        answer: "不会。AppFolder 没有账号、没有统计、没有广告 SDK；唯一的联网是去 Apple 的公开接口取 App 图标，不携带任何关于你的信息。"
+                    )
+                    FAQ(
+                        question: "为什么只有小号？",
+                        answer: "小号是目前唯一经过实测、各种图标大小设置下都成立的尺寸。中号和大号在真机上要么图标偏小、要么间距失衡，所以暂时不提供。"
+                    )
+                } header: {
+                    Text("常见问题")
+                }
+
                 Section("权限") {
                     LabeledContent("读取已安装 App") {
                         Text("不读取")
@@ -143,5 +173,25 @@ private struct Step: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// One question, answered — collapsed until it is asked for.
+///
+/// `LocalizedStringKey` for both, for the same reason as ``Step``: a plain `String`
+/// would render verbatim and never reach the string catalog.
+private struct FAQ: View {
+    let question: LocalizedStringKey
+    let answer: LocalizedStringKey
+
+    var body: some View {
+        DisclosureGroup {
+            Text(answer)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 2)
+        } label: {
+            Text(question).font(.body.weight(.medium))
+        }
     }
 }

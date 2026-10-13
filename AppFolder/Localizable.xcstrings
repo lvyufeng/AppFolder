@@ -2,79 +2,120 @@
   "sourceLanguage": "zh-Hans",
   "version": "1.0",
   "strings": {
-    "长按桌面空白处": {
+    "AppFolder 会上传我的数据吗？": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Touch and hold an empty area"
+            "value": "Does AppFolder upload my data?"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder 會上傳我的資料嗎？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolderはデータを送信しますか？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder가 제 데이터를 전송하나요?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿AppFolder envía mis datos?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder envoie-t-il mes données ?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sendet AppFolder meine Daten?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O AppFolder envia meus dados?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder отправляет мои данные?"
           }
         }
       }
     },
-    "图标开始抖动后，点左上角的「编辑」。": {
+    "AppFolder 和小组件之间的共享空间现在读不到，改了也传不过去。重新安装 AppFolder 后可以再试——这次的选择没有生效。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When the icons start to jiggle, tap Edit in the top-left corner."
+            "value": "The shared space between AppFolder and the widget cannot be read right now, so a change would not reach the widget. Reinstall AppFolder and try again — this choice did not take effect."
           }
-        }
-      }
-    },
-    "点「添加小组件」": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap Add Widget"
+            "value": "AppFolder 和小工具之間的共享空間現在讀不到，改了也傳不過去。重新安裝 AppFolder 後可以再試——這次的選擇沒有生效。"
           }
-        }
-      }
-    },
-    "在列表里搜「直接启动」——小组件叫这个名字，不叫 AppFolder。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search the list for “Quick Launch” — that is the widget’s name, not AppFolder."
+            "value": "AppFolderとウィジェットの共有領域が今は読み取れないため、変更を伝えられません。AppFolderを再インストールしてからもう一度お試しください——今回の選択は反映されていません。"
           }
-        }
-      }
-    },
-    "选尺寸，点「添加小组件」": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose a size and tap Add Widget"
+            "value": "AppFolder와 위젯 사이의 공유 공간을 지금 읽을 수 없어 변경이 전달되지 않습니다. AppFolder를 다시 설치한 뒤 시도하세요. 이번 선택은 적용되지 않았습니다."
           }
-        }
-      }
-    },
-    "目前只提供小号——一屏 8 个 App，四宫格 3 个；点下去直接打开，不经过 AppFolder。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only the small size is offered — eight apps, or three in the 2 × 2 layout. A tap opens the app directly, without going through AppFolder."
+            "value": "El espacio compartido entre AppFolder y el widget no se puede leer ahora mismo, así que el cambio no llegaría al widget. Reinstala AppFolder e inténtalo de nuevo: esta elección no se ha aplicado."
           }
-        }
-      }
-    },
-    "放到桌面": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add It to the Home Screen"
+            "value": "L'espace partagé entre AppFolder et le widget est illisible pour le moment, le changement n'atteindrait donc pas le widget. Réinstallez AppFolder et réessayez — ce choix n'a pas été appliqué."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der gemeinsame Bereich von AppFolder und Widget ist gerade nicht lesbar, eine Änderung würde das Widget also nicht erreichen. Installiere AppFolder neu und versuche es erneut — diese Auswahl wurde nicht übernommen."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O espaço compartilhado entre o AppFolder e o widget não pode ser lido agora, então a mudança não chegaria ao widget. Reinstale o AppFolder e tente de novo — esta escolha não foi aplicada."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Общая область AppFolder и виджета сейчас недоступна для чтения, поэтому изменение до виджета не дойдёт. Переустановите AppFolder и попробуйте снова — этот выбор не применился."
           }
         }
       }
@@ -87,38 +128,53 @@
             "state": "translated",
             "value": "iOS does not let an app put anything on the Home Screen itself, so this step is always manual — for every app, every time."
           }
-        }
-      }
-    },
-    "长按刚放上去的小组件": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Touch and hold the widget you just added"
+            "value": "iOS 不允許 App 自己把東西放上桌面，這一步只能手動完成，每個 App 都一樣。"
           }
-        }
-      }
-    },
-    "点「编辑小组件」。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap Edit Widget."
+            "value": "iOSはアプリが自分でホーム画面に何かを置くことを許していません。この手順はどのアプリでも必ず手動です。"
           }
-        }
-      }
-    },
-    "在「动作」里逐个挑 App": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick your apps one at a time under Actions"
+            "value": "iOS는 앱이 스스로 홈 화면에 무언가를 놓는 것을 허용하지 않습니다. 이 단계는 어떤 앱이든 항상 직접 해야 합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS no permite que una app coloque nada por su cuenta en la pantalla de inicio, así que este paso siempre es manual, en todas las apps."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS n'autorise pas une app à déposer quoi que ce soit elle-même sur l'écran d'accueil : cette étape est toujours manuelle, pour toutes les apps."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS erlaubt es keiner App, selbst etwas auf dem Home-Bildschirm abzulegen; dieser Schritt ist immer manuell, bei jeder App."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O iOS não permite que um app coloque nada sozinho na Tela de Início, então esta etapa é sempre manual, em qualquer app."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS не позволяет приложению самому что-либо размещать на экране «Домой», поэтому этот шаг всегда выполняется вручную — в любом приложении."
           }
         }
       }
@@ -131,170 +187,112 @@
             "state": "translated",
             "value": "One at a time, and each pick is added to the last. The order you pick them in is the order they fill the grid: left to right, top to bottom."
           }
-        }
-      }
-    },
-    "按喜好调外观": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Adjust the Look"
+            "value": "一次挑一個，挑完可以再挑下一個，它們會累加。挑選的順序就是格子裡從左到右、從上到下的順序。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1つずつ選び、選ぶたびに追加されていきます。選んだ順が、左上から右下へとマスを埋めていく順番になります。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "하나씩 고르고, 고를 때마다 더해집니다. 고른 순서가 왼쪽 위에서 오른쪽 아래로 칸을 채우는 순서가 됩니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De una en una; cada elección se suma a la anterior. El orden en que las eliges es el orden en que llenan la cuadrícula: de izquierda a derecha y de arriba abajo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une par une, et chaque choix s'ajoute au précédent. L'ordre de sélection est celui du remplissage de la grille : de gauche à droite, de haut en bas."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immer einzeln, und jede Auswahl kommt zur vorigen hinzu. Die Reihenfolge der Auswahl ist die Reihenfolge im Raster: von links nach rechts, von oben nach unten."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um de cada vez, e cada escolha se soma à anterior. A ordem em que você escolhe é a ordem em que preenchem a grade: da esquerda para a direita, de cima para baixo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По одному, и каждый выбор добавляется к предыдущему. Порядок выбора — это порядок заполнения сетки: слева направо и сверху вниз."
           }
         }
       }
     },
-    "网格、显示图标名称、底板、颜色、图标大小，都在同一个面板里。": {
+    "不会。AppFolder 没有账号、没有统计、没有广告 SDK；唯一的联网是去 Apple 的公开接口取 App 图标，不携带任何关于你的信息。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grid, Show Icon Names, Plate, Color and Icon Size are all in the same panel."
+            "value": "No. AppFolder has no accounts, no analytics and no advertising SDK; the only connection is to Apple's public endpoint for app icons, and it carries nothing about you."
           }
-        }
-      }
-    },
-    "配置它": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set It Up"
+            "value": "不會。AppFolder 沒有帳號、沒有統計、沒有廣告 SDK；唯一的連線是去 Apple 的公開介面取 App 圖示，不帶任何關於你的資訊。"
           }
-        }
-      }
-    },
-    "配置面板里的每一项都立即生效，不用重新添加小组件。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Every setting in that panel takes effect at once; you never have to add the widget again."
+            "value": "しません。AppFolderにはアカウントも解析も広告SDKもありません。通信はAppleの公開APIからアプリアイコンを取得するときだけで、あなたに関する情報は一切送りません。"
           }
-        }
-      }
-    },
-    "九宫格放 8 个，四宫格放 3 个。再多的 App 会收进最后一格的「其他」——那是一扇文件夹门，点一下在原地展开，不会跳走，左上角有「返回」。一页放不下时会多出「更多」翻页。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "The 3 × 3 grid holds eight apps and the 2 × 2 grid holds three. Anything beyond that goes into the “Other” cell in the last slot — a folder door that opens in place, without leaving the Home Screen, with a Back cell in the top-left. When a page fills up, a “More” cell appears to page through."
+            "value": "아닙니다. AppFolder에는 계정도, 분석도, 광고 SDK도 없습니다. 통신은 Apple의 공개 API에서 앱 아이콘을 가져올 때뿐이고, 사용자에 대한 정보는 전혀 보내지 않습니다."
           }
-        }
-      }
-    },
-    "格子里的图标是 AppFolder 联网取回来存下的，第一次出现在桌面上可能慢一拍；取不到时先显示一个占位方块，不会空着。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "The icons in the grid are fetched by AppFolder over the network and cached. The first time they appear they may arrive a beat late; if one cannot be fetched you get a placeholder square rather than an empty one."
+            "value": "No. AppFolder no tiene cuentas, ni analíticas, ni SDK de publicidad; la única conexión es a la API pública de Apple para descargar los iconos, y no envía nada sobre ti."
           }
-        }
-      }
-    },
-    "放不下的时候": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "When It Does Not All Fit"
+            "value": "Non. AppFolder n'a ni compte, ni statistiques, ni SDK publicitaire ; la seule connexion sert à récupérer les icônes via l'API publique d'Apple, sans rien transmettre sur vous."
           }
-        }
-      }
-    },
-    "小组件里的 App 只能在系统的配置面板里选，App 里做不到。这不是还没做：iOS 给小组件配置项的是一组不透明的「系统动作」，App 拿不到、也构造不出任何可选的 App 列表。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "The apps on a widget can only be chosen in the system’s Edit Widget panel, never inside this app. That is not a missing feature: iOS hands a widget’s configuration a set of opaque “system actions”, which an app can neither read nor turn into a list of apps to offer."
+            "value": "Nein. AppFolder hat keine Konten, keine Analyse und kein Werbe-SDK; die einzige Verbindung ist der Abruf der App-Icons über Apples öffentliche Schnittstelle, und es wird nichts über dich übertragen."
           }
-        }
-      }
-    },
-    "同样地，点图标时是系统直接切换过去，AppFolder 不会被唤起，也不会在中间闪一下。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "In the same way, the tap is handled by the system: AppFolder is never brought up, and nothing flashes in between."
+            "value": "Não. O AppFolder não tem contas, nem análise, nem SDK de anúncios; a única conexão é para buscar os ícones na API pública da Apple, sem enviar nada sobre você."
           }
-        }
-      }
-    },
-    "能改的是**图标**。图标是按格子上的名字去 App Store 找回来的，同名 App 多的时候会认错——比如两个 App 都叫 Authenticator。去「修正图标」告诉它该用哪一个。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "What you *can* fix is the **icon**. Icons are looked up on the App Store by the name shown in the cell, so a name shared by several apps can land on the wrong one — two apps both called Authenticator, for instance. Use Fix Icons to say which one you mean."
-          }
-        }
-      }
-    },
-    "为什么不能在 App 里配": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Why It Cannot Be Set Up in the App"
-          }
-        }
-      }
-    },
-    "修正图标": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fix Icons"
-          }
-        }
-      }
-    },
-    "图标认错了、或者某格一直是占位方块时，从这里指定正确的 App。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "If an icon is the wrong app, or a cell stays a placeholder square, pick the right app here."
-          }
-        }
-      }
-    },
-    "权限": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Permissions"
-          }
-        }
-      }
-    },
-    "读取已安装 App": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Read installed apps"
+            "value": "Нет. В AppFolder нет ни аккаунтов, ни аналитики, ни рекламных SDK; единственное подключение — загрузка значков через открытый интерфейс Apple, и ничего о вас при этом не передаётся."
           }
         }
       }
@@ -307,148 +305,348 @@
             "state": "translated",
             "value": "No"
           }
-        }
-      }
-    },
-    "联网": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Network"
+            "value": "不讀取"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "読み取りません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "읽지 않음"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nein"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет"
           }
         }
       }
     },
-    "搜索 App、拉取图标": {
+    "为什么不能在 App 里配": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "App search, icon downloads"
+            "value": "Why It Cannot Be Set Up in the App"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "為什麼不能在 App 裡設定"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ内で設定できない理由"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 안에서 설정할 수 없는 이유"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por qué no se puede configurar en la app"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pourquoi la configuration n'est pas dans l'app"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warum das nicht in der App geht"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por que não dá para configurar no app"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Почему это нельзя настроить в приложении"
           }
         }
       }
     },
-    "账号 / 追踪": {
+    "为什么只有小号？": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Account / tracking"
+            "value": "Why is only the small size offered?"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "為什麼只有小尺寸？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "なぜ小さいサイズだけ？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "왜 작은 크기만 있나요?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Por qué solo el tamaño pequeño?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pourquoi seulement le petit format ?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warum nur die kleine Größe?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por que só o tamanho pequeno?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Почему только малый размер?"
           }
         }
       }
     },
-    "无": {
+    "九宫格放 8 个，四宫格放 3 个。再多的 App 会收进最后一格的「其他」——那是一扇文件夹门，点一下在原地展开，不会跳走，左上角有「返回」。一页放不下时会多出「更多」翻页。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "None"
+            "value": "The 3 × 3 grid holds eight apps and the 2 × 2 grid holds three. Anything beyond that goes into the “Other” cell in the last slot — a folder door that opens in place, without leaving the Home Screen, with a Back cell in the top-left. When a page fills up, a “More” cell appears to page through."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "九宮格放 8 個，四宮格放 3 個。更多的 App 會收進最後一格的「其他」——那是一扇資料夾門，點一下在原地展開，不會跳走，左上角有「返回」。一頁放不下時會多出「更多」翻頁。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 × 3は8個、2 × 2は3個のAppが入ります。それ以上は最後のマスの「その他」に入ります——これはフォルダの扉で、タップするとホーム画面を離れずその場で開き、左上に「戻る」があります。1ページに入りきらないときは「次へ」でページを送れます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 × 3은 8개, 2 × 2는 3개를 담습니다. 그보다 많은 앱은 마지막 칸의 '기타'로 들어갑니다. 이것은 폴더 문이라 탭하면 홈 화면을 떠나지 않고 그 자리에서 열리며, 왼쪽 위에 '뒤로'가 있습니다. 한 페이지에 다 들어가지 않으면 '더 보기'로 넘길 수 있습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La cuadrícula 3 × 3 admite ocho apps y la 2 × 2, tres. Las que sobren van a la celda «Otros» de la última posición: una puerta de carpeta que se abre en el sitio, sin salir de la pantalla de inicio, con una celda Atrás arriba a la izquierda. Cuando una página se llena, aparece una celda «Más» para pasar de página."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La grille 3 × 3 accueille huit apps, la 2 × 2 en accueille trois. Les suivantes vont dans la case « Autres » de la dernière position : une porte de dossier qui s'ouvre sur place, sans quitter l'écran d'accueil, avec une case Retour en haut à gauche. Quand une page est pleine, une case « Plus » apparaît pour tourner la page."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das 3 × 3-Raster fasst acht Apps, das 2 × 2-Raster drei. Alles darüber landet in der Kachel „Sonstige“ an letzter Stelle — eine Ordnertür, die sich an Ort und Stelle öffnet, ohne den Home-Bildschirm zu verlassen, mit „Zurück“ oben links. Wenn eine Seite voll ist, erscheint eine „Mehr“-Kachel zum Blättern."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A grade 3 × 3 comporta oito apps e a 2 × 2 comporta três. O que passar disso vai para a célula “Outros” na última posição — uma porta de pasta que se abre ali mesmo, sem sair da Tela de Início, com uma célula Voltar no canto superior esquerdo. Quando uma página enche, surge uma célula “Mais” para virar a página."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сетка 3 × 3 вмещает восемь приложений, а 2 × 2 — три. Остальные попадают в ячейку «Другое» на последнем месте: это дверца папки, которая открывается на месте, не покидая экран «Домой», с ячейкой «Назад» в левом верхнем углу. Когда страница заполняется, появляется ячейка «Ещё» для перехода дальше."
           }
         }
       }
     },
-    "怎么用": {
+    "修正图标": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "How to Use"
+            "value": "Fix Icons"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修正圖示"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイコンを修正"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아이콘 수정"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corregir iconos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corriger les icônes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Icons korrigieren"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corrigir ícones"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Исправить значки"
           }
         }
       }
     },
-    "还没有读到桌面上的小组件。": {
+    "同样地，点图标时是系统直接切换过去，AppFolder 不会被唤起，也不会在中间闪一下。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No widget has reported in yet."
+            "value": "In the same way, the tap is handled by the system: AppFolder is never brought up, and nothing flashes in between."
           }
-        }
-      }
-    },
-    "把一个「直接启动」小组件放到桌面上、让它画一次，它上面的 App 就会出现在这里。App 读不到桌面配置——这些是小组件自己报回来的。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Put a “Quick Launch” widget on the Home Screen and let it draw once, and the apps on it will appear here. The app cannot read the Home Screen configuration — the widget reports this itself."
+            "value": "同樣地，點圖示時是系統直接切換過去，AppFolder 不會被喚起，中間也不會閃一下。"
           }
-        }
-      }
-    },
-    "桌面上的 App": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apps on Your Widget"
+            "value": "同じ理由で、タップはシステムが処理します。AppFolderが起動されることはなく、間に何かが一瞬映ることもありません。"
           }
-        }
-      }
-    },
-    "等不及的话，用下面的「手动指定」直接输入格子上显示的名字。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "In a hurry, type the name shown in the cell under Manual below."
+            "value": "마찬가지로 탭은 시스템이 처리합니다. AppFolder가 뜨지 않고 중간에 무언가 잠깐 스쳐 보이지도 않습니다."
           }
-        }
-      }
-    },
-    "这些是你在小组件里挑的 App。图标认错时点进去，换成正确的那个。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "These are the apps you picked in the widget. If an icon is wrong, tap it and choose the right app."
+            "value": "Del mismo modo, el toque lo gestiona el sistema: AppFolder no se abre y no aparece nada por medio."
           }
-        }
-      }
-    },
-    "格子上的名字，如 Authenticator": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Name in the cell, e.g. Authenticator"
+            "value": "De même, c'est le système qui gère l'appui : AppFolder n'est jamais lancé et rien ne s'affiche entre-temps."
           }
-        }
-      }
-    },
-    "指定": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set"
+            "value": "Ebenso übernimmt das System das Tippen: AppFolder wird nie gestartet und dazwischen blitzt nichts auf."
           }
-        }
-      }
-    },
-    "手动指定": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Manual"
+            "value": "Do mesmo modo, o toque é tratado pelo sistema: o AppFolder nunca é aberto e nada pisca no meio."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Точно так же касание обрабатывает система: AppFolder не запускается, и между ними ничего не мелькает."
           }
         }
       }
@@ -461,192 +659,407 @@
             "state": "translated",
             "value": "The name has to match the one shown on the widget exactly — case and spacing do not matter."
           }
-        }
-      }
-    },
-    "已指定": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pinned"
+            "value": "名字要和在小工具上顯示的一模一樣——大小寫和空格無所謂。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前はウィジェットに表示されているものと完全に一致させてください。大文字小文字や空白の違いは問題ありません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름은 위젯에 표시된 것과 정확히 같아야 합니다. 대소문자와 공백은 상관없습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre debe coincidir exactamente con el que muestra el widget; mayúsculas y espacios dan igual."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le nom doit être exactement celui affiché sur le widget — la casse et les espaces n'ont pas d'importance."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Name muss genau dem auf dem Widget entsprechen — Groß- und Kleinschreibung sowie Leerzeichen sind egal."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O nome precisa ser exatamente o que aparece no widget — maiúsculas e espaços não importam."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя должно точно совпадать с тем, что показано на виджете; регистр и пробелы не важны."
           }
         }
       }
     },
-    "自动 · 内置目录": {
+    "图标为什么半天不出现，或者有的格子是灰块？": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Automatic · built-in catalog"
+            "value": "Why do icons take a while to appear, or why are some cells grey squares?"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "為什麼圖示遲遲不出現，或者有些格子是灰塊？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイコンがなかなか出ない、灰色のマスがあるのはなぜ？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아이콘이 한참 안 나오거나 어떤 칸이 회색 블록인 이유?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Por qué algunos iconos tardan en aparecer o hay celdas grises?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pourquoi certaines icônes tardent-elles, ou pourquoi des cases sont-elles grises ?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warum erscheinen Icons verzögert, oder warum sind Kacheln grau?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por que alguns ícones demoram a aparecer, ou algumas células ficam cinzas?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Почему значки появляются не сразу, а некоторые ячейки серые?"
           }
         }
       }
     },
-    "自动 · 系统 App": {
+    "图标开始抖动后，点左上角的「编辑」。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Automatic · system app"
+            "value": "When the icons start to jiggle, tap Edit in the top-left corner."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "圖示開始晃動後，點左上角的「編輯」。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイコンが揺れ始めたら、左上の「編集」をタップします。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아이콘이 흔들리기 시작하면 왼쪽 위의 '편집'을 탭합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuando los iconos empiecen a moverse, toca Editar arriba a la izquierda."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quand les icônes se mettent à bouger, touchez Modifier en haut à gauche."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn die Symbole wackeln, oben links auf „Bearbeiten“ tippen."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quando os ícones começarem a tremer, toque em Editar no canto superior esquerdo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Когда значки начнут покачиваться, нажмите «Изменить» в левом верхнем углу."
           }
         }
       }
     },
-    "自动 · 商店搜索": {
+    "图标是联网从 App Store 取回来、存在本地的。第一次放到桌面上可能慢一拍；取不到时会先显示一个占位方块，不会空着。某个格子一直是方块，或者图标认错了，去「修正图标」指定正确的 App。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Automatic · App Store search"
+            "value": "Icons are fetched from the App Store over the network and kept on the device. The first time they appear they may arrive a beat late; if one cannot be fetched you get a placeholder square rather than an empty one. If a cell stays a square, or an icon is the wrong app, use Fix Icons to choose the right one."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "圖示是連線從 App Store 取回來、存在本機的。第一次放到桌面上可能慢一拍；取不到時會先顯示一個佔位方塊，不會空著。某一格一直是方塊，或者圖示認錯了，去「修正圖示」指定正確的 App。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイコンはネットワーク経由でApp Storeから取得し、端末に保存しています。初回は表示が一拍遅れることがあります。取得できないときは空欄ではなくプレースホルダの四角が表示されます。マスがずっと四角のまま、またはアイコンが違う場合は「アイコンを修正」で正しいAppを指定してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아이콘은 네트워크로 App Store에서 받아 기기에 저장합니다. 처음 홈 화면에 나타날 때 한 박자 늦을 수 있습니다. 받지 못하면 빈칸 대신 자리 표시 사각형이 보입니다. 어떤 칸이 계속 사각형이거나 아이콘이 잘못됐다면 '아이콘 수정'에서 올바른 앱을 지정하세요."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los iconos se descargan del App Store y se guardan en el dispositivo. La primera vez pueden tardar un poco; si no se pueden descargar, verás un cuadro de marcador en lugar de un hueco vacío. Si una celda se queda en cuadro o el icono es incorrecto, usa Corregir iconos para elegir la app correcta."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les icônes sont téléchargées depuis l'App Store puis conservées sur l'appareil. À la première apparition, elles peuvent arriver avec un temps de retard ; si l'une ne peut pas être téléchargée, vous verrez un carré de remplacement plutôt qu'un vide. Si une case reste en carré ou si l'icône est fausse, utilisez Corriger les icônes pour choisir la bonne app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Icons werden aus dem App Store geladen und auf dem Gerät abgelegt. Beim ersten Mal können sie einen Moment brauchen; lässt sich eines nicht laden, erscheint ein Platzhalter-Quadrat statt einer Lücke. Bleibt eine Kachel ein Quadrat oder stimmt das Icon nicht, wähle unter „Icons korrigieren“ die richtige App."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os ícones são baixados do App Store e guardados no aparelho. Na primeira vez podem demorar um pouco; se algum não puder ser baixado, aparece um quadrado de espaço reservado em vez de um vazio. Se uma célula ficar em quadrado ou o ícone estiver errado, use Corrigir ícones para escolher o app certo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Значки загружаются из App Store и сохраняются на устройстве. В первый раз они могут появиться с задержкой; если значок не удалось загрузить, вместо пустого места будет квадрат-заглушка. Если ячейка остаётся квадратом или значок неверный, выберите правильное приложение в разделе «Исправить значки»."
           }
         }
       }
     },
-    "自动 · 没找到，显示占位方块": {
+    "图标认错了、或者某格一直是占位方块时，从这里指定正确的 App。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Automatic · not found, showing a placeholder"
+            "value": "If an icon is the wrong app, or a cell stays a placeholder square, pick the right app here."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "圖示認錯了、或者某一格一直是佔位方塊時，從這裡指定正確的 App。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アイコンが違うアプリになっている、またはマスがずっとプレースホルダのときは、ここで正しいAppを指定します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아이콘이 다른 앱이거나 칸이 계속 자리 표시일 때 여기서 올바른 앱을 지정합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si un icono es de otra app, o una celda se queda con el cuadro de marcador, elige aquí la app correcta."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si une icône correspond à une autre app, ou si une case reste en carré de remplacement, choisissez ici la bonne app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn ein Icon zur falschen App gehört oder eine Kachel dauerhaft das Platzhalter-Quadrat zeigt, wählst du hier die richtige App."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se um ícone for de outro app, ou uma célula ficar sempre no quadrado de espaço reservado, escolha aqui o app certo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если значок принадлежит другому приложению или ячейка всегда остаётся квадратом-заглушкой, выберите здесь правильное приложение."
           }
         }
       }
     },
-    "自动": {
+    "在「动作」里逐个挑 App": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Automatic"
+            "value": "Pick your apps one at a time under Actions"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在「動作」裡逐一挑選 App"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「アクション」で1つずつAppを選ぶ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "'동작'에서 앱을 하나씩 고르기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige tus apps de una en una en Acciones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez vos apps une par une dans Actions"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps unter „Aktionen“ einzeln auswählen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha os apps um de cada vez em Ações"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбирайте приложения по одному в разделе «Действия»"
           }
         }
       }
     },
-    "格子上的名字": {
+    "在列表里搜「直接启动」——小组件叫这个名字，不叫 AppFolder。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Name in the cell"
+            "value": "Search the list for “Quick Launch” — that is the widget’s name, not AppFolder."
           }
-        }
-      }
-    },
-    "按 App Store 里搜到的选。同名 App 会有多个，看开发者那一行区分。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick from what the App Store returns. Several apps may share a name — the developer line tells them apart."
+            "value": "在列表裡搜「快速啟動」——小工具叫這個名字，不叫 AppFolder。"
           }
-        }
-      }
-    },
-    "搜索 App Store": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search the App Store"
+            "value": "一覧で「クイック起動」を検索します。ウィジェットの名前はこれで、AppFolder ではありません。"
           }
-        }
-      }
-    },
-    "搜索": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search"
+            "value": "목록에서 '빠른 실행'을 검색합니다. 위젯 이름은 이것이고 AppFolder가 아닙니다."
           }
-        }
-      }
-    },
-    "搜索中…": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Searching…"
+            "value": "Busca «Inicio rápido» en la lista: ese es el nombre del widget, no AppFolder."
           }
-        }
-      }
-    },
-    "连不上 App Store，检查网络后再试。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cannot reach the App Store. Check your connection and try again."
+            "value": "Cherchez « Lancement rapide » dans la liste : c'est le nom du widget, pas AppFolder."
           }
-        }
-      }
-    },
-    "没搜到。换个关键词试试，比如用英文名。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nothing found. Try another term, such as the English name."
+            "value": "In der Liste nach „Schnellstart“ suchen — so heißt das Widget, nicht AppFolder."
           }
-        }
-      }
-    },
-    "选择正确的 App": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose the Correct App"
+            "value": "Procure “Abertura rápida” na lista — é esse o nome do widget, não AppFolder."
           }
-        }
-      }
-    },
-    "恢复自动匹配": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
+        },
+        "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Restore Automatic Matching"
-          }
-        }
-      }
-    },
-    "恢复后由 AppFolder 按名字自动找，可能又会认错。": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AppFolder will match by name again, which may get it wrong again."
-          }
-        }
-      }
-    },
-    "没能记下这个选择": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Could Not Save That Choice"
+            "value": "Найдите в списке «Быстрый запуск» — так называется виджет, а не AppFolder."
           }
         }
       }
@@ -659,16 +1072,3180 @@
             "state": "translated",
             "value": "OK"
           }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aceptar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ОК"
+          }
         }
       }
     },
-    "AppFolder 和小组件之间的共享空间现在读不到，改了也传不过去。重新安装 AppFolder 后可以再试——这次的选择没有生效。": {
+    "小号是目前唯一经过实测、各种图标大小设置下都成立的尺寸。中号和大号在真机上要么图标偏小、要么间距失衡，所以暂时不提供。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The shared space between AppFolder and the widget cannot be read right now, so a change would not reach the widget. Reinstall AppFolder and try again — this choice did not take effect."
+            "value": "The small size is the only one measured on a real iPhone that holds up at every icon-size setting. Medium and large leave the icons too small or the spacing unbalanced, so they are not offered for now."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小尺寸是目前唯一經過實測、在各種圖示大小設定下都成立的尺寸。中尺寸和大尺寸在真機上不是圖示偏小、就是間距失衡，所以暫時不提供。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小さいサイズは、どのアイコンサイズ設定でも成立することを実機で確認できた唯一のサイズです。中・大はアイコンが小さすぎたり間隔が崩れたりするため、今は提供していません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작은 크기는 어떤 아이콘 크기 설정에서도 성립한다는 것을 실기기에서 확인한 유일한 크기입니다. 중간·큰 크기는 아이콘이 너무 작거나 간격이 무너져서 지금은 제공하지 않습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El tamaño pequeño es el único que hemos medido en un iPhone y que funciona con todos los ajustes de tamaño de icono. Los tamaños mediano y grande dejan los iconos demasiado pequeños o descompensan los espacios, así que por ahora no se ofrecen."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le petit format est le seul dont nous avons vérifié sur un iPhone réel qu'il tient à tous les réglages de taille d'icône. Les formats moyen et grand donnent des icônes trop petites ou des espacements déséquilibrés ; ils ne sont donc pas proposés pour l'instant."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die kleine Größe ist die einzige, die wir auf einem echten iPhone geprüft haben und die bei jeder Icon-Größeneinstellung trägt. Mittel und groß machen die Icons zu klein oder die Abstände unausgewogen, deshalb gibt es sie vorerst nicht."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O tamanho pequeno é o único que verificamos em um iPhone de verdade e que se sustenta em todos os ajustes de tamanho de ícone. Os tamanhos médio e grande deixam os ícones pequenos demais ou desequilibram os espaços, então por enquanto não são oferecidos."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Малый размер — единственный, который мы проверили на настоящем iPhone и который выдерживает любую настройку размера значков. Средний и большой делают значки слишком мелкими или ломают отступы, поэтому пока их нет."
+          }
+        }
+      }
+    },
+    "小组件里的 App 只能在系统的配置面板里选，App 里做不到。这不是还没做：iOS 给小组件配置项的是一组不透明的「系统动作」，App 拿不到、也构造不出任何可选的 App 列表。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The apps on a widget can only be chosen in the system’s Edit Widget panel, never inside this app. That is not a missing feature: iOS hands a widget’s configuration a set of opaque “system actions”, which an app can neither read nor turn into a list of apps to offer."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具裡的 App 只能在系統的設定面板裡選，App 內做不到。這不是還沒做：iOS 給小工具設定項的是一組不透明的「系統動作」，App 拿不到、也構造不出任何可選的 App 清單。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェット上のAppはシステムの「ウィジェットを編集」パネルでしか選べず、アプリ内からは選べません。これは未実装ではありません。iOSがウィジェットの設定に渡すのは不透明な「システムアクション」で、アプリはそれを読むことも、選択肢の一覧を作ることもできません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "위젯의 앱은 시스템의 '위젯 편집' 패널에서만 고를 수 있고 앱 안에서는 안 됩니다. 아직 안 만든 기능이 아닙니다. iOS가 위젯 설정에 넘기는 것은 불투명한 '시스템 동작'이라 앱은 그것을 읽을 수도, 고를 수 있는 앱 목록을 만들 수도 없습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las apps de un widget solo se eligen en el panel Editar widget del sistema, nunca dentro de esta app. No es una función que falte: iOS entrega a la configuración del widget un conjunto de «acciones del sistema» opacas, que una app no puede leer ni convertir en una lista de apps que ofrecer."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les apps d'un widget ne se choisissent que dans le panneau Modifier le widget du système, jamais depuis cette app. Ce n'est pas une fonction manquante : iOS remet à la configuration du widget un ensemble d'« actions système » opaques, qu'une app ne peut ni lire ni transformer en liste d'apps proposables."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Apps eines Widgets lassen sich nur im Systembereich „Widget bearbeiten“ auswählen, nie in dieser App. Das ist keine fehlende Funktion: iOS übergibt der Widget-Konfiguration eine Reihe undurchsichtiger „Systemaktionen“, die eine App weder lesen noch in eine Auswahlliste verwandeln kann."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os apps de um widget só podem ser escolhidos no painel Editar Widget do sistema, nunca dentro deste app. Não é um recurso que falta: o iOS entrega à configuração do widget um conjunto de “ações do sistema” opacas, que um app não consegue ler nem transformar em uma lista de apps para oferecer."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приложения на виджете можно выбрать только в системной панели «Изменить виджет», но не в этом приложении. Это не недостающая функция: iOS передаёт настройке виджета набор непрозрачных «системных действий», которые приложение не может ни прочитать, ни превратить в список доступных приложений."
+          }
+        }
+      }
+    },
+    "已指定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pinned"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已指定"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定済み"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지정됨"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fijado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Défini"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Festgelegt"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Definido"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Задано"
+          }
+        }
+      }
+    },
+    "常见问题": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequently Asked Questions"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "常見問題"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "よくある質問"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 묻는 질문"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preguntas frecuentes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questions fréquentes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Häufige Fragen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perguntas frequentes"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Частые вопросы"
+          }
+        }
+      }
+    },
+    "怎么用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to Use"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "怎麼用"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使い方"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용 방법"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cómo se usa"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode d'emploi"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bedienung"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Como usar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Как пользоваться"
+          }
+        }
+      }
+    },
+    "恢复后由 AppFolder 按名字自动找，可能又会认错。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder will match by name again, which may get it wrong again."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢復後由 AppFolder 依名字自動比對，可能又會認錯。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前による自動マッチングに戻ります。また間違える可能性があります。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름으로 자동 매칭합니다. 다시 잘못 고를 수 있습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder volverá a buscar por nombre, y puede volver a equivocarse."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder recherchera à nouveau par nom, et peut se tromper encore."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder sucht wieder nach Namen und kann sich erneut irren."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O AppFolder volta a buscar pelo nome, e pode errar de novo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder снова будет искать по имени и может опять ошибиться."
+          }
+        }
+      }
+    },
+    "恢复自动匹配": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Automatic Matching"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢復自動比對"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動マッチングに戻す"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 매칭으로 되돌리기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver a la coincidencia automática"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revenir à la correspondance automatique"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Zuordnung wiederherstellen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voltar à correspondência automática"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вернуть автоматическое сопоставление"
+          }
+        }
+      }
+    },
+    "手动指定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動指定"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動で指定"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 지정"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asignar manualmente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désigner manuellement"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manuell festlegen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Definir manualmente"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Задать вручную"
+          }
+        }
+      }
+    },
+    "把一个「直接启动」小组件放到桌面上、让它画一次，它上面的 App 就会出现在这里。App 读不到桌面配置——这些是小组件自己报回来的。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put a “Quick Launch” widget on the Home Screen and let it draw once, and the apps on it will appear here. The app cannot read the Home Screen configuration — the widget reports this itself."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把一個「快速啟動」小工具放到桌面上、讓它畫一次，它上面的 App 就會出現在這裡。App 讀不到桌面設定——這些是小工具自己報回來的。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「クイック起動」ウィジェットをホーム画面に置いて一度描画させると、その上のAppがここに表示されます。アプリはホーム画面の設定を読めないため、これはウィジェット自身が報告したものです。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "'빠른 실행' 위젯을 홈 화면에 놓고 한 번 그리게 하면 그 위의 앱이 여기에 나타납니다. 앱은 홈 화면 설정을 읽을 수 없어, 이것은 위젯이 스스로 보고한 것입니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coloca un widget «Inicio rápido» en la pantalla de inicio y deja que se dibuje una vez; las apps que tenga aparecerán aquí. La app no puede leer la configuración de la pantalla de inicio: es el widget quien lo comunica."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Placez un widget « Lancement rapide » sur l'écran d'accueil et laissez-le se dessiner une fois : les apps qu'il contient apparaîtront ici. L'app ne peut pas lire la configuration de l'écran d'accueil — c'est le widget qui la transmet."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setze ein „Schnellstart“-Widget auf den Home-Bildschirm und lass es einmal zeichnen; die Apps darauf erscheinen dann hier. Die App kann die Home-Bildschirm-Konfiguration nicht lesen — das meldet das Widget selbst."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coloque um widget “Abertura rápida” na Tela de Início e deixe que ele se desenhe uma vez; os apps que estiverem nele vão aparecer aqui. O app não consegue ler a configuração da Tela de Início — é o widget que informa."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поставьте виджет «Быстрый запуск» на экран «Домой» и дайте ему отрисоваться один раз — приложения с него появятся здесь. Приложение не может прочитать конфигурацию экрана «Домой»; это сообщает сам виджет."
+          }
+        }
+      }
+    },
+    "指定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지정"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fijar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Définir"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Festlegen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Definir"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Задать"
+          }
+        }
+      }
+    },
+    "按 App Store 里搜到的选。同名 App 会有多个，看开发者那一行区分。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick from what the App Store returns. Several apps may share a name — the developer line tells them apart."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從 App Store 搜尋到的結果裡選。同名的 App 會有好幾個，看開發者那一行區分。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Storeの検索結果から選びます。同名のAppが複数ある場合は、開発者の行で見分けてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Store 검색 결과에서 고릅니다. 이름이 같은 앱이 여러 개면 개발자 줄로 구분하세요."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige entre los resultados del App Store. Puede haber varias apps con el mismo nombre; la línea del desarrollador las distingue."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez parmi les résultats de l'App Store. Plusieurs apps peuvent porter le même nom ; la ligne du développeur les distingue."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle aus den Ergebnissen des App Store. Mehrere Apps können gleich heißen; die Entwicklerzeile unterscheidet sie."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha entre os resultados do App Store. Vários apps podem ter o mesmo nome; a linha do desenvolvedor os distingue."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите из результатов App Store. Несколько приложений могут называться одинаково; строка разработчика их различает."
+          }
+        }
+      }
+    },
+    "按喜好调外观": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adjust the Look"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "依喜好調整外觀"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "見た目を調整"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모양 조정"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajusta el aspecto"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglez l'apparence"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aussehen anpassen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajuste a aparência"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройте внешний вид"
+          }
+        }
+      }
+    },
+    "搜索": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suchen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Искать"
+          }
+        }
+      }
+    },
+    "搜索 App Store": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search the App Store"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋 App Store"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Storeを検索"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Store 검색"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar en el App Store"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher dans l'App Store"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Store durchsuchen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar no App Store"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Искать в App Store"
+          }
+        }
+      }
+    },
+    "搜索 App、拉取图标": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App search, icon downloads"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋 App、下載圖示"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appの検索、アイコンの取得"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 검색, 아이콘 내려받기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Búsqueda de apps, descarga de iconos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherche d'apps, téléchargement des icônes"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-Suche, Icon-Abruf"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Busca de apps, download de ícones"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск приложений, загрузка значков"
+          }
+        }
+      }
+    },
+    "搜索中…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋中…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索中…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색 중…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscando…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherche…"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suche…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscando…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск…"
+          }
+        }
+      }
+    },
+    "改了 App 的名字或图标，桌面上没跟着变？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I renamed an app or changed its icon, but the Home Screen did not follow."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "改了 App 的名字或圖示，桌面上沒跟著變？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appの名前やアイコンを変えたのに、ホーム画面が変わらない？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 이름이나 아이콘을 바꿨는데 홈 화면이 그대로예요?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambié el nombre o el icono de una app y no se refleja, ¿por qué?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "J'ai changé le nom ou l'icône d'une app, mais l'écran d'accueil ne suit pas ?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ich habe Name oder Icon einer App geändert, der Home-Bildschirm zieht nicht nach?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Troquei o nome ou o ícone de um app e a Tela de Início não mudou?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Я изменил название или значок приложения, а на экране «Домой» ничего не изменилось?"
+          }
+        }
+      }
+    },
+    "放不下的时候": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When It Does Not All Fit"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放不下的時候"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入りきらないとき"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다 들어가지 않을 때"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuando no cabe todo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quand tout ne tient pas"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn nicht alles passt"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quando não cabe tudo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Когда всё не помещается"
+          }
+        }
+      }
+    },
+    "放到桌面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add It to the Home Screen"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放到桌面"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面に追加"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "홈 화면에 추가"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añádelo a la pantalla de inicio"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoutez-le à l'écran d'accueil"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Home-Bildschirm hinzufügen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicione à Tela de Início"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавьте на экран «Домой»"
+          }
+        }
+      }
+    },
+    "无": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "なし"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "없음"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ninguno"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет"
+          }
+        }
+      }
+    },
+    "权限": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissions"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "權限"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "権限"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "권한"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permisos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisations"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Berechtigungen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissões"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешения"
+          }
+        }
+      }
+    },
+    "格子上的名字": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name in the cell"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "格子上的名字"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マスの名前"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "칸의 이름"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre en la celda"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom dans la case"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name in der Kachel"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome na célula"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя в ячейке"
+          }
+        }
+      }
+    },
+    "格子上的名字，如 Authenticator": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name in the cell, e.g. Authenticator"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "格子上的名字，例如 Authenticator"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マスに表示されている名前（例：Authenticator）"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "칸에 표시된 이름 (예: Authenticator)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre en la celda, p. ej. Authenticator"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom affiché dans la case, ex. Authenticator"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name in der Kachel, z. B. Authenticator"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome na célula, ex. Authenticator"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя в ячейке, напр. Authenticator"
+          }
+        }
+      }
+    },
+    "格子里的 App 被删了会怎样？": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What happens if one of the apps is deleted?"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "格子裡的 App 被刪了會怎樣？"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マスのAppを削除したらどうなる？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "칸에 있던 앱을 삭제하면 어떻게 되나요?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Qué pasa si borro una app de la cuadrícula?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Que se passe-t-il si je supprime une app de la grille ?"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was passiert, wenn ich eine App aus dem Raster lösche?"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que acontece se eu apagar um app da grade?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Что будет, если удалить приложение из сетки?"
+          }
+        }
+      }
+    },
+    "格子里的图标是 AppFolder 联网取回来存下的，第一次出现在桌面上可能慢一拍；取不到时先显示一个占位方块，不会空着。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The icons in the grid are fetched by AppFolder over the network and cached. The first time they appear they may arrive a beat late; if one cannot be fetched you get a placeholder square rather than an empty one."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "格子裡的圖示是 AppFolder 連線取回後存下來的，第一次出現在桌面上可能慢一拍；取不到時會先顯示一個佔位方塊，不會空著。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マスのアイコンはAppFolderがネットワークから取得して保存したものです。初回は表示が一拍遅れることがあります。取得できないときは空欄ではなくプレースホルダの四角が表示されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "칸의 아이콘은 AppFolder가 네트워크에서 받아 저장한 것입니다. 처음 홈 화면에 나타날 때 한 박자 늦을 수 있습니다. 받지 못하면 빈칸 대신 자리 표시 사각형이 보입니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder descarga los iconos de la cuadrícula y los guarda en caché. La primera vez pueden tardar un poco; si no se pueden descargar, verás un cuadro de marcador en lugar de un hueco vacío."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder télécharge les icônes de la grille puis les met en cache. À la première apparition, elles peuvent arriver avec un temps de retard ; si l'une ne peut pas être téléchargée, vous verrez un carré de remplacement plutôt qu'un vide."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Symbole im Raster lädt AppFolder aus dem Netz und legt sie ab. Beim ersten Mal können sie einen Moment brauchen; lässt sich eines nicht laden, erscheint ein Platzhalter-Quadrat statt einer Lücke."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O AppFolder baixa os ícones da grade e os guarda em cache. Na primeira vez eles podem demorar um pouco; se algum não puder ser baixado, aparece um quadrado de espaço reservado em vez de um vazio."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Значки в сетке AppFolder загружает из сети и сохраняет. В первый раз они могут появиться с задержкой; если значок не удалось загрузить, вместо пустого места будет квадрат-заглушка."
+          }
+        }
+      }
+    },
+    "桌面上的 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps on Your Widget"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桌面上的 App"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェット上のApp"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "위젯에 있는 앱"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps de tu widget"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps de votre widget"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps auf deinem Widget"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps no seu widget"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приложения на вашем виджете"
+          }
+        }
+      }
+    },
+    "没搜到。换个关键词试试，比如用英文名。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing found. Try another term, such as the English name."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒搜到。換個關鍵字試試，例如用英文名。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "見つかりませんでした。別のキーワード（英語名など）で試してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "찾지 못했습니다. 다른 검색어(영문 이름 등)로 시도해 보세요."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se ha encontrado nada. Prueba con otro término, como el nombre en inglés."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun résultat. Essayez un autre terme, comme le nom en anglais."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nichts gefunden. Versuche einen anderen Begriff, etwa den englischen Namen."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nada encontrado. Tente outro termo, como o nome em inglês."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ничего не найдено. Попробуйте другой запрос, например английское название."
+          }
+        }
+      }
+    },
+    "没能记下这个选择": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could Not Save That Choice"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒能記下這個選擇"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この選択を保存できませんでした"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 선택을 저장하지 못했습니다"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo guardar esa elección"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'enregistrer ce choix"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswahl konnte nicht gespeichert werden"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível salvar essa escolha"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось сохранить этот выбор"
+          }
+        }
+      }
+    },
+    "点「添加小组件」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Add Widget"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "點「加入小工具」"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「ウィジェットを追加」をタップ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "'위젯 추가' 탭하기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca Añadir widget"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez Ajouter un widget"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„Widget hinzufügen“ tippen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque em Adicionar Widget"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нажмите «Добавить виджет»"
+          }
+        }
+      }
+    },
+    "点「编辑小组件」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Edit Widget."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "點「編輯小工具」。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「ウィジェットを編集」をタップ。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "'위젯 편집'을 탭합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toca Editar widget."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez Modifier le widget."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„Widget bearbeiten“ tippen."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque em Editar Widget."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нажмите «Изменить виджет»."
+          }
+        }
+      }
+    },
+    "目前只提供小号——一屏 8 个 App，四宫格 3 个；点下去直接打开，不经过 AppFolder。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the small size is offered — eight apps, or three in the 2 × 2 layout. A tap opens the app directly, without going through AppFolder."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前只提供小尺寸——一屏 8 個 App，四宮格 3 個；點下去直接開啟，不經過 AppFolder。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在は小さいサイズのみです。8個のApp、2 × 2なら3個。タップするとAppFolderを経由せず直接開きます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금은 작은 크기만 제공합니다. 8개의 앱, 2 × 2에서는 3개. 탭하면 AppFolder를 거치지 않고 바로 열립니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por ahora solo el tamaño pequeño: ocho apps, o tres en el diseño 2 × 2. Un toque abre la app directamente, sin pasar por AppFolder."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seul le petit format est proposé pour l'instant : huit apps, ou trois en 2 × 2. Un appui ouvre l'app directement, sans passer par AppFolder."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurzeit gibt es nur die kleine Größe: acht Apps, im 2 × 2-Raster drei. Ein Tippen öffnet die App direkt, ohne Umweg über AppFolder."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por enquanto só o tamanho pequeno: oito apps, ou três no formato 2 × 2. Um toque abre o app direto, sem passar pelo AppFolder."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока доступен только малый размер: восемь приложений, а в раскладке 2 × 2 — три. Касание открывает приложение напрямую, минуя AppFolder."
+          }
+        }
+      }
+    },
+    "等不及的话，用下面的「手动指定」直接输入格子上显示的名字。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In a hurry, type the name shown in the cell under Manual below."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等不及的話，用下面的「手動指定」直接輸入格子上顯示的名字。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待てない場合は、下の「手動で指定」にマスに表示されている名前を直接入力してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기다리기 어렵다면 아래 '직접 지정'에 칸에 표시된 이름을 입력하세요."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si tienes prisa, escribe el nombre que aparece en la celda en «Manual», abajo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si vous êtes pressé, saisissez le nom affiché dans la case sous « Manuel », plus bas."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn es eilt, tippe den in der Kachel gezeigten Namen unten unter „Manuell“ ein."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se estiver com pressa, digite o nome mostrado na célula em “Manual”, abaixo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если ждать некогда, введите имя, показанное в ячейке, в поле «Вручную» ниже."
+          }
+        }
+      }
+    },
+    "系统会缓存小组件的画面，改完可能要等一会儿才刷新。图标是按格子上的名字去 App Store 查回来的，名字变了就要在「修正图标」里重新指定一次。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The system caches a widget's image, so a change can take a while to show. The icon is looked up on the App Store by the name in the cell, so if the name changed you have to choose it again in Fix Icons."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系統會快取小工具的畫面，改完可能要等一會兒才會更新。圖示是按格子上的名字去 App Store 查回來的，名字變了就要在「修正圖示」裡重新指定一次。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システムはウィジェットの表示をキャッシュするため、変更が反映されるまで少し時間がかかることがあります。アイコンはマスの名前でApp Storeを検索して取得するので、名前を変えたら「アイコンを修正」で指定し直してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시스템이 위젯 화면을 캐시하므로 변경이 반영되기까지 잠시 걸릴 수 있습니다. 아이콘은 칸의 이름으로 App Store를 검색해 가져오므로 이름이 바뀌면 '아이콘 수정'에서 다시 지정해야 합니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El sistema guarda en caché la imagen del widget, así que el cambio puede tardar un poco. El icono se busca en el App Store por el nombre de la celda, así que si el nombre cambia hay que volver a elegirlo en Corregir iconos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le système met en cache l'image du widget, le changement peut donc mettre un moment à apparaître. L'icône est recherchée sur l'App Store à partir du nom de la case : si le nom change, il faut la redésigner dans Corriger les icônes."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das System speichert das Widget-Bild zwischen, die Änderung kann also etwas dauern. Das Icon wird anhand des Namens in der Kachel im App Store gesucht; ändert sich der Name, musst du es unter „Icons korrigieren“ neu festlegen."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O sistema guarda a imagem do widget em cache, então a mudança pode demorar um pouco. O ícone é buscado no App Store pelo nome da célula; se o nome mudar, é preciso escolher de novo em Corrigir ícones."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Система кэширует изображение виджета, поэтому изменение может появиться не сразу. Значок ищется в App Store по имени в ячейке, поэтому при смене имени его нужно задать заново в разделе «Исправить значки»."
+          }
+        }
+      }
+    },
+    "网格、显示图标名称、底板、颜色、图标大小，都在同一个面板里。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid, Show Icon Names, Plate, Color and Icon Size are all in the same panel."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "網格、顯示圖示名稱、底板、顏色、圖示大小，都在同一個面板裡。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グリッド、アイコン名を表示、プレート、カラー、アイコンサイズはすべて同じパネルにあります。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그리드, 아이콘 이름 표시, 배경판, 색상, 아이콘 크기가 모두 같은 패널에 있습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuadrícula, Mostrar nombres de iconos, Placa, Color y Tamaño de icono están en el mismo panel."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grille, Afficher les noms, Fond, Couleur et Taille des icônes sont dans le même panneau."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raster, Icon-Namen anzeigen, Platte, Farbe und Icon-Größe liegen im selben Bereich."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grade, Mostrar nomes dos ícones, Placa, Cor e Tamanho do ícone ficam no mesmo painel."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сетка, Показывать названия, Подложка, Цвет и Размер значков — всё в одной панели."
+          }
+        }
+      }
+    },
+    "联网": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連線"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通信"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "네트워크"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Red"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réseau"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netzwerk"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rede"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сеть"
+          }
+        }
+      }
+    },
+    "能改的是**图标**。图标是按格子上的名字去 App Store 找回来的，同名 App 多的时候会认错——比如两个 App 都叫 Authenticator。去「修正图标」告诉它该用哪一个。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you *can* fix is the **icon**. Icons are looked up on the App Store by the name shown in the cell, so a name shared by several apps can land on the wrong one — two apps both called Authenticator, for instance. Use Fix Icons to say which one you mean."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "能改的是**圖示**。圖示是按格子上的名字去 App Store 找回來的，同名 App 多的時候會認錯——例如兩個 App 都叫 Authenticator。去「修正圖示」告訴它該用哪一個。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変えられるのは**アイコン**です。アイコンはマスに表示された名前でApp Storeを検索して取得するため、同名のアプリが多いと間違えることがあります——たとえば「Authenticator」という名前のアプリが2つある場合などです。「アイコンを修正」でどちらかを指定してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "바꿀 수 있는 것은 **아이콘**입니다. 아이콘은 칸에 표시된 이름으로 App Store를 검색해 가져오므로 이름이 같은 앱이 많으면 잘못 고를 수 있습니다. 예를 들어 둘 다 Authenticator라는 앱이 그렇습니다. '아이콘 수정'에서 어느 것인지 지정하세요."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lo que sí puedes corregir es el **icono**. Los iconos se buscan en el App Store por el nombre que aparece en la celda, así que un nombre compartido por varias apps puede dar con la equivocada: por ejemplo, dos apps llamadas Authenticator. Usa Corregir iconos para decir cuál quieres."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que vous pouvez corriger, c'est l'**icône**. Les icônes sont recherchées sur l'App Store à partir du nom affiché dans la case ; un nom partagé par plusieurs apps peut donc tomber sur la mauvaise — deux apps nommées Authenticator, par exemple. Utilisez Corriger les icônes pour indiquer laquelle."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Korrigieren lässt sich das **Icon**. Icons werden anhand des Namens in der Kachel im App Store gesucht; ein Name, den mehrere Apps tragen, kann daher beim falschen landen — etwa zwei Apps namens Authenticator. Unter „Icons korrigieren“ sagst du, welche gemeint ist."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O que dá para corrigir é o **ícone**. Os ícones são buscados no App Store pelo nome que aparece na célula, então um nome compartilhado por vários apps pode cair no errado — dois apps chamados Authenticator, por exemplo. Use Corrigir ícones para dizer qual é."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Исправить можно **значок**. Значки ищутся в App Store по имени, показанному в ячейке, поэтому имя, которое носят несколько приложений, может привести к неверному — например, два приложения с именем Authenticator. В разделе «Исправить значки» укажите нужное."
+          }
+        }
+      }
+    },
+    "自动": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatique"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автоматически"
+          }
+        }
+      }
+    },
+    "自动 · 内置目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic · built-in catalog"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動 · 內建目錄"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動 · 内蔵カタログ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 · 내장 목록"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático · catálogo integrado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatique · catalogue intégré"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch · eingebauter Katalog"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático · catálogo integrado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автоматически · встроенный каталог"
+          }
+        }
+      }
+    },
+    "自动 · 商店搜索": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic · App Store search"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動 · 商店搜尋"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動 · ストア検索"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 · 스토어 검색"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático · búsqueda en el App Store"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatique · recherche App Store"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch · Store-Suche"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático · busca no App Store"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автоматически · поиск в App Store"
+          }
+        }
+      }
+    },
+    "自动 · 没找到，显示占位方块": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic · not found, showing a placeholder"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動 · 沒找到，顯示佔位方塊"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動 · 見つからず、プレースホルダを表示"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 · 찾지 못함, 자리 표시 표시"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático · no encontrado, se muestra un marcador"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatique · introuvable, carré de remplacement"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch · nicht gefunden, Platzhalter"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático · não encontrado, espaço reservado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автоматически · не найдено, заглушка"
+          }
+        }
+      }
+    },
+    "自动 · 系统 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic · system app"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動 · 系統 App"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動 · システムApp"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 · 시스템 앱"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático · app del sistema"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatique · app système"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch · System-App"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático · app do sistema"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автоматически · системное приложение"
+          }
+        }
+      }
+    },
+    "读取已安装 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read installed apps"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讀取已安裝的 App"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インストール済みアプリの読み取り"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설치된 앱 읽기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leer apps instaladas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lire les apps installées"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installierte Apps lesen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ler apps instalados"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Чтение установленных приложений"
+          }
+        }
+      }
+    },
+    "账号 / 追踪": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account / tracking"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "帳號 / 追蹤"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント / トラッキング"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 / 추적"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta / seguimiento"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compte / suivi"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konto / Tracking"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conta / rastreamento"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Аккаунт / отслеживание"
+          }
+        }
+      }
+    },
+    "还没有读到桌面上的小组件。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No widget has reported in yet."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "還沒有讀到桌面上的小工具。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだウィジェットから何も届いていません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 위젯에서 보고된 내용이 없습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no ha reportado nada ningún widget."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun widget n'a encore rien signalé."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch hat kein Widget etwas gemeldet."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum widget reportou nada ainda."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока ни один виджет ничего не сообщил."
+          }
+        }
+      }
+    },
+    "这些是你在小组件里挑的 App。图标认错时点进去，换成正确的那个。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These are the apps you picked in the widget. If an icon is wrong, tap it and choose the right app."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這些是你在小工具裡挑的 App。圖示認錯時點進去，換成正確的那一個。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットで選んだAppです。アイコンが違うときはタップして正しいものを選んでください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "위젯에서 고른 앱입니다. 아이콘이 잘못됐다면 눌러서 올바른 앱을 고르세요."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son las apps que elegiste en el widget. Si un icono está mal, tócalo y elige la app correcta."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce sont les apps que vous avez choisies dans le widget. Si une icône est fausse, touchez-la pour choisir la bonne app."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das sind die Apps, die du im Widget gewählt hast. Stimmt ein Icon nicht, tippe darauf und wähle die richtige App."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "São os apps que você escolheu no widget. Se um ícone estiver errado, toque nele e escolha o app certo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это приложения, которые вы выбрали в виджете. Если значок неверный, нажмите на него и выберите правильное приложение."
+          }
+        }
+      }
+    },
+    "连不上 App Store，检查网络后再试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot reach the App Store. Check your connection and try again."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連不上 App Store，檢查網路後再試。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Storeに接続できません。通信状態を確認してからもう一度お試しください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Store에 연결할 수 없습니다. 네트워크를 확인한 뒤 다시 시도하세요."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se puede conectar con el App Store. Comprueba la conexión e inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de joindre l'App Store. Vérifiez la connexion et réessayez."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der App Store ist nicht erreichbar. Prüfe die Verbindung und versuche es erneut."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível acessar o App Store. Verifique a conexão e tente de novo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удаётся связаться с App Store. Проверьте соединение и попробуйте снова."
+          }
+        }
+      }
+    },
+    "选尺寸，点「添加小组件」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a size and tap Add Widget"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選尺寸，點「加入小工具」"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サイズを選んで「ウィジェットを追加」をタップ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "크기를 고르고 '위젯 추가'를 탭하기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige el tamaño y toca Añadir widget"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez la taille puis touchez Ajouter un widget"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Größe wählen und „Widget hinzufügen“ tippen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha o tamanho e toque em Adicionar Widget"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите размер и нажмите «Добавить виджет»"
+          }
+        }
+      }
+    },
+    "选择正确的 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the Correct App"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇正確的 App"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正しいAppを選択"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "올바른 앱 선택"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige la app correcta"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisir la bonne app"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Richtige App wählen"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escolha o app certo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите правильное приложение"
+          }
+        }
+      }
+    },
+    "那一格会点不开。把被删掉的 App 从小组件里移除，或者换一个；系统不会自己帮你换。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That cell stops opening. Remove the deleted app from the widget or replace it; the system will not substitute one for you."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "那一格會點不開。把被刪掉的 App 從小工具裡移除，或者換一個；系統不會自己幫你換。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そのマスはタップしても開かなくなります。削除したAppをウィジェットから外すか、別のAppに替えてください。システムが自動で入れ替えることはありません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그 칸은 눌러도 열리지 않습니다. 삭제한 앱을 위젯에서 빼거나 다른 앱으로 바꾸세요. 시스템이 알아서 바꿔 주지는 않습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esa celda dejará de abrirse. Quita del widget la app borrada o cámbiala por otra; el sistema no la sustituye solo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette case ne s'ouvrira plus. Retirez du widget l'app supprimée, ou remplacez-la ; le système ne le fait pas à votre place."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Kachel lässt sich dann nicht mehr öffnen. Entferne die gelöschte App aus dem Widget oder ersetze sie; das System tauscht sie nicht selbst aus."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Essa célula deixa de abrir. Remova do widget o app apagado ou troque por outro; o sistema não substitui sozinho."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта ячейка перестанет открываться. Уберите удалённое приложение из виджета или замените его; система сама его не подставит."
+          }
+        }
+      }
+    },
+    "配置它": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set It Up"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定它"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定する"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정하기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configúralo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurez-le"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einrichten"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройте его"
+          }
+        }
+      }
+    },
+    "配置面板里的每一项都立即生效，不用重新添加小组件。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every setting in that panel takes effect at once; you never have to add the widget again."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "面板裡的每一項都會立即生效，不用重新加入小工具。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パネルの設定はどれもすぐ反映されます。ウィジェットを追加し直す必要はありません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널의 설정은 모두 즉시 적용됩니다. 위젯을 다시 추가할 필요가 없습니다."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada ajuste de ese panel se aplica al momento; nunca tendrás que volver a añadir el widget."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque réglage de ce panneau s'applique aussitôt ; vous n'aurez jamais à rajouter le widget."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Einstellung dort wirkt sofort; das Widget muss nie neu hinzugefügt werden."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada ajuste desse painel vale na hora; você nunca precisa adicionar o widget de novo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Любая настройка в этой панели применяется сразу; добавлять виджет заново не нужно."
+          }
+        }
+      }
+    },
+    "长按刚放上去的小组件": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch and hold the widget you just added"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長按剛放上去的小工具"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加したウィジェットを長押し"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방금 추가한 위젯을 길게 누르기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantén pulsado el widget que acabas de añadir"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez et maintenez le widget que vous venez d'ajouter"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das gerade hinzugefügte Widget gedrückt halten"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque e segure o widget que você acabou de adicionar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нажмите и удерживайте только что добавленный виджет"
+          }
+        }
+      }
+    },
+    "长按桌面空白处": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch and hold an empty area"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長按桌面空白處"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面の空いている場所を長押し"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "홈 화면의 빈 곳을 길게 누르기"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantén pulsada una zona vacía"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez et maintenez une zone vide"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leere Stelle auf dem Home-Bildschirm gedrückt halten"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toque e segure uma área vazia da Tela de Início"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нажмите и удерживайте свободное место на экране «Домой»"
           }
         }
       }
