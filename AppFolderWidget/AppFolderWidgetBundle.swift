@@ -1,7 +1,7 @@
 import SwiftUI
 import WidgetKit
 
-/// The widget extension: one widget, offered in every family.
+/// The widget extension: one widget, offered in the small family.
 ///
 /// ## What used to be here
 ///
@@ -31,11 +31,11 @@ import WidgetKit
 /// This file records it so the next person reading the bundle does not have to
 /// open the widget to learn it.
 ///
-/// It is small, and on iOS 27 also extra-large portrait. The middle sizes were
-/// offered twice and withdrawn twice: their margin and gap are shares of a
-/// rectangle, where those shares only mean what they were chosen for on a square —
-/// see ``DirectLaunchWidget`` for the measurements that took them out. If one is
-/// ever offered again, the geometry is the place to look rather than this list.
+/// It is the small square, and only that. Every larger family was offered at some
+/// point and withdrawn: their margin and gap are shares of a rectangle, where those
+/// shares only mean what they were chosen for on a square — see
+/// ``DirectLaunchWidget`` for the measurements that took them out. If one is ever
+/// offered again, the geometry is the place to look rather than this list.
 @main
 struct AppFolderWidgetBundle: WidgetBundle {
     var body: some Widget {

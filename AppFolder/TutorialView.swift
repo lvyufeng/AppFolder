@@ -47,7 +47,7 @@ struct TutorialView: View {
                     Step(
                         number: 3,
                         title: "选尺寸，点「添加小组件」",
-                        detail: "现在只提供小号（iOS 27 上还有特大号）。小号一屏 8 个 App，四宫格 3 个；点下去直接打开，不经过 AppFolder。"
+                        detail: "目前只提供小号——一屏 8 个 App，四宫格 3 个；点下去直接打开，不经过 AppFolder。"
                     )
                 } header: {
                     Text("放到桌面")

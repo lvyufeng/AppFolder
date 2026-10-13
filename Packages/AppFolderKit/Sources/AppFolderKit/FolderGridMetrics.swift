@@ -599,6 +599,13 @@ public enum FolderGrid: String, Codable, Sendable, CaseIterable {
     /// draws the *same* 48.5 pt icon as 4 × 4, because the width binds either way,
     /// while showing four fewer apps and using only 62% of the height. It is worse
     /// than both neighbours, so it is not offered.
+    ///
+    /// ## These shapes are kept for widgets that already exist
+    ///
+    /// ``DirectLaunchWidget`` now offers only the small family — see there for why
+    /// the wider ones were withdrawn. The rules below are not dead: a widget already
+    /// placed on a Home Screen keeps drawing after its family leaves the offered
+    /// list, and the system will not evict it. They are simply no longer selectable.
     public func columns(for family: WidgetFamily) -> Int {
         switch (self, family) {
         case (.four, .systemSmall):
