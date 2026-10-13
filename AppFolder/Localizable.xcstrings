@@ -1,0 +1,677 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "version": "1.0",
+  "strings": {
+    "长按桌面空白处": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch and hold an empty area"
+          }
+        }
+      }
+    },
+    "图标开始抖动后，点左上角的「编辑」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When the icons start to jiggle, tap Edit in the top-left corner."
+          }
+        }
+      }
+    },
+    "点「添加小组件」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Add Widget"
+          }
+        }
+      }
+    },
+    "在列表里搜「直接启动」——小组件叫这个名字，不叫 AppFolder。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search the list for “Quick Launch” — that is the widget’s name, not AppFolder."
+          }
+        }
+      }
+    },
+    "选尺寸，点「添加小组件」": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a size and tap Add Widget"
+          }
+        }
+      }
+    },
+    "目前只提供小号——一屏 8 个 App，四宫格 3 个；点下去直接打开，不经过 AppFolder。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the small size is offered — eight apps, or three in the 2 × 2 layout. A tap opens the app directly, without going through AppFolder."
+          }
+        }
+      }
+    },
+    "放到桌面": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add It to the Home Screen"
+          }
+        }
+      }
+    },
+    "iOS 不允许 App 自己往桌面放东西，这一步只能手动完成，系统每次都会这样。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS does not let an app put anything on the Home Screen itself, so this step is always manual — for every app, every time."
+          }
+        }
+      }
+    },
+    "长按刚放上去的小组件": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch and hold the widget you just added"
+          }
+        }
+      }
+    },
+    "点「编辑小组件」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap Edit Widget."
+          }
+        }
+      }
+    },
+    "在「动作」里逐个挑 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick your apps one at a time under Actions"
+          }
+        }
+      }
+    },
+    "一次挑一个，挑完可以再挑下一个，它们是累加的。挑的顺序就是格子里从左到右、从上到下的顺序。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One at a time, and each pick is added to the last. The order you pick them in is the order they fill the grid: left to right, top to bottom."
+          }
+        }
+      }
+    },
+    "按喜好调外观": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adjust the Look"
+          }
+        }
+      }
+    },
+    "网格、显示图标名称、底板、颜色、图标大小，都在同一个面板里。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid, Show Icon Names, Plate, Color and Icon Size are all in the same panel."
+          }
+        }
+      }
+    },
+    "配置它": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set It Up"
+          }
+        }
+      }
+    },
+    "配置面板里的每一项都立即生效，不用重新添加小组件。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every setting in that panel takes effect at once; you never have to add the widget again."
+          }
+        }
+      }
+    },
+    "九宫格放 8 个，四宫格放 3 个。再多的 App 会收进最后一格的「其他」——那是一扇文件夹门，点一下在原地展开，不会跳走，左上角有「返回」。一页放不下时会多出「更多」翻页。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The 3 × 3 grid holds eight apps and the 2 × 2 grid holds three. Anything beyond that goes into the “Other” cell in the last slot — a folder door that opens in place, without leaving the Home Screen, with a Back cell in the top-left. When a page fills up, a “More” cell appears to page through."
+          }
+        }
+      }
+    },
+    "格子里的图标是 AppFolder 联网取回来存下的，第一次出现在桌面上可能慢一拍；取不到时先显示一个占位方块，不会空着。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The icons in the grid are fetched by AppFolder over the network and cached. The first time they appear they may arrive a beat late; if one cannot be fetched you get a placeholder square rather than an empty one."
+          }
+        }
+      }
+    },
+    "放不下的时候": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When It Does Not All Fit"
+          }
+        }
+      }
+    },
+    "小组件里的 App 只能在系统的配置面板里选，App 里做不到。这不是还没做：iOS 给小组件配置项的是一组不透明的「系统动作」，App 拿不到、也构造不出任何可选的 App 列表。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The apps on a widget can only be chosen in the system’s Edit Widget panel, never inside this app. That is not a missing feature: iOS hands a widget’s configuration a set of opaque “system actions”, which an app can neither read nor turn into a list of apps to offer."
+          }
+        }
+      }
+    },
+    "同样地，点图标时是系统直接切换过去，AppFolder 不会被唤起，也不会在中间闪一下。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the same way, the tap is handled by the system: AppFolder is never brought up, and nothing flashes in between."
+          }
+        }
+      }
+    },
+    "能改的是**图标**。图标是按格子上的名字去 App Store 找回来的，同名 App 多的时候会认错——比如两个 App 都叫 Authenticator。去「修正图标」告诉它该用哪一个。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you *can* fix is the **icon**. Icons are looked up on the App Store by the name shown in the cell, so a name shared by several apps can land on the wrong one — two apps both called Authenticator, for instance. Use Fix Icons to say which one you mean."
+          }
+        }
+      }
+    },
+    "为什么不能在 App 里配": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why It Cannot Be Set Up in the App"
+          }
+        }
+      }
+    },
+    "修正图标": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fix Icons"
+          }
+        }
+      }
+    },
+    "图标认错了、或者某格一直是占位方块时，从这里指定正确的 App。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If an icon is the wrong app, or a cell stays a placeholder square, pick the right app here."
+          }
+        }
+      }
+    },
+    "权限": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissions"
+          }
+        }
+      }
+    },
+    "读取已安装 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read installed apps"
+          }
+        }
+      }
+    },
+    "不读取": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
+          }
+        }
+      }
+    },
+    "联网": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network"
+          }
+        }
+      }
+    },
+    "搜索 App、拉取图标": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App search, icon downloads"
+          }
+        }
+      }
+    },
+    "账号 / 追踪": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account / tracking"
+          }
+        }
+      }
+    },
+    "无": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        }
+      }
+    },
+    "怎么用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How to Use"
+          }
+        }
+      }
+    },
+    "还没有读到桌面上的小组件。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No widget has reported in yet."
+          }
+        }
+      }
+    },
+    "把一个「直接启动」小组件放到桌面上、让它画一次，它上面的 App 就会出现在这里。App 读不到桌面配置——这些是小组件自己报回来的。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put a “Quick Launch” widget on the Home Screen and let it draw once, and the apps on it will appear here. The app cannot read the Home Screen configuration — the widget reports this itself."
+          }
+        }
+      }
+    },
+    "桌面上的 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apps on Your Widget"
+          }
+        }
+      }
+    },
+    "等不及的话，用下面的「手动指定」直接输入格子上显示的名字。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In a hurry, type the name shown in the cell under Manual below."
+          }
+        }
+      }
+    },
+    "这些是你在小组件里挑的 App。图标认错时点进去，换成正确的那个。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These are the apps you picked in the widget. If an icon is wrong, tap it and choose the right app."
+          }
+        }
+      }
+    },
+    "格子上的名字，如 Authenticator": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name in the cell, e.g. Authenticator"
+          }
+        }
+      }
+    },
+    "指定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set"
+          }
+        }
+      }
+    },
+    "手动指定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual"
+          }
+        }
+      }
+    },
+    "名字要和小组件上显示的一模一样——大小写和空格无所谓。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The name has to match the one shown on the widget exactly — case and spacing do not matter."
+          }
+        }
+      }
+    },
+    "已指定": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pinned"
+          }
+        }
+      }
+    },
+    "自动 · 内置目录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic · built-in catalog"
+          }
+        }
+      }
+    },
+    "自动 · 系统 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic · system app"
+          }
+        }
+      }
+    },
+    "自动 · 商店搜索": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic · App Store search"
+          }
+        }
+      }
+    },
+    "自动 · 没找到，显示占位方块": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic · not found, showing a placeholder"
+          }
+        }
+      }
+    },
+    "自动": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic"
+          }
+        }
+      }
+    },
+    "格子上的名字": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name in the cell"
+          }
+        }
+      }
+    },
+    "按 App Store 里搜到的选。同名 App 会有多个，看开发者那一行区分。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick from what the App Store returns. Several apps may share a name — the developer line tells them apart."
+          }
+        }
+      }
+    },
+    "搜索 App Store": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search the App Store"
+          }
+        }
+      }
+    },
+    "搜索": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        }
+      }
+    },
+    "搜索中…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching…"
+          }
+        }
+      }
+    },
+    "连不上 App Store，检查网络后再试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot reach the App Store. Check your connection and try again."
+          }
+        }
+      }
+    },
+    "没搜到。换个关键词试试，比如用英文名。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing found. Try another term, such as the English name."
+          }
+        }
+      }
+    },
+    "选择正确的 App": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the Correct App"
+          }
+        }
+      }
+    },
+    "恢复自动匹配": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Automatic Matching"
+          }
+        }
+      }
+    },
+    "恢复后由 AppFolder 按名字自动找，可能又会认错。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AppFolder will match by name again, which may get it wrong again."
+          }
+        }
+      }
+    },
+    "没能记下这个选择": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could Not Save That Choice"
+          }
+        }
+      }
+    },
+    "好": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "AppFolder 和小组件之间的共享空间现在读不到，改了也传不过去。重新安装 AppFolder 后可以再试——这次的选择没有生效。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shared space between AppFolder and the widget cannot be read right now, so a change would not reach the widget. Reinstall AppFolder and try again — this choice did not take effect."
+          }
+        }
+      }
+    }
+  }
+}

@@ -375,6 +375,39 @@ private struct DirectLaunchView: View {
     }
 
     private var collapsed: some View {
+        Group {
+            // A widget with nothing configured used to draw a bare rectangle — an
+            // empty box on the Home Screen that reads as broken and gives no hint
+            // that the setup step is behind a long press. It now says what to do.
+            //
+            // Keyed on `slots` being empty rather than on `shortcuts`, so the
+            // gallery's sample faces — which arrive as slots with no shortcuts —
+            // still draw.
+            if entry.slots.isEmpty {
+                DirectLaunchEmptyView(style: entry.style)
+            } else {
+                collapsedGrid
+            }
+        }
+        // The plate, drawn in the **content layer** and above the glass. Same call,
+        // same layer, same reason as ``AppFolderWidget``: 自动 paints nothing and
+        // the system's plate shows through, while 纯色 and 渐变 cover it and are
+        // therefore exactly the colour asked for.
+        .background {
+            if let fill = entry.style.plateFill {
+                Rectangle().fill(fill)
+            }
+        }
+        // Required on iOS 17+: without it the system refuses to lay the widget out
+        // and shows "Please adopt containerBackground API" in its place. `clear`
+        // because this widget paints no plate of its own — the system's is the one
+        // that should show through, which is also what makes the tiles react to the
+        // user's 图标外观 setting.
+        .containerBackground(for: .widget) { Color.clear }
+    }
+
+    /// The grid the user configured.
+    private var collapsedGrid: some View {
         // A grid that has overflowed draws one cell more than it has slots, and
         // that cell is the door. Sizing from the slot count instead would make the
         // icons grow the moment a ninth app was configured, which is the opposite
@@ -438,21 +471,6 @@ private struct DirectLaunchView: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
-        // The plate, drawn in the **content layer** and above the glass. Same call,
-        // same layer, same reason as ``AppFolderWidget``: 自动 paints nothing and
-        // the system's plate shows through, while 纯色 and 渐变 cover it and are
-        // therefore exactly the colour asked for.
-        .background {
-            if let fill = entry.style.plateFill {
-                Rectangle().fill(fill)
-            }
-        }
-        // Required on iOS 17+: without it the system refuses to lay the widget out
-        // and shows "Please adopt containerBackground API" in its place. `clear`
-        // because this widget paints no plate of its own — the system's is the one
-        // that should show through, which is also what makes the tiles react to the
-        // user's 图标外观 setting.
-        .containerBackground(for: .widget) { Color.clear }
     }
 
     @ViewBuilder
@@ -775,7 +793,9 @@ struct DirectLaunchPanelView: View {
 /// treatments.
 private struct DirectLaunchCellButton<Intent: AppIntent>: View {
     let systemImage: String
-    let title: String
+    /// `LocalizedStringKey` so 「返回」/「更多」 come from the catalog rather than
+    /// being rendered verbatim as `Text(String)` would.
+    let title: LocalizedStringKey
     let metrics: FolderGridMetrics
     let style: FolderStyle
     let intent: Intent
@@ -1048,5 +1068,34 @@ private struct DirectLaunchArtwork: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+/// What an unconfigured widget draws.
+///
+/// A widget with no apps on it is a first-run state, not an error, and it used to
+/// draw nothing at all — an empty rectangle that reads as broken and says nothing
+/// about the setup step being behind a long press. This says the two things that
+/// matter: where the setting is, and what to do once inside it.
+///
+/// The colour comes from the style's own title treatment, like every other label,
+/// so it stays legible on the system's glass and on a 纯色/渐变 plate alike.
+private struct DirectLaunchEmptyView: View {
+    let style: FolderStyle
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "square.grid.2x2")
+                .font(.system(size: 26, weight: .regular))
+
+            Text("长按 → 编辑小组件")
+                .font(.footnote.weight(.semibold))
+
+            Text("把 App 加进来")
+                .font(.caption2)
+        }
+        .multilineTextAlignment(.center)
+        .foregroundStyle(style.titleStyle)
+        .padding(12)
     }
 }

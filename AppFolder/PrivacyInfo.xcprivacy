@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Required-reason API declarations. Apple treats a missing manifest as an
+	     upload problem, and the reasons below are the accurate ones for this app:
+
+	     - UserDefaults, CA92.1: the app's own preferences (the fallback storage
+	       when the App Group is unavailable).
+	     - UserDefaults, 1C8F.1: the App Group suite this app shares with its
+	       widget extension (`WidgetState`, `DirectLaunchOverrides`).
+	     - FileTimestamp, C617.1: `DirectLaunchIcons.diagnose` stats its own log
+	       file inside the container to decide when to rotate it.
+
+	     Nothing is collected: the app has no accounts, no analytics and no
+	     third-party SDKs, and the only network traffic is an unauthenticated
+	     search against Apple's public iTunes endpoint for app artwork. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

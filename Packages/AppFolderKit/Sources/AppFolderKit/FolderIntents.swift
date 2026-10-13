@@ -41,6 +41,10 @@ import WidgetKit
 /// `SystemShortcut`, which is why ``DirectLaunchWidget``'s own intent is the only
 /// place the shortcuts themselves exist.
 public struct ToggleDirectLaunchIntent: AppIntent {
+    /// Hidden from the Shortcuts app — see ``InertTapIntent/isDiscoverable``. Widget
+    /// buttons run these regardless.
+    public static var isDiscoverable: Bool { false }
+
     public static let title: LocalizedStringResource = "展开/收起直开分组"
 
     /// The grid to open, or the same value again to close it.
@@ -114,6 +118,9 @@ public struct ToggleDirectLaunchIntent: AppIntent {
 /// key is both the guard and the thing that makes this button's value differ between
 /// two widgets on the same Home Screen, so a stale tap cannot close the wrong one.
 public struct CollapseDirectLaunchIntent: AppIntent {
+    /// Hidden from the Shortcuts app — see ``InertTapIntent/isDiscoverable``.
+    public static var isDiscoverable: Bool { false }
+
     public static let title: LocalizedStringResource = "收起直开分组"
 
     /// The grid to close.
@@ -155,6 +162,9 @@ public struct CollapseDirectLaunchIntent: AppIntent {
 /// pages there are; the reader clamps instead. See
 /// ``FolderExpansionLayout/clampedPage(_:)``.
 public struct AdvanceDirectLaunchPageIntent: AppIntent {
+    /// Hidden from the Shortcuts app — see ``InertTapIntent/isDiscoverable``.
+    public static var isDiscoverable: Bool { false }
+
     public static let title: LocalizedStringResource = "直开分组翻页"
 
     @Parameter(title: "分组")

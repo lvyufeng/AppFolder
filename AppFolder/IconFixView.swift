@@ -100,7 +100,9 @@ private struct SlotRow: View {
     /// The distinction that matters to the user is "I chose this" versus "it was
     /// worked out", so that is what the row says — not the names of the internal
     /// rules.
-    private var detail: String {
+    /// `LocalizedStringKey`, not `String`: a plain `String` here would render
+    /// verbatim through `Text` and never reach the string catalog.
+    private var detail: LocalizedStringKey {
         if isPinned { return "已指定" }
         // `?? .none` because the record stores the source as a raw string, so a
         // value written by a different build of the app must decode to something

@@ -25,6 +25,12 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Answers App Store Connect's export-compliance question once, so every
+	     upload does not stop for it. False is correct here: the app makes no use
+	     of encryption beyond what the OS provides for HTTPS, and ships no
+	     cryptography of its own. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

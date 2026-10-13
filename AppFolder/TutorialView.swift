@@ -122,8 +122,12 @@ struct TutorialView: View {
 /// One numbered step.
 private struct Step: View {
     let number: Int
-    let title: String
-    let detail: String
+    // LocalizedStringKey rather than String: `Text(String)` renders verbatim and
+    // would quietly opt this screen out of the string catalog, which is exactly the
+    // bug the catalog exists to prevent. The literals at the call sites already
+    // infer to this type.
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {

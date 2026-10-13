@@ -34,6 +34,14 @@ import Foundation
 /// identity stable across timeline reloads, which is what stops SwiftUI reusing
 /// one cell's button for another.
 public struct InertTapIntent: AppIntent {
+    /// Hidden from the Shortcuts app.
+    ///
+    /// These intents exist only so a widget button has something inert to run. Left
+    /// discoverable they would each appear as a user-facing action in Shortcuts —
+    /// 「空白」, with a cell number — which is an implementation detail leaking into
+    /// a system-wide list. Widget buttons run them either way.
+    public static var isDiscoverable: Bool { false }
+
     /// Never shown. The intent is an implementation detail of the layout, so it
     /// deliberately has nothing a person could want to read.
     public static let title: LocalizedStringResource = "空白"
