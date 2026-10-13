@@ -391,7 +391,13 @@ private struct DirectLaunchView: View {
                 iconScale: entry.style.iconScale
             )
 
-            ZStack {
+            // `.top` belongs on the *stack*, not only on the frame below: the shield
+            // already makes this ZStack fill the widget, so the frame's own alignment
+            // has nothing left to move and the default centre alignment wins. That is
+            // what put a short grid in the middle of the widget — three apps in a
+            // 九宫格 is a single row, and it floated with the slack split above and
+            // below it instead of starting at the top, where the reading order does.
+            ZStack(alignment: .top) {
                 // The widget's whole surface opens AppFolder by default, and the
                 // gaps in a short grid must not be taps that launch it — see
                 // ``TapShield``. Collapsed, a blank tap still does nothing.
@@ -657,7 +663,10 @@ struct DirectLaunchPanelView: View {
                 iconScale: style.iconScale
             )
 
-            ZStack {
+            // Same reason as the collapsed grid: the shield sizes this stack to the
+            // whole widget, so only an alignment on the stack itself can place a
+            // grid shorter than the widget at the top.
+            ZStack(alignment: .top) {
                 // The exit. A tap anywhere that is not an app closes the panel, so
                 // the shield is the *whole* widget rather than the grid's bounds —
                 // hoisted out of the grid's `.background` so its area does not
