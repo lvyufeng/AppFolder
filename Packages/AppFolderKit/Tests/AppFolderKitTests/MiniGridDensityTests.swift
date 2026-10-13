@@ -109,14 +109,25 @@ struct MiniGridDensityTests {
         #expect(abs(density.miniSide - 10.416) < 0.01)
     }
 
-    @Test("A large cell gets the denser grid, not the same four icons spaced out")
-    func largeWidgetGetsMoreMiniatures() {
-        let density = MiniGridDensity(cellSide: largeCell)
-        #expect(density.columns == 3)
-        #expect(density.capacity == 9)
-        // Larger than the small cell's miniature *and* more of them — the point
-        // of the ladder. If only the first held, this would be a scaling bug.
-        #expect(density.miniSide > MiniGridDensity(cellSide: smallCell).miniSide)
+    @Test("The door is the same 2 x 2 glyph at every cell size the design draws")
+    func doorGlyphIsAlwaysTwoByTwo() {
+        // The cells a door is actually drawn in: small 九宫格 (~37.2), small
+        // 四宫格 (~61), medium 5 × 2 (~56) and large 4 × 4 (~65.6). This used to
+        // be a ladder, so the 37 pt cell drew 2 × 2 and the 61 pt one drew 3 × 3 —
+        // the same "其他" glyph, two different shapes on one Home Screen. All of
+        // them are 2 × 2 now, which is the bug this pins.
+        for cell in [smallCell, 56, 61.4, largeCell] {
+            let density = MiniGridDensity(cellSide: cell)
+            #expect(
+                density.columns == 2,
+                "cell \(cell) drew \(density.columns)x\(density.columns)"
+            )
+            #expect(density.capacity == 4)
+        }
+        // Only the miniature grows with the cell — that is the one thing the size
+        // still decides.
+        #expect(MiniGridDensity(cellSide: largeCell).miniSide
+            > MiniGridDensity(cellSide: smallCell).miniSide)
     }
 
     @Test("Capacity never exceeds what the view has previews for")

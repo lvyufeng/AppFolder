@@ -496,18 +496,17 @@ private struct DirectLaunchView: View {
         }
     }
 
-    /// The last cell of a grid that holds more than it can draw: a small grid of
+    /// The last cell of a grid that holds more than it can draw: a 2 × 2 glyph of
     /// what is behind it, and a tap that **expands the group in place**.
     ///
-    /// Everything about the cell that is not its content is shared with the app
-    /// editor's preview of the same thing — ``MiniGridDensity`` for the miniatures
-    /// and ``FolderGridMetrics`` for the geometry — so the block and the 其他 label
-    /// are drawn from the same numbers in both places rather than written twice and
-    /// kept in step by hand.
+    /// Its geometry is ``FolderGridMetrics`` and its glyph is ``MiniGridDensity``,
+    /// both shared types, so the cell cannot drift from anything else that draws
+    /// the same thing.
     ///
-    /// The folder widget used to draw this cell too, from `FolderTile`s carrying a
-    /// cached `UIImage`. It has been removed; what is left is the app's preview and
-    /// this, which read `DirectLaunchSlot`s carrying an App Store id, because the
+    /// This is the only thing that draws the cell now. The folder widget drew it
+    /// too, from `FolderTile`s carrying a cached `UIImage`, and the folder editor
+    /// had a `NestedCell` preview of it; both are gone with the folder model. What
+    /// is left reads `DirectLaunchSlot`s carrying an App Store id, because the
     /// system gives a slot no artwork.
     ///
     /// ## Why this is a `Button(intent:)` and not a `Link`
@@ -1009,12 +1008,11 @@ private struct DirectLaunchDoorLabel: View {
     let style: FolderStyle
     let metrics: FolderGridMetrics
 
-    /// How many miniatures to draw, and how big, from the cell this is drawing in.
+    /// How big the miniatures are, from the cell this is drawing in.
     ///
-    /// The arithmetic lives in ``MiniGridDensity`` rather than here because the
-    /// folder widget draws this same cell and cannot import this view — see that
-    /// type for why the block is inset rather than filling the cell, and why the
-    /// density follows the size instead of being fixed at four.
+    /// The count is always four, from ``MiniGridDensity``; only their size follows
+    /// the cell. See that type for why the glyph is fixed at 2 × 2 and why the
+    /// block is inset rather than filling the cell.
     private var density: MiniGridDensity { MiniGridDensity(cellSide: metrics.iconSide) }
 
     var body: some View {

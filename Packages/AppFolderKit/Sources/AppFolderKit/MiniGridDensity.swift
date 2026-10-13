@@ -4,27 +4,30 @@ import CoreGraphics
 ///
 /// ## What this cell is
 ///
-/// The last cell of a folder that does not fit is not a button — it is a
-/// *folder*, drawn the way iOS and Android draw one: a few miniature icons with
-/// a count. The cell already did this; what it did not do is decide how many
-/// miniatures to draw from the space it has. That decision is this type, and it
-/// lives in the shared package because **two views draw this cell and neither can
-/// import the other** — the widget's door and the editor preview's
-/// `NestedCellView`. Before this, each carried its own copy of the mini size and
-/// gap, kept honest only by a comment asking the next person to change both.
+/// The last cell of a grid that does not fit is not a button — it is a *folder*,
+/// drawn the way iOS draws one: a few miniature icons. This type decides how many
+/// miniatures that glyph shows and how big they are.
 ///
-/// ## Why a ladder rather than one density
+/// ## Why 2 × 2, at every size
 ///
-/// The cell is drawn at about 37 pt in a small widget and about 80 pt in a
-/// large one. A fixed 2 × 2 leaves the larger cell almost empty — four miniatures
-/// floating in space with room for nine — and a fixed 3 × 3 is mush in the
-/// smaller one. So the density follows the space.
+/// This used to be a ladder — 2 × 2 in a small cell, 3 × 3 once the cell passed
+/// about 50 pt — on the reasoning that a bigger cell holding only four miniatures
+/// looks empty. Against the real thing the ladder does the opposite of what it
+/// promised: it draws the **same folder glyph two different ways side by side on
+/// one Home Screen**. The two small-widget grids are the clearest case. A 九宫格
+/// door cell is about 37 pt and landed on 2 × 2; a 四宫格 door cell is about 61 pt
+/// and crossed the threshold into 3 × 3 — so the two "其他" cells, which mean the
+/// same thing, did not look like the same thing.
 ///
-/// The number of columns is not chosen by what "looks about right" at each size.
-/// It is chosen by a single constraint: a miniature below ``minimumMiniSide``
-/// stops reading as an app icon and becomes a speck of colour, so a row count is
-/// only allowed when the miniatures would *still* be at least that big. The
-/// threshold below is that number, and the resulting sizes fall out of it.
+/// So the glyph is fixed at 2 × 2 — four miniatures, what iOS draws for a folder —
+/// and only the *size* of a miniature follows the cell. The count of hidden apps
+/// is the badge's job, not the glyph's; a preview's job is to say "there is a
+/// folder here", and four does that at every size without turning into texture.
+///
+/// The miniature size is not chosen by eye either. It follows from ``fillShare``,
+/// which bounds the block so the outer miniatures clear the cell's corner radius,
+/// and from ``minimumMiniSide``, the floor below which a miniature stops reading
+/// as an app icon. A cell too small to hold two rows at the floor draws one.
 public struct MiniGridDensity: Sendable, Equatable {
     /// How many miniatures across, and down — the grid is square.
     public let columns: Int
@@ -45,22 +48,17 @@ public struct MiniGridDensity: Sendable, Equatable {
     /// The most miniatures any density draws.
     ///
     /// For a caller that has to *gather* previews before it knows how big the cell
-    /// will be — the editor builds its `NestedCell` from the folder long before it
-    /// has a frame — so it can hand over a list and let the view slice it. Bounded
-    /// at nine rather than at ``maximumColumns`` squared, because nine is the cap
-    /// and the two must not drift.
+    /// will be, so it can hand over a list and let the view slice it. Four, because
+    /// ``maximumColumns`` is two and the two must not drift.
     public static let maximumCapacity = maximumColumns * maximumColumns
 
-    /// The largest grid drawn, at any size.
+    /// How many miniatures across the glyph draws: two, always.
     ///
-    /// Nine, and deliberately not more. Four by four *fits* in a large widget —
-    /// sixteen miniatures at about 16 pt each — but the count is not what is
-    /// scarce here. A preview's job is to say "this is a folder with things in
-    /// it", which nine icons do and sixteen do not: past a certain count the
-    /// block stops reading as a set of apps and starts reading as texture. Nine is also
-    /// what iOS and Android draw for a folder, so the cell is recognisable as one
-    /// rather than as a new idea.
-    public static let maximumColumns = 3
+    /// Not a tuning knob. Two is what iOS draws for a folder, and it is what keeps
+    /// the door identical whether it sits in a 九宫格 cell (about 37 pt) or a 四宫格
+    /// one (about 61 pt) — a ladder made exactly those two the same cell drawn
+    /// 2 × 2 and 3 × 3. See the type's discussion.
+    public static let maximumColumns = 2
 
     /// The smallest a miniature may be, in points, and the number the whole
     /// ladder is derived from.
