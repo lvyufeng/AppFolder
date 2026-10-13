@@ -168,6 +168,21 @@ public static let minimumGapShare: CGFloat = 1.0 / 24.0
     /// share changes no layout — see ``defaultIconScale``.
     public static let standardMarginShare: CGFloat = 18.0 / 170.0
 
+    /// How little of the widget the outer margin may take, as a share of its
+    /// width — the far end of ``marginShare(forIconScale:)``, named so
+    /// ``legibleMarginShare(in:columns:rows:showsTitles:iconScale:)`` can clamp to
+    /// it rather than restate 0.035 and drift from this one.
+    static let tightestMarginShare: CGFloat = 0.035
+
+    /// The smallest an icon may be drawn, in points, whatever the size setting
+    /// asks for.
+    ///
+    /// The number ``DirectLaunchMetricsTests`` asserts, made part of the layout so
+    /// that assertion is a guarantee rather than a hope. 28 pt is about the small
+    /// widget's own icon at the default setting: below it an icon stops being
+    /// recognisable and stops being a comfortable tap target.
+    public static let legibilityFloor: CGFloat = 28
+
     /// Where the outer margin goes as ``iconScale`` runs from 0 to 1.
     ///
     /// The margin is a second lever on icon size, and a bigger one than the gap:
@@ -193,13 +208,111 @@ public static let minimumGapShare: CGFloat = 1.0 / 24.0
     static func marginShare(forIconScale scale: Double) -> CGFloat {
         let scale = CGFloat(min(max(scale, 0), 1))
         let widest: CGFloat = 0.135
-        let tightest: CGFloat = 0.035
+        let tightest = Self.tightestMarginShare
         if scale <= 0.5 {
             let t = scale / 0.5
             return Self.standardMarginShare + (widest - Self.standardMarginShare) * (1 - t)
         }
         let t = (scale - 0.5) / 0.5
         return Self.standardMarginShare + (tightest - Self.standardMarginShare) * t
+    }
+
+    /// The margin this grid may actually afford, which is never more than the
+    /// size setting asked for.
+    ///
+    /// ## Why the sharing rule needs a floor
+    ///
+    /// ``marginShare(forIconScale:)`` is a share of the widget's **width**, and on
+    /// a wide, short widget that is the wrong axis to spend. A medium widget is
+    /// 349 × 166: at the standard share the margin is 37 pt *top and bottom*,
+    /// leaving 92 pt for three rows. The size setting is the only thing that
+    /// pulls it back, so a user who wants smaller icons — 小, which is the setting
+    /// someone with a crowded grid reaches for — gets the *largest* margin the
+    /// range ever draws and the *smallest* icons, which is backwards. Measured: a
+    /// nine-slot medium grid at 小 came out **11.4 pt**, the same number the
+    /// hard-coded 18 pt inset used to produce, and at 中 — the shipping default —
+    /// **22.7 pt**. Both are unreadable, and both were hidden by a test that only
+    /// ran at 大.
+    ///
+    /// The floor is what makes the settings describe the icons rather than the
+    /// border: whichever margin the asked-for share implies, the grid keeps
+    /// whichever is *smaller* of that and the largest margin whose cells still
+    /// clear ``legibilityFloor``. The size setting can then only ever tighten the
+    /// margin; it can never push the icons under the floor.
+    ///
+    /// ## Why the margin and not the gap
+    ///
+    /// ``minimumGapShare`` documents this from the other side: the margin is not
+    /// spare room, and it is `margin + 0.293 * iconRadius >= 8.11` that keeps a
+    /// corner icon clear of the system's clip — about 4.8 pt for a full nine-cell
+    /// grid. So the margin has a hard floor of its own, ``tightestMarginShare``,
+    /// and this clamp never goes below it. What it does below that point is let
+    /// the grid draw smaller cells inside a margin it cannot shrink further, which
+    /// is the honest outcome: the widget really is too small for three rows of 28 pt
+    /// icons, and drawing them anyway is better than drawing them at 11 pt.
+    ///
+    /// ## Why it is a search and not a formula
+    ///
+    /// The cell size depends on the margin and the legible margin depends on the
+    /// cell size, so there is no closed form. Both branches of
+    /// ``init(tileCount:columns:in:showsTitles:iconScale:)`` call this, and
+    /// ``cell(in:columns:rows:gapShare:marginShare:)`` is the probe it searches
+    /// with, so the answer the layout uses and the answer a caller can reproduce
+    /// are the same number by construction.
+    ///
+    /// ## What the search promises, and what it does not
+    ///
+    /// It promises a **feasible** answer: it only ever returns a margin the probe
+    /// accepted, or — when even ``tightestMarginShare`` is not enough for this many
+    /// rows — that tightest margin, which is a floor rather than a failure. A
+    /// caller can rely on "if the floor was reachable, the icon clears it".
+    ///
+    /// It does not promise the *largest* such margin, and the reason is worth
+    /// stating because a reader will assume it does. Bisection assumes the icon grows
+    /// as the margin shrinks, and that is very nearly true but not exactly: the gap
+    /// is measured against the smaller inner dimension, so on a wide short widget
+    /// with many columns the binding axis can cross over partway down the range and
+    /// the cell can tick down as the margin ticks down by a hair. The range where
+    /// this bites sits below the floor anyway — the cells there are already too
+    /// small to matter — and the cost of a non-exact answer is a fraction of a point
+    /// of border. Tightening this would mean scanning the range instead of bisecting
+    /// it, on the render path, for a difference the eye cannot see.
+    static func legibleMarginShare(
+        in available: CGSize,
+        columns: Int,
+        rows: Int,
+        showsTitles: Bool,
+        iconScale: Double
+    ) -> CGFloat {
+        let share = marginShare(forIconScale: iconScale)
+        let lowest = Self.tightestMarginShare
+        func iconSide(at marginShare: CGFloat) -> CGFloat {
+            let cell = Self.cell(
+                in: available, columns: columns, rows: rows,
+                gapShare: Self.gapShare(forIconScale: iconScale),
+                marginShare: marginShare
+            )
+            // The name comes out of the icon, exactly as it does in `init` — so the
+            // search cannot call an arrangement legible that the layout then draws
+            // small enough to be unreadable.
+            return showsTitles ? cell * (1 - Self.labelShare) : cell
+        }
+        // Room to spare means the size setting is not fighting the family — a square
+        // widget, or fewer rows than the share assumes. Take what it asked for; the
+        // clamp below is for the case it was written for.
+        if iconSide(at: share) >= Self.legibilityFloor { return share }
+
+        var high = share    // known too big a margin
+        var low = lowest    // the tightest margin there is
+        for _ in 0..<20 {
+            let mid = (high + low) / 2
+            if iconSide(at: mid) >= Self.legibilityFloor { low = mid } else { high = mid }
+        }
+    /// `low` is feasible whenever the loop moved it, and ``tightestMarginShare``
+    /// when it did not. Returning the latter is the honest floor: not even the
+    /// tightest legal margin fits this many rows into this widget, and shrinking
+    /// further would clip the corner cells against the system's own rounded clip.
+        return iconSide(at: low) >= Self.legibilityFloor ? low : lowest
     }
 
     /// The icon-size setting a folder that has never been given one uses, and
@@ -243,23 +356,22 @@ public static let minimumGapShare: CGFloat = 1.0 / 24.0
         // only job is to say what the widget will look like, showed a visibly
         // tighter grid than the widget drew.
         //
-        // The floor of 2 pt is what stops `iconScale` from squeezing the gap
-        // shut entirely at the top of its range. It is the same bound the
-        // module has always carried, and at this size it is what keeps a
-        // maximum-setting grid from drawing its icons edge to edge: 2 pt of a
-        // 134 pt container is about 1.5% of the cell.
-        //
-        // It also decides where the setting stops having an effect. For a
-        // nine-cell Small widget the floor is reached just past 0.8, so the last
-        // fifth of the slider's travel does nothing — the footnote in the editor
-        // quotes the computed size rather than the slider's value for exactly
-        // that reason.
+        // The floor is now a *share* rather than the fixed 2 pt this comment used
+        // to describe — see ``minimumGapShare``, which is where the measurement
+        // that moved it and what it costs in icon size are recorded. It decides
+        // where the size setting stops having an effect: for a nine-cell Small
+        // widget it binds from about 0.79 upward, so the last fifth of the
+        // slider's travel changes nothing, and the editor's footnote quotes the
+        // computed size rather than the slider's value for exactly that reason.
         // `available` is the whole widget, not a pre-inset part of it: the margin
         // is taken off here so that one number — the size setting — decides both
         // how much of the widget goes to the outer border and how much to the
         // gaps, rather than an inset being applied by every caller and this type
         // only owning what is left.
-        let marginShare = Self.marginShare(forIconScale: iconScale)
+        let marginShare = Self.legibleMarginShare(
+            in: available, columns: columns, rows: rows,
+            showsTitles: showsTitles, iconScale: iconScale
+        )
         self.margin = available.width * marginShare
 
         // What is left for the cells and the gaps between them. Never negative:
@@ -274,9 +386,9 @@ public static let minimumGapShare: CGFloat = 1.0 / 24.0
     // ``minimumGapShare`` for the measurement that moved it and for the 4% of
     // icon size it costs above scale 0.79. Below that scale this line changes
     // nothing: the curve's own value is already larger.
-    self.spacing = max(
-        inner.width * Self.minimumGapShare,
-        inner.width * Self.gapShare(forIconScale: iconScale)
+    self.spacing = Self.spacing(
+        in: inner,
+        gapShare: Self.gapShare(forIconScale: iconScale)
     )
 
         let byWidth = (inner.width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
@@ -293,6 +405,103 @@ public static let minimumGapShare: CGFloat = 1.0 / 24.0
         self.iconSide = max(0, cell - reserved)
         self.labelHeight = reserved
     }
+
+    /// What the square cell would measure for a candidate grid, or 0 if none fits.
+    ///
+    /// ## Why this is a question and not a layout
+    ///
+    /// The direct-launch panel has to choose a shape — how many columns and rows —
+    /// for a widget whose size it does not know until the view runs, and the honest
+    /// way to choose is to ask what each candidate would cost in cell size and take
+    /// the densest one that still clears a floor. That is exactly what the private
+    /// arithmetic in ``init(tileCount:columns:in:showsTitles:iconScale:)`` does for
+    /// one candidate; this exposes it without the label reservation, which a
+    /// candidate has not decided yet.
+    ///
+    /// Public because the panel lives in the widget target and this is the only
+    /// copy of the arithmetic. The alternative — a per-family table in the view —
+    /// is the shape that once shipped 11.4 pt icons on a medium widget.
+    ///
+    /// All three shares are passed in rather than defaulted to the standard ones, so
+    /// a caller asking about a non-standard setting asks the same question the
+    /// layout would answer.
+    public static func cell(
+        in available: CGSize,
+        columns: Int,
+        rows: Int,
+        gapShare: CGFloat,
+        marginShare: CGFloat
+    ) -> CGFloat {
+        guard columns > 0, rows > 0 else { return 0 }
+        let margin = available.width * marginShare
+        let inner = CGSize(
+            width: max(0, available.width - 2 * margin),
+            height: max(0, available.height - 2 * margin)
+        )
+        let spacing = Self.spacing(in: inner, gapShare: gapShare)
+        let byWidth = (inner.width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
+        let byHeight = (inner.height - spacing * CGFloat(rows - 1)) / CGFloat(rows)
+        return max(0, min(byWidth, byHeight))
+    }
+
+    /// The dimension the **gap** is measured against.
+    ///
+    /// ## Why this is not just the width
+    ///
+    /// The gap has always been a *share of the widget's width*, and that was right
+    /// while the only widget was square: 18 pt of a 170 pt small widget is 18 pt on
+    /// both axes, so width stood in for "the room there is". A medium widget is
+    /// 349 × 166 and breaks the substitution — the same share is 37 pt top and
+    /// bottom, and the height is what actually runs out.
+    ///
+    /// The smaller dimension is the honest basis for the gap, because that is what
+    /// the gaps between cells are competing with the cells for. For a square widget
+    /// it *is* the width — so the small widget, whose 37.2 pt icon and 11.2 pt gap
+    /// are pinned by ``WidgetGridTests``, is untouched by this.
+    ///
+    /// ## The margin is a separate case
+    ///
+    /// The margin is still `available.width * share` — see where ``init`` assigns
+    /// it — and deliberately so. Rebasing it too would change the small widget's
+    /// pinned 18 pt (that *is* the width share at 0.5), and the medium-widget fix
+    /// does not need it: the legibility clamp in ``legibleMarginShare(in:columns:rows:showsTitles:iconScale:)``
+    /// is what pulls the margin back in there. So this function governs the gap
+    /// only, and a reader should not take the smaller dimension as a property of
+    /// both shares.
+    ///
+    /// An unbounded or unmeasured height means the layout is width-driven — a
+    /// preview inside an `aspectRatio`, or a caller with no height yet — and there
+    /// the width is all there is to go on.
+    static func basis(_ size: CGSize) -> CGFloat {
+        guard size.height > 0, size.height.isFinite else { return size.width }
+        return min(size.width, size.height)
+    }
+
+    /// The gap between cells, on whichever axis is tighter.
+    ///
+    /// Factored out so ``cell(in:columns:rows:gapShare:marginShare:)`` and
+    /// ``init(tileCount:columns:in:showsTitles:iconScale:)`` cannot drift: the
+    /// whole point of the probe is that it answers the question the layout will
+    /// answer, and a second copy of this arithmetic is exactly how the panel once
+    /// chose a shape the grid did not draw.
+    static func spacing(in inner: CGSize, gapShare: CGFloat) -> CGFloat {
+        let basis = Self.basis(inner)
+        return max(basis * Self.minimumGapShare, basis * gapShare)
+    }
+
+    /// The widget's own corner radius, in points.
+    ///
+    /// Measured, not chosen: the system clips a widget's content to a rounded rect
+    /// of this radius, and draws its own glass to the same shape. It is needed here
+    /// rather than by the grid, because a grid never draws the widget's outline —
+    /// only the direct-launch panel does, to mark itself as its own surface
+    /// (``DirectLaunchPanelView``).
+    ///
+    /// The system clips for free, so a full-bleed fill needs no radius of its own.
+    /// A *stroke* does: it is drawn inside this circle, and matching the number is
+    /// what keeps the line from reading as a cheap outline a few points inside the
+    /// system's own glass edge.
+    public static let widgetCornerRadius: CGFloat = 27.7
 
     /// The corner radius of an icon in this grid.
     ///
@@ -357,7 +566,7 @@ public enum FolderGrid: String, Codable, Sendable, CaseIterable {
     public var localizedExplanation: String {
         switch self {
         case .nine:
-            "3 × 3，直接显示 8 个 App，图标约 37pt。第 9 格是「更多」入口——文件夹里超过 8 个之后，点它展开全部。只影响 2×2 的小组件；中大尺寸保持 3 列。"
+            "3 × 3，直接显示 8 个 App，图标约 37pt。第 9 格是「更多」入口——文件夹里超过 8 个之后，点它展开全部。只影响小尺寸；中号按 5 × 2 排，大号按 4 × 4 排。"
         case .four:
             "2 × 2，直接显示 3 个 App，图标约 60pt——和系统桌面图标一样大。第 4 格是「更多」入口，点它展开文件夹里的全部 App。"
         }
@@ -365,10 +574,43 @@ public enum FolderGrid: String, Codable, Sendable, CaseIterable {
 
     /// How many icons across, in a widget of the given size.
     ///
-    /// The choice only reaches the small widget. Medium and large keep their own
-    /// column counts because a 2 × 2 grid in a wide widget would waste most of
-    /// the width for no benefit — the icons there are already full size, so 四宫格
-    /// would buy nothing and cost two apps.
+    /// The 九宫格/四宫格 choice only reaches the small widget, because it is a
+    /// question about a square: how much of the square an icon may take. A wide
+    /// widget runs out of *height* first and has a different problem.
+    ///
+    /// ## Why medium is five columns and not three
+    ///
+    /// It was three, and the note here used to say the wider families needed no
+    /// count of their own "because the icons there are already full size". Measured,
+    /// that was false. The cell is the smaller of the width fit and the height fit
+    /// (see ``init(tileCount:columns:in:showsTitles:iconScale:)``); a 349 × 166
+    /// widget runs out of height, so the cell is height-sized and the columns take
+    /// only what they need. Three of them measured **94 pt of a 349 pt width** —
+    /// 27%, with about 127 pt of empty plate on each side, and a 28 pt icon rather
+    /// than the 60 pt "full size" the old note assumed. The widget read as a small
+    /// cluster floating in the middle of a wide box.
+    ///
+    /// Five columns × two rows measures 227 pt (65%) and gives a **41 pt** icon at
+    /// the same setting: wider *and* bigger, because the row count, not the column
+    /// count, was what starved the cells.
+    ///
+    /// ## Why large is four × four
+    ///
+    /// Large was three × three for the same inherited reason, and the cost there is
+    /// capacity rather than proportion: measured at the shipping default, a 3 × 3
+    /// fills 65% of the width and 83% of the height with a comfortable 67.8 pt icon
+    /// — so it looked fine, and it showed **8** apps. Once medium became 5 × 2 the
+    /// larger widget was showing *fewer* apps than the smaller one, which is the
+    /// wrong way round for a launcher.
+    ///
+    /// Four × four fills the same 66% / 83% and shows 15 apps at 48.5 pt — still
+    /// three quarters of a Home Screen icon, and comfortably above
+    /// ``legibilityFloor``.
+    ///
+    /// Four × three is the obvious middle and was measured rather than assumed: it
+    /// draws the *same* 48.5 pt icon as 4 × 4, because the width binds either way,
+    /// while showing four fewer apps and using only 62% of the height. It is worse
+    /// than both neighbours, so it is not offered.
     public func columns(for family: WidgetFamily) -> Int {
         switch (self, family) {
         case (.four, .systemSmall):
@@ -376,9 +618,9 @@ public enum FolderGrid: String, Codable, Sendable, CaseIterable {
         case (_, .systemSmall):
             return 3
         case (_, .systemMedium):
-            return 3
+            return 5
         case (_, .systemLarge):
-            return 3
+            return 4
         case (_, .systemExtraLarge), (_, .systemExtraLargePortrait):
             return 4
         default:
@@ -399,7 +641,8 @@ public enum FolderGrid: String, Codable, Sendable, CaseIterable {
         let rows: Int
         switch family {
         case .systemSmall: rows = columns          // square widget, square grid
-        case .systemMedium, .systemLarge: rows = 3
+        case .systemMedium: rows = 2               // 5 × 2 — see columns(for:)
+        case .systemLarge: rows = 4                // 4 × 4 — see columns(for:)
         case .systemExtraLarge, .systemExtraLargePortrait: rows = 3
         default: rows = columns
         }

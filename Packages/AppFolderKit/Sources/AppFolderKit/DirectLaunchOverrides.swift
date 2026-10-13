@@ -84,10 +84,26 @@ public enum DirectLaunchOverrides {
     ///   reload when the answer actually moved. A no-op edit should not spend a
     ///   reload — they are throttled, and spending one on a non-change would delay
     ///   the next real one.
+    ///
+    ///   `false` also covers "this could not be recorded at all" — see below.
     @discardableResult
     public static func set(appStoreID: Int?, name: String) -> Bool {
         let needle = key(name)
         guard !needle.isEmpty else { return false }
+
+        // Refuse rather than write into a domain nobody else can see.
+        //
+        // Without this the write still *succeeds* locally — ``WidgetState`` backs an
+        // unreachable App Group with `.volatile`, which accepts and discards — so
+        // this returned `true`, the caller dismissed its sheet and told the user the
+        // icon was fixed, and the widget reloaded to draw the old one. The user's
+        // answer was thrown away with no way to tell, on the one screen in the app
+        // whose entire purpose is to make an answer stick.
+        //
+        // Reporting failure is the lesser evil: the caller can say so, and the edit
+        // is not half-applied somewhere invisible. ``noteObservedSlots(_:)`` below
+        // already guards its write the same way and for the same reason.
+        guard WidgetState.widgetStateIsAvailable else { return false }
 
         var map = overrides()
         let previous = map[needle]

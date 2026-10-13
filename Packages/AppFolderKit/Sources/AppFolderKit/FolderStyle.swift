@@ -261,6 +261,36 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
     /// design.
     public static let isPlateRemovableToSystem = true
 
+    /// The same style, but on the system's plate instead of the user's.
+    ///
+    /// ## Why a whole style, and not just "skip the fill"
+    ///
+    /// The direct-launch panel is glass, and the only glass there is belongs to the
+    /// system — a widget cannot paint its own (measured: in-widget
+    /// `.ultraThinMaterial` and `.glassEffect` both come back as flat colour). So
+    /// the panel draws no plate and lets the system's show through. That means
+    /// simply *not* painting ``plateFill``.
+    ///
+    /// But ``titleStyle`` is decided from ``plate``, not from what was painted —
+    /// so a panel that skipped the fill while still carrying `plate == .solid`
+    /// would colour its labels for a plate that is no longer there, and a dark
+    /// tint would put white text on the system's near-white glass in light mode.
+    /// The two decisions have to move together, which is what this does: taking the
+    /// plate to ``FolderPlate/automatic`` drops the fill *and* switches the labels
+    /// to the hierarchical style the system plate wants.
+    ///
+    /// ## What it costs
+    ///
+    /// On the panel, the user's 纯色 / 渐变 choice stops applying — the panel is
+    /// glass whatever they picked. That is the point of the panel, but it is worth
+    /// naming: it is a screen where an appearance setting is deliberately ignored,
+    /// not an oversight. Geometry and titles are untouched; only the plate moves.
+    public var usingSystemPlate: FolderStyle {
+        var copy = self
+        copy.plate = .automatic
+        return copy
+    }
+
     /// The fill a folder's plate is drawn with, or nil for ``FolderPlate/automatic``.
     ///
     /// One place decides, so the widget and the editor's preview cannot disagree

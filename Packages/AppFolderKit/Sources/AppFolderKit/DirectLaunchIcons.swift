@@ -30,6 +30,151 @@ public enum DirectLaunchIcons {
     /// Where artwork lives inside the App Group.
     public static let directoryName = "Icons"
 
+    /// The session every lookup goes through, with a budget short enough to fit a
+    /// widget's timeline build.
+    ///
+    /// ## Why not `URLSession.shared`
+    ///
+    /// Its default request timeout is **60 seconds** and it sets no resource
+    /// timeout, and these calls run inside ``DirectLaunchWidget``'s timeline build,
+    /// which WidgetKit aborts when it overruns. One black-holed request — a captive
+    /// portal, packet loss — would therefore stall the build past its budget, so the
+    /// entry the build was going to return never commits and the widget keeps its
+    /// stale content until the next refresh, which pays the same cost again. The
+    /// budget here is deliberately short: a lookup that cannot answer in a few
+    /// seconds is better abandoned, and retried on the next timeline, than allowed
+    /// to spend the render.
+    private static let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 5
+        configuration.timeoutIntervalForResource = 10
+        return URLSession(configuration: configuration)
+    }()
+
+    /// The bytes for a URL, or `nil` if the request failed for any reason.
+    ///
+    /// `nil` means *unreachable* — offline, DNS, timeout — and never "the store has
+    /// no such app". Every caller has to keep those apart, because one of them may
+    /// become a permanent, unexpiring miss if it is mistaken for the other; see
+    /// ``SearchOutcome``.
+    private static func request(_ url: URL) async -> Data? {
+        // The build's budget, or none at all. `nil` is every caller that is not
+        // the widget's provider — the app's search screen, the tests — where the
+        // network is deliberately unbounded. See ``Budget``.
+        if let budget = Budget.current, !budget.claim() { return nil }
+        return try? await session.data(from: url).0
+    }
+
+    // MARK: - The render-path budget
+
+    /// The freshest instant any request may still be started at, shared by every
+    /// resolve in one timeline build.
+    //
+    // ## Why this exists
+    //
+    // The per-request timeouts bound each *request*; nothing bounded the *build*.
+    // A timeline provider resolves its slots sequentially, and every slot that is
+    // neither pinned nor already cached can reach the network — a catalogue entry
+    // whose artwork is missing, an Apple app whose id is not bundled, or a plain
+    // store search. With one request allowed to take the 5 s request timeout, a
+    // grid of twenty apps could hold the provider open for a minute and a half,
+    // and the budget the extension is actually given is a fraction of that. At the
+    // end of it WidgetKit discards the entry and the widget keeps stale content —
+    // so the work was not merely slow, it was wasted.
+    //
+    // This box makes a build's whole network allowance one deadline rather than
+    // twenty. Note it is a *start* deadline and not a wait: a request already in
+    // flight runs to its own 5 s timeout, which is the bound the per-request
+    // configuration already provides. A slot past the deadline resolves to
+    // ``Source/none`` for this build and is retried, unfrozen, on the next — the
+    // same treatment as ``SearchOutcome/unreachable``.
+    //
+    // Without a box — running in a test or a tool — the network is unbounded, as
+    // it was before. The widget always sets one.
+    final class Budget: @unchecked Sendable {
+        /// How long after ``init(requests:allowance:startedAt:)`` a request may
+        /// still start.
+        ///
+        /// Exposed to the initializer rather than fixed so a test can drive the
+        /// clock's effect without waiting on it: a zero allowance refuses at once,
+        /// a large one never expires within a test's lifetime. The default is what
+        /// ships.
+        private let allowance: TimeInterval
+        /// How many requests the build may make in total.
+        ///
+        /// A *count*, not just a deadline. The first version of this allowed one
+        /// request per build, and that was simply broken: an app the catalogue does
+        /// not know needs **two** — search for its id, then fetch the artwork — so
+        /// the artwork fetch was always refused and no icon from the search path
+        /// could ever reach the disk. Every one of those slots redrew a placeholder
+        /// on every timeline, forever. The count is what a build's slot capacity
+        /// justifies; see ``defaultRequests``.
+        private let requests: Int
+        private let startedAt: Date
+        private let lock = NSLock()
+        private var consumed = 0
+
+        init(
+            requests: Int = Budget.defaultRequests,
+            allowance: TimeInterval = Budget.defaultAllowance,
+            startedAt: Date = Date()
+        ) {
+            self.requests = requests
+            self.allowance = allowance
+            self.startedAt = startedAt
+        }
+
+        /// Whether a request may start now, claiming one of the build's slots.
+        func claim() -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            guard consumed < requests, Date().timeIntervalSince(startedAt) < allowance else {
+                return false
+            }
+            consumed += 1
+            return true
+        }
+
+        /// The shipping ceiling — under the 5 s request timeout, so the deadline is
+        /// what a long build meets first rather than the transport.
+        static let defaultAllowance: TimeInterval = 4
+
+        /// Eight. Comfortably more than the few slots that need a network answer in
+        /// a build — the catalogue covers the rest — and far short of the twenty a
+        /// runaway grid could want. With the 4 s deadline above it, the two together
+        /// bound a build to roughly one request's worth of waiting in the common
+        /// case.
+        static let defaultRequests = 8
+
+        /// The budget in force, scoped to one timeline build.
+        ///
+        /// ## Why this is a `@TaskLocal` and not a static
+        ///
+        /// A static would be process-wide, and this process runs more than one build
+        /// at a time: WidgetKit calls `snapshot` for the widget gallery while
+        /// `timeline` serves a real refresh, and one extension process can host
+        /// several widget instances. With a static, build A's cleanup would clear the
+        /// shared slot while build B was still looping — so B's remaining requests
+        /// would go out **unbounded**, the exact failure this exists to prevent — and
+        /// B's setup could reset the budget A was still spending. A task-local has
+        /// neither problem: each build runs in its own task, so each task carries its
+        /// own budget and no build can touch another's. It also removes the
+        /// unsynchronised mutable static entirely.
+        @TaskLocal static var current: Budget?
+    }
+
+    /// Opens the network budget for one timeline build.
+    ///
+    /// Called by the widget's provider around its resolve loop — the only place
+    /// that knows where a build starts and ends. It must be used as
+    /// ``Budget/withBudget(perform:)`` rather than called for its side effect:
+    /// a task-local is only visible to the task that sets it and its children, and
+    /// it is restored when the call returns, so nothing has to be cleaned up and an
+    /// aborted build cannot leave a budget behind for the next one.
+    public static func withBudget<T>(_ body: () async -> T) async -> T {
+        await Budget.$current.withValue(Budget()) { await body() }
+    }
+
     /// What a slot resolved to, so the caller can draw it without asking again.
     public struct Resolved: Sendable, Equatable {
         public let name: String
@@ -62,6 +207,28 @@ public enum DirectLaunchIcons {
         case miss
         /// Nothing resolved; the slot draws its placeholder.
         case none
+    }
+
+    /// How one name search ended, which is not the same question as whether it
+    /// found an app.
+    ///
+    /// ## Why this is three cases and not an `Int?`
+    ///
+    /// "The store does not carry this app" and "I could not reach the store" both
+    /// used to be `nil`, and ``resolve(name:)`` recorded a permanent, unexpiring
+    /// miss for either — so a name first seen while offline was marked as one the
+    /// store has never heard of, and never looked up again. The widget's timeline
+    /// policy is `.never`, so nothing would ever revisit it. Splitting the two lets
+    /// only a *clean* empty answer become a miss; a transport failure resolves to
+    /// ``Source/none`` for this build and is retried on the next, when the network
+    /// may be there.
+    enum SearchOutcome: Equatable {
+        /// A row that is the app asked about.
+        case found(Int)
+        /// The store answered, and none of its rows is this app.
+        case noMatch
+        /// No answer at all — offline, DNS, a timeout, a captive portal.
+        case unreachable
     }
 
     /// Resolves the app behind a slot's display name and makes sure its icon is cached.
@@ -163,23 +330,83 @@ public enum DirectLaunchIcons {
                     _ = await ensureIcon(appStoreID: id)
                     return Resolved(name: name, appStoreID: id, symbolName: known.symbolName, source: .system)
                 }
-                if let id = await systemAppID(name: name, englishName: known.englishName) {
-                    cacheSystemAppID(id, name: name)
+                switch await systemAppID(name: name, englishName: known.englishName) {
+                case .found(let id):
+                    // Icon first, cache second. This used to be the other way
+                    // round, and the cost was exactly the failure the cache exists
+                    // to prevent: the id was written down, the build then ran out of
+                    // its network budget before fetching the artwork, and every
+                    // later build read the id back, skipped the fetch as paid-for,
+                    // and drew a placeholder for an app whose icon was never
+                    // downloaded. Writing the id only once its bytes are on disk
+                    // keeps "cached" meaning "usable".
                     _ = await ensureIcon(appStoreID: id)
+                    cacheSystemAppID(id, name: name)
                     return Resolved(name: name, appStoreID: id, symbolName: known.symbolName, source: .system)
+
+                case .noMatch:
+                    // The store named neither the localised nor the Latin app —
+                    // measured for `News` and `Settings` on the Chinese storefront.
+                    // That answer will never change, so it is *remembered*, as the
+                    // `0` sentinel ``cachedSystemAppID(name:)`` decodes to `.some(nil)`.
+                    //
+                    // Without this the lookup had no memory on the failing side: the
+                    // success branch wrote the cache and the failure path fell straight
+                    // through, so every timeline build re-ran the whole sweep — up to
+                    // four sequential requests — for the same app, forever, on the
+                    // render path where the budget is tight and the negative cache
+                    // exists precisely to avoid this. The `nil` is deliberate: it means
+                    // "asked, and the store has no listing", which the check above
+                    // reads as a reason to stop rather than a reason to ask again.
+                    //
+                    // Deliberately not reached by ``SearchOutcome/unreachable``: a
+                    // permanent cache entry must never be written from a request that
+                    // never got an answer.
+                    cacheSystemAppID(nil, name: name)
+
+                case .unreachable:
+                    // No answer at all. Leave the cache untouched so a later build —
+                    // on a network that works — asks again.
+                    break
                 }
             }
             return Resolved(name: name, appStoreID: nil, symbolName: known.symbolName, source: .none)
         }
 
-        guard let id = await searchAppStoreID(name: name) else {
-            // Not found: cached as a miss (see ``markMiss(name:)``) so the next
-            // timeline does not spend another request on the same unknown name.
+        // A name this store has already been asked about is answered from disk.
+        // Without this the search ran on every timeline for every uncached app —
+        // see ``cacheSearchID(_:name:)``. Checked after the miss cache and the
+        // catalogue, so both still win.
+        if let remembered = cachedSearchID(name: name) {
+            _ = await ensureIcon(appStoreID: remembered)
+            return Resolved(name: name, appStoreID: remembered, symbolName: nil, source: .search)
+        }
+
+        switch await searchAppStoreID(name: name) {
+        case .found(let id):
+            // Icon first, cache second — see the note on ``ensureIcon(appStoreID:)``
+            // for why the order cannot be the other way round.
+            _ = await ensureIcon(appStoreID: id)
+            cacheSearchID(id, name: name)
+            return Resolved(name: name, appStoreID: id, symbolName: nil, source: .search)
+
+        case .noMatch:
+            // The store answered and has no such app: remembered as a miss (see
+            // ``markMiss(name:)``) so the next timeline does not spend another
+            // request on the same unknown name.
             markMiss(name: name)
             return Resolved(name: name, appStoreID: nil, symbolName: nil, source: .miss)
+
+        case .unreachable:
+            // No answer at all — offline, DNS, a captive portal, a timeout.
+            // Deliberately **not** a miss. A miss never expires and is checked
+            // before the catalogue, so recording one here would strand an app the
+            // store can name the moment the network returns: the slot would show
+            // its placeholder forever, and since the timeline policy is `.never`
+            // nothing would ever revisit it. This build draws the placeholder and
+            // the next one asks again.
+            return Resolved(name: name, appStoreID: nil, symbolName: nil, source: .none)
         }
-        _ = await ensureIcon(appStoreID: id)
-        return Resolved(name: name, appStoreID: id, symbolName: nil, source: .search)
     }
 
     // MARK: - App Store
@@ -210,11 +437,17 @@ public enum DirectLaunchIcons {
     /// not always agree on which names exist. `englishName` is the catalogue's own
     /// Latin name for the app, so it costs nothing to try.
     ///
-    /// - Returns: `nil` when the store lists no `com.apple.*` app by either name,
-    ///   which is the honest answer for the few system apps with no listing — the
-    ///   caller then keeps its symbol.
-    static func systemAppID(name: String, englishName: String?) async -> Int? {
+    /// - Returns: ``SearchOutcome/found(_:)`` with the id, ``SearchOutcome/noMatch``
+    ///   when the store answers but lists no `com.apple.*` app by either name — the
+    ///   honest answer for the few system apps with no listing, whose caller keeps
+    ///   the symbol — or ``SearchOutcome/unreachable`` when no request got an
+    ///   answer. The last must not be cached as though it were the second: the cache
+    ///   is permanent and never expires the entry.
+    static func systemAppID(name: String, englishName: String?) async -> SearchOutcome {
         var tried: Set<String> = []
+        // Whether any request came back at all. With neither name answered, an empty
+        // store is only worth remembering if the store actually spoke.
+        var reached = false
         for term in [name, englishName].compactMap({ $0 }) where tried.insert(term).inserted {
             // Every name this entry answers to, so a row matching either the
             // localised or the Latin one is accepted — see ``appleAppID(payload:terms:)``
@@ -227,14 +460,13 @@ public enum DirectLaunchIcons {
             // lives, and the second is the answer for a device whose storefront
             // does not carry a Chinese system app's listing.
             for country in [nil, "cn"] as [String?] {
-                guard let url = AppStoreLookup.searchURL(term: term, country: country, limit: 6),
-                      let (payload, _) = try? await URLSession.shared.data(from: url),
-                      let id = appleAppID(payload: payload, terms: terms)
-                else { continue }
-                return id
+                guard let url = AppStoreLookup.searchURL(term: term, country: country, limit: 6) else { continue }
+                guard let payload = await request(url) else { continue }
+                reached = true
+                if let id = appleAppID(payload: payload, terms: terms) { return .found(id) }
             }
         }
-        return nil
+        return reached ? .noMatch : .unreachable
     }
 
     /// The row in a search response that is Apple's app *and* goes by one of the
@@ -326,26 +558,84 @@ public enum DirectLaunchIcons {
         containerDirectory()?.appending(path: "system-\(systemAppCacheGeneration)-\(stableHash(name)).txt")
     }
 
-    /// The App Store id for an app, by name, or `nil` if the store cannot name it.
+    /// The generation of the **search** result cache. Bump it whenever the rule
+    /// that produces a searched id changes, for the same reason and with the same
+    /// cost as ``systemAppCacheGeneration``.
+    private static let searchAppCacheGeneration = "v1"
+
+    /// Remembers the id a plain store search found for a name.
+    ///
+    /// ## Why this had to exist
+    ///
+    /// ``ensureIcon(appStoreID:)`` caches the *artwork* the search led to, so the
+    /// icon is offline from the second render on — but the name → id mapping was
+    /// never written down. An app the catalogue does not know is therefore searched
+    /// again on **every** timeline, forever, even though its icon is already on
+    /// disk: a request per such app per render, on the path where the budget is
+    /// tightest, for an answer that cannot change. The system-app branch has cached
+    /// its own lookups since it was written; the search branch simply never did.
+    ///
+    /// A negative answer is not stored here. A name the store did not match goes
+    /// through ``markMiss(name:)``, which already has a semantics for "asked and
+    /// there is nothing" that a search id cache should not duplicate.
+    static func cacheSearchID(_ id: Int, name: String) {
+        guard let url = searchAppCacheURL(name: name) else { return }
+        try? Data(String(id).utf8).write(to: url, options: .atomic)
+    }
+
+    /// The id a search found for this name before, or `nil` if it has not been
+    /// looked up. Unlike ``cachedSystemAppID(name:)`` this is a plain optional:
+    /// the negative case lives in the miss cache.
+    static func cachedSearchID(name: String) -> Int? {
+        guard let url = searchAppCacheURL(name: name),
+              let data = try? Data(contentsOf: url),
+              let text = String(data: data, encoding: .utf8),
+              let stored = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)),
+              stored > 0
+        else { return nil }
+        return stored
+    }
+
+    private static func searchAppCacheURL(name: String) -> URL? {
+        containerDirectory()?.appending(path: "search-\(searchAppCacheGeneration)-\(stableHash(name)).txt")
+    }
+
+    /// The App Store id for an app, by name — and, when there is none, *why*.
     ///
     /// Two storefronts are tried, the device's own first and `cn` second. The
     /// second is not a guess at the user's region — it is the answer for the case
     /// this widget exists to serve: a Chinese app whose *display* name is its
     /// English one ("Alimail"), which the device's storefront does not match but a
     /// Chinese storefront does.
-    static func searchAppStoreID(name: String) async -> Int? {
-        guard let deviceURL = AppStoreLookup.searchURL(term: name, country: nil, limit: 5) else {
-            return nil
-        }
-        if let id = await bestMatch(url: deviceURL, name: name) { return id }
+    ///
+    /// A name with no URL to search at all is ``SearchOutcome/noMatch`` rather than
+    /// ``SearchOutcome/unreachable``: the term is empty or malformed, and no request
+    /// would ever fix that, so it is as final as an empty result.
+    static func searchAppStoreID(name: String) async -> SearchOutcome {
+        var reached = false
 
-        guard let cnURL = AppStoreLookup.searchURL(term: name, country: "cn", limit: 5) else {
-            return nil
+        if let deviceURL = AppStoreLookup.searchURL(term: name, country: nil, limit: 5) {
+            switch await bestMatch(url: deviceURL, name: name) {
+            case .found(let id): return .found(id)
+            case .noMatch: reached = true
+            case .unreachable: break
+            }
         }
-        return await bestMatch(url: cnURL, name: name)
+
+        if let cnURL = AppStoreLookup.searchURL(term: name, country: "cn", limit: 5) {
+            switch await bestMatch(url: cnURL, name: name) {
+            case .found(let id): return .found(id)
+            case .noMatch: reached = true
+            case .unreachable: break
+            }
+        }
+
+        // "No match" if either storefront answered, so a real absence is still
+        // remembered; "unreachable" only when neither did.
+        return reached ? .noMatch : .unreachable
     }
 
-    /// The result that actually is the app asked about, or `nil`.
+    /// Whether one storefront's answer contains the app asked about.
     ///
     /// Ranking the *names* alone does not work, and the failure is not exotic: the
     /// system shows an app's own name, which is routinely not the storefront's. A
@@ -360,9 +650,14 @@ public enum DirectLaunchIcons {
     ///
     /// The order matters: a name match wins outright, so this can only ever add
     /// hits, never displace a result the name already agreed with.
-    static func bestMatch(url: URL, name: String) async -> Int? {
-        guard let (payload, _) = try? await URLSession.shared.data(from: url) else { return nil }
-        return bestMatch(payload: payload, name: name)
+    ///
+    /// A request that fails is ``SearchOutcome/unreachable``, not
+    /// ``SearchOutcome/noMatch`` — the difference decides whether the caller writes
+    /// a permanent miss; see ``SearchOutcome``.
+    static func bestMatch(url: URL, name: String) async -> SearchOutcome {
+        guard let payload = await request(url) else { return .unreachable }
+        guard let id = bestMatch(payload: payload, name: name) else { return .noMatch }
+        return .found(id)
     }
 
     /// Picks the app out of a search response.
@@ -463,6 +758,24 @@ public enum DirectLaunchIcons {
     /// file. Fetches nothing — a miss is a miss, not a request.
     public static func cachedIcon(appStoreID id: Int) -> Data? {
         read(id: id)
+    }
+
+    /// The store's answer for one of its own URLs, through this module's session.
+    ///
+    /// Exposed for the app's 修正图标 screen, which searches the store with the same
+    /// `searchURL` the widget's automatic matcher uses. It used to call
+    /// `URLSession.shared`, whose `timeoutIntervalForRequest` is 60 s and which has
+    /// no resource timeout at all — so the one interactive place a user actually
+    /// waits on the network had a *worse* bound than the widget's timeline build,
+    /// which is the opposite of the intent. Going through here means there is one
+    /// timeout policy in the project rather than two.
+    ///
+    /// `nil` is *unreachable* — offline, DNS, a captive portal, a timeout — and
+    /// never "the store has no such app". See ``SearchOutcome`` for why callers
+    /// must keep those apart; the negative answer is a clean empty payload, which
+    /// arrives as `Data`, not `nil`.
+    public static func storeData(url: URL) async -> Data? {
+        await request(url)
     }
 
     /// The App Group's icon directory, created if it is missing.
@@ -583,6 +896,18 @@ public enum DirectLaunchIcons {
         let file = directory.appending(path: "direct-launch.log")
         let entry = Data(("[\(Date())] " + line + "\n").utf8)
 
+        // The whole rotation is done under one lock. Without it two threads racing
+        // on a file at the limit could each *read* an over-limit size, and the
+        // second `entry.write(…, .atomic)` would replace the file the first just
+        // started appending to — losing its lines, and leaving the other append
+        // pointed at a file that no longer exists. The window is small, and the
+        // file is reached by two processes (app and extension) that do not share
+        // this lock, so the cross-process case stays best-effort; what this
+        // removes is the in-process race, which is the one that runs on every
+        // render.
+        Self.logLock.lock()
+        defer { Self.logLock.unlock() }
+
         // Rotate by starting over. Keeping the tail instead would mean reading and
         // rewriting the whole file on the render path, for a log whose recent lines
         // are what a person reads anyway — the newest timeline is the one that
@@ -594,6 +919,10 @@ public enum DirectLaunchIcons {
         }
 
         if let handle = try? FileHandle(forWritingTo: file) {
+            // `try?` on the write, then a plain close: closing a handle trimmed by
+            // `seekToEndOfFile` on a shorter file would erase the lines written
+            // after it, and a diagnostic that eats the very timeline it is meant to
+            // record is worse than one that drops a line.
             handle.seekToEndOfFile()
             handle.write(entry)
             try? handle.close()
@@ -601,6 +930,10 @@ public enum DirectLaunchIcons {
             try? entry.write(to: file, options: .atomic)
         }
     }
+
+    /// Serialises ``diagnose(_:)``'s rotation check and append. See the comment
+    /// there for the race it closes.
+    private static let logLock = NSLock()
 
     // MARK: - Files
 
@@ -614,18 +947,32 @@ public enum DirectLaunchIcons {
         try? data.write(to: directory.appending(path: fileName(appStoreID: id)), options: .atomic)
     }
 
-    /// The artwork for one id, one request.
+    /// The artwork for one id, one request per storefront tried.
     ///
-    /// No `country` parameter, so the request resolves to the device's own
-    /// storefront — right for an app that is installed here, and the reason the
-    /// full storefront sweep is not needed: the search that
-    /// found the id has already established which storefront carries the app.
+    /// ## Why the storefront is now swept
+    ///
+    /// This used to ask with no `country`, letting the request resolve against the
+    /// device's own store. That is right for an app sold where the device is — but
+    /// ``searchAppStoreID(name:)`` finds ids on **two** storefronts and will happily
+    /// return one only `cn` lists, for a Chinese app whose display name is its
+    /// English one. The lookup endpoint treats "no such app" and "not sold in this
+    /// storefront" identically — a 200 with empty `results` — so on a non-cn device
+    /// that app's lookup came back empty, `nil` was returned, and **nothing was
+    /// written**: the slot drew its placeholder on every build, forever, for an app
+    /// the catalogue had just resolved correctly.
+    ///
+    /// So the device's own store is tried first, matching the search, and then `cn`
+    /// as the same deliberate second answer the search uses. The first non-empty
+    /// artwork wins, so an app sold in both is still served by the device's copy.
     static func fetch(appStoreID id: Int) async -> Data? {
-        guard let url = AppStoreLookup.lookupURL(ids: [id]) else { return nil }
-        guard let (payload, _) = try? await URLSession.shared.data(from: url),
-              let first = AppStoreLookup.parse(payload).first,
-              let artworkURL = first.artworkURL.flatMap(URL.init(string:))
-        else { return nil }
-        return try? await URLSession.shared.data(from: artworkURL).0
+        for country in [nil, "cn"] as [String?] {
+            guard let url = AppStoreLookup.lookupURL(ids: [id], country: country),
+                  let payload = await request(url),
+                  let artworkURL = AppStoreLookup.parse(payload).first?.artworkURL.flatMap(URL.init(string:)),
+                  let data = await request(artworkURL)
+            else { continue }
+            return data
+        }
+        return nil
     }
 }

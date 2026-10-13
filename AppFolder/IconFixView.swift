@@ -187,6 +187,15 @@ struct IconPickView: View {
     /// client already fixed once — see the commit about non-200 responses.
     @State private var failed = false
     @State private var didSearch = false
+    /// Whether the answer could not be recorded, which is not the same as "the
+    /// search failed" and must not dismiss the sheet as though it had worked.
+    ///
+    /// ``DirectLaunchOverrides/set(appStoreID:name:)`` refuses when the shared
+    /// domain is unreachable, precisely so a choice cannot be written somewhere
+    /// only this screen can see. The screen then has to *say* so: quietly closing
+    /// would leave the user believing they had fixed an icon that is still wrong,
+    /// which is the failure this whole view exists to let them escape.
+    @State private var saveFailed = false
     @Environment(\.dismiss) private var dismiss
 
     private var currentID: Int? { DirectLaunchOverrides.appStoreID(name: name) }
@@ -267,6 +276,15 @@ struct IconPickView: View {
         }
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
+        // The refusal has exactly one cause worth naming to a user: the App Group
+        // is not reachable from here, so nothing this screen writes can be seen by
+        // the widget. Naming the cause beats "失败" — it tells them the install is
+        // the thing to look at, not the app they picked.
+        .alert("没能记下这个选择", isPresented: $saveFailed) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text("AppFolder 和小组件之间的共享空间现在读不到，改了也传不过去。重新安装 AppFolder 后可以再试——这次的选择没有生效。")
+        }
         .task {
             // Prefill with the name itself: the store's own search for a display
             // name is the best starting point, and it is exactly what the
@@ -282,7 +300,13 @@ struct IconPickView: View {
     /// widget never does network at draw time — reloading first would render the
     /// new id with no icon on disk and flash a placeholder until a later timeline.
     private func choose(_ app: AppStoreLookup) {
-        guard DirectLaunchOverrides.set(appStoreID: app.trackID, name: name) else { return }
+        // A refusal is "could not record", not "nothing to do": the sheet stays
+        // open and says so, rather than dismissing over a change that did not
+        // happen.
+        guard DirectLaunchOverrides.set(appStoreID: app.trackID, name: name) else {
+            saveFailed = true
+            return
+        }
         DirectLaunchIcons.diagnose("app override name=«\(name)» id=\(app.trackID)")
         Task {
             _ = await DirectLaunchIcons.ensureIcon(appStoreID: app.trackID)
@@ -292,7 +316,10 @@ struct IconPickView: View {
     }
 
     private func restore() {
-        guard DirectLaunchOverrides.set(appStoreID: nil, name: name) else { return }
+        guard DirectLaunchOverrides.set(appStoreID: nil, name: name) else {
+            saveFailed = true
+            return
+        }
         DirectLaunchIcons.diagnose("app override cleared name=«\(name)»")
         WidgetCenter.shared.reloadAllTimelines()
         dismiss()
@@ -302,26 +329,45 @@ struct IconPickView: View {
         let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !term.isEmpty else { return }
         isSearching = true
-        failed = false
         defer { isSearching = false; didSearch = true }
 
         // The device's own storefront first, then `cn`, matching the sweep the
         // widget's automatic matcher performs — so what the user sees here is what
         // they would have got automatically.
+        //
+        // ## Why `failed` is set on one path and cleared on another
+        //
+        // `failed` means *unreachable*, and "the store has no such app" is not that:
+        // the view renders the empty case on its own, from `didSearch &&
+        // results.isEmpty`, with a different message. Telling a user to reword a
+        // search that never left the device is the worse of the two errors.
+        //
+        // A second `cn` request is only worth making when the *first* storefront
+        // answered and had nothing. If it was unreachable, `cn` is almost certainly
+        // unreachable for the same reason, and spending a second timeout to conclude
+        // otherwise is a wait the user feels and learns nothing from.
+        var unreachable = false
         for country in [nil, "cn"] as [String?] {
             guard let url = AppStoreLookup.searchURL(term: term, country: country, limit: 15) else {
                 continue
             }
-            guard let (payload, _) = try? await URLSession.shared.data(from: url) else {
-                failed = true
-                continue
+            guard let payload = await DirectLaunchIcons.storeData(url: url) else {
+                unreachable = true
+                break
             }
             let rows = AppStoreLookup.parse(payload)
             if !rows.isEmpty {
                 results = rows
+                // Cleared *here*, and this is the bug: `failed` used to be set by a
+                // first-storefront failure and never reset, so a search that then
+                // succeeded on the fallback drew its results underneath a
+                // 「连不上 App Store」 line — the two contradicting each other on
+                // screen, both of them ours.
+                failed = false
                 return
             }
         }
+        failed = unreachable
         results = []
     }
 }

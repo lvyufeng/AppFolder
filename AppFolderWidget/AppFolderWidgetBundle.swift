@@ -1,7 +1,7 @@
 import SwiftUI
 import WidgetKit
 
-/// The widget extension: one widget, 方形 only.
+/// The widget extension: one widget, offered in every family.
 ///
 /// ## What used to be here
 ///
@@ -24,12 +24,26 @@ import WidgetKit
 /// The folder *data* is untouched: the app still builds folders, still edits them,
 /// still stores them. What is gone is the widget that drew one.
 ///
-/// ## Why the 方形 requirement is here and in the widget
+/// ## Which families are offered, and where that is decided
 ///
-/// It is stated on the configuration, in ``DirectLaunchWidget``, because that is
-/// what the system reads and the only place it can be enforced. This file records
-/// it so the next person reading the bundle does not have to open the widget to
-/// learn that 中 and 大 are deliberate omissions rather than an oversight.
+/// The supported set is stated on the configuration, in ``DirectLaunchWidget``,
+/// because that is what the system reads and the only place it can be enforced.
+/// This file records it so the next person reading the bundle does not have to
+/// open the widget to learn it.
+///
+/// 中 and 大 used to be omitted here, and this comment used to say so. They were
+/// re-admitted once ``FolderGridMetrics`` could size a non-square widget without
+/// shrinking the icons: the margin and the gap are shares of the widget, and
+/// taking them from the *width* of a 349 × 166 widget left no room for three rows
+/// — measured at 11.4 pt. The clamp that followed is the reason the families can
+/// be offered at all, so if one of them is ever withdrawn again, the geometry is
+/// the place to look rather than this list.
+///
+/// Legible was not the same as proportioned, and it took drawing the frames to
+/// see the difference: a legible medium grid still used only 27% of its width.
+/// Medium is now 5 × 2 rather than 3 × 3 — see ``FolderGrid/columns(for:)`` for
+/// the measurement — which is a change to the *shape* of that family and not to
+/// the list of them.
 @main
 struct AppFolderWidgetBundle: WidgetBundle {
     var body: some Widget {

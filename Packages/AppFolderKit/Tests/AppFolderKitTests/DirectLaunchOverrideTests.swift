@@ -248,4 +248,12 @@ struct DirectLaunchOverrideTests {
         #expect(DirectLaunchIcons.cachedIcon(appStoreID: 0) == nil)
         #expect(DirectLaunchIcons.cachedIcon(appStoreID: -1) == nil)
     }
+
+
+    // The search-result cache (``DirectLaunchIcons/cachedSearchID(name:)``) has no
+    // test here on purpose: it stores through the App Group's container, which the
+    // package's test process does not have, so every write is a no-op and any
+    // assertion would be about the test environment rather than the code. The
+    // sibling ``DirectLaunchIcons/cachedSystemAppID(name:)`` is untested for the
+    // same reason. It is exercised on device.
 }

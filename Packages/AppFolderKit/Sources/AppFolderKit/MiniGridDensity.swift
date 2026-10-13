@@ -57,8 +57,7 @@ public struct MiniGridDensity: Sendable, Equatable {
     /// sixteen miniatures at about 16 pt each — but the count is not what is
     /// scarce here. A preview's job is to say "this is a folder with things in
     /// it", which nine icons do and sixteen do not: past a certain count the
-    /// block stops reading as a set of apps and starts reading as texture, and
-    /// the count badge beside it already carries the exact number. Nine is also
+    /// block stops reading as a set of apps and starts reading as texture. Nine is also
     /// what iOS and Android draw for a folder, so the cell is recognisable as one
     /// rather than as a new idea.
     public static let maximumColumns = 3
@@ -84,10 +83,8 @@ public struct MiniGridDensity: Sendable, Equatable {
     /// How much of the cell the miniatures are allowed to occupy.
     ///
     /// A little under two thirds, and this is not slack — it is the room the
-    /// cell's rounded corner and the count badge need. The block's badge hangs off
-    /// its bottom-trailing corner, so a block that reached the cell's edges would
-    /// put the count under the badge and the outermost miniatures into the corner
-    /// radius.
+    /// cell's rounded corner needs: a block that reached the cell's edges would
+    /// push the outermost miniatures into the corner radius.
     ///
     /// A filled cell was tried once and rejected for a second reason: at 2 × 2 it
     /// reads as one blurry rectangle rather than as four apps. So the block stays

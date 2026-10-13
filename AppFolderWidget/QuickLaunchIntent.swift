@@ -79,10 +79,11 @@ struct QuickLaunchIntent: WidgetConfigurationIntent {
     ///
     /// Not capped at what a grid can *show*. It used to be — at twelve, on the
     /// reasoning that twelve was the largest grid any family draws — and that was
-    /// a silent lie: a user who configured twenty actions got eight drawn, a door
-    /// badged `+4`, and eight apps that were nowhere. The badge is the number the
-    /// user acts on, so a truncation it does not count is worse than no truncation
-    /// at all. Nothing past the door's capacity is unreachable now: it pages. See
+    /// a silent lie: a user who configured twenty actions got eight drawn and
+    /// twelve apps that were nowhere — and the door then said so with a `+4` that
+    /// counted only some of them. A count the user acts on is worse than no count
+    /// if it under-reports, so the cap went. Nothing past the door's capacity is
+    /// unreachable now: it pages. See
     /// ``FolderExpansionLayout``.
     ///
     /// The bound that remains is a guard against a runaway parameter, not a limit

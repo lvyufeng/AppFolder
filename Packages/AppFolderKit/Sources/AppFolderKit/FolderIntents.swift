@@ -61,11 +61,78 @@ public struct ToggleDirectLaunchIntent: AppIntent {
         if WidgetState.directLaunchKey == key {
             WidgetState.collapse()
         } else {
+            // ## Why the tap claims the pending collapse request
+            //
+            // The app bumps ``WidgetState/collapseRequest`` whenever it comes to the
+            // foreground, and the timeline provider applies any request it has not
+            // seen yet — *unconditionally*, before it works out whether the grid is
+            // open. The request is a durable counter precisely because its reload is
+            // sometimes coalesced or declined, so the request can still be pending
+            // when the user's next tap arrives. Without this line the build that
+            // serves that tap would set the key here and then throw it away applying
+            // the older request, and the door would do nothing until tapped a second
+            // time — the exact failure this project keeps designing against, on the
+            // core interaction.
+            //
+            // A tap is the freshest thing the user has said, so it wins: marking the
+            // request seen here makes ``WidgetState/applyCollapseRequest(_:)`` a no-op
+            // for the build that draws this expansion. The next foreground bumps the
+            // counter again, so nothing is lost — a collapse is skipped only for the
+            // one build a tap asked to open.
+            //
+            // Set *before* the key, so the order matches the provider's — request
+            // first, then the key — and the two cannot be read half-applied.
+            WidgetState.seenCollapseRequest = WidgetState.collapseRequest
             WidgetState.directLaunchKey = key
             // Always page one, for the same reason a folder's toggle did: a fresh
             // look at the group, not whatever page it was left on.
             WidgetState.expandedPage = 0
         }
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
+/// Closes an open direct-launch panel, without ever opening one.
+///
+/// ## Why this is not ``ToggleDirectLaunchIntent``
+///
+/// The panel exits on a tap anywhere that is not an app icon, and that surface is
+/// the whole widget — the same invisible shield that, collapsed, exists to stop a
+/// tap in the gaps from launching AppFolder. Pointing it at the toggle would be a
+/// silent regression: collapsed, the toggle's `else` branch *sets* the key, so
+/// every tap in the gaps would open the panel. A widget whose blank surface opens
+/// a panel is worse than one whose blank surface does nothing.
+///
+/// So this is one-directional. It closes the grid it was handed, and returns
+/// without writing anything if that grid is not the one open.
+///
+/// ## Why the key is carried even though it is compared
+///
+/// ``AdvanceDirectLaunchPageIntent`` documents the hazard: a `Button` whose intent
+/// value never changes can be reused for another cell across a timeline reload. The
+/// key is both the guard and the thing that makes this button's value differ between
+/// two widgets on the same Home Screen, so a stale tap cannot close the wrong one.
+public struct CollapseDirectLaunchIntent: AppIntent {
+    public static let title: LocalizedStringResource = "收起直开分组"
+
+    /// The grid to close.
+    @Parameter(title: "分组")
+    public var key: String
+
+    public init() {}
+
+    public init(key: String) {
+        self.key = key
+    }
+
+    public func perform() async throws -> some IntentResult {
+        // Nothing open, or a different grid open — say nothing and spend no reload.
+        // Reloads are granted on a budget, and this intent is behind the widget's
+        // largest and most easily mis-tapped surface; a tap that changes nothing
+        // must not eat the grant a real collapse will need.
+        guard WidgetState.directLaunchKey == key else { return .result() }
+        WidgetState.collapse()
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }

@@ -26,6 +26,16 @@ final class WidgetIconCache: @unchecked Sendable {
 
     private let lock = NSLock()
     private var cache: [String: UIImage] = [:]
+    /// Keys in least-recently-used order, oldest first, so eviction is a `removeFirst`.
+    private var recency: [String] = []
+    /// How many decoded icons are held at once, per process.
+    ///
+    /// The widget process is short-lived, but a single timeline build can touch
+    /// every configured slot — up to 100 apps — and a decoded 512 pt icon is not
+    /// small. A cap bounds the peak: the collapsed grid and any panel draw at most a
+    /// few dozen icons at once, so the working set fits, and an evicted entry is one
+    /// file read away rather than a re-download.
+    private static let capacity = 32
     private let directory: URL?
 
     init() {
@@ -57,6 +67,7 @@ final class WidgetIconCache: @unchecked Sendable {
     private func load(key: String, file: URL) -> UIImage? {
         lock.lock()
         if let cached = cache[key] {
+            touch(key)
             lock.unlock()
             return cached
         }
@@ -67,8 +78,31 @@ final class WidgetIconCache: @unchecked Sendable {
         }
 
         lock.lock()
-        cache[key] = image
+        // Another thread may have decoded it while this one was reading the file,
+        // so the insert is a no-op rather than an overwrite — either way `touch`
+        // then marks it most recent.
+        if cache[key] == nil { cache[key] = image }
+        touch(key)
+        evictIfNeeded()
+        let stored = cache[key] ?? image
         lock.unlock()
-        return image
+        return stored
+    }
+
+    /// Marks `key` as the most recently used. The caller holds ``lock``.
+    private func touch(_ key: String) {
+        if let index = recency.firstIndex(of: key) { recency.remove(at: index) }
+        recency.append(key)
+    }
+
+    /// Drops the least recently used entries until within ``capacity``.
+    ///
+    /// The just-touched key sits at the end of ``recency`` and the eviction takes
+    /// from the front, so the entry this call just produced is never the one
+    /// dropped. The caller holds ``lock``.
+    private func evictIfNeeded() {
+        while recency.count > Self.capacity {
+            cache.removeValue(forKey: recency.removeFirst())
+        }
     }
 }

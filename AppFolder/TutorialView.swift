@@ -46,8 +46,8 @@ struct TutorialView: View {
                     )
                     Step(
                         number: 3,
-                        title: "选小尺寸，点「添加小组件」",
-                        detail: "只有小尺寸。它一个能放八个 App，点下去直接打开，不经过 AppFolder。"
+                        title: "选尺寸，点「添加小组件」",
+                        detail: "小、中、大都可以。小号一屏 8 个、中号 9 个、大号 15 个，点下去直接打开，不经过 AppFolder；尺寸越大，图标越大。"
                     )
                 } header: {
                     Text("放到桌面")

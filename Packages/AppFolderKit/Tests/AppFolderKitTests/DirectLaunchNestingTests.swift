@@ -29,13 +29,14 @@ struct DirectLaunchNestingTests {
 
     /// 2 × 2 in the small widget: three apps, and the fourth cell is the door.
     ///
-    /// The setting only reaches the small widget — a 四宫格 folder is still 3
-    /// across in medium and large, so the capacity there is unchanged. See
-    /// ``FolderGrid/columns(for:)``.
+    /// The setting only reaches the small widget — a 四宫格 folder is still 5 across
+    /// in medium and 3 in large, so this choice does not move the wider capacities.
+    /// See ``FolderGrid/columns(for:)``. The medium number is 9 rather than 8
+    /// because medium is 5 × 2 — ten cells, one of them the door.
     @Test func fourGridInTheSmallWidgetHoldsThree() {
         #expect(FolderGrid.four.cellCount(for: .systemSmall) == 4)
         #expect(FolderGrid.four.capacity(for: .systemSmall) == 3)
-        #expect(FolderGrid.four.capacity(for: .systemMedium) == 8)
+        #expect(FolderGrid.four.capacity(for: .systemMedium) == 9)
     }
 
     /// The door appears on the app *after* the capacity, at every threshold.
@@ -43,8 +44,8 @@ struct DirectLaunchNestingTests {
         for (grid, family, limit) in [
             (FolderGrid.nine, WidgetFamily.systemSmall, 8),
             (FolderGrid.four, WidgetFamily.systemSmall, 3),
-            (FolderGrid.nine, WidgetFamily.systemMedium, 8),
-            (FolderGrid.nine, WidgetFamily.systemLarge, 8),
+            (FolderGrid.nine, WidgetFamily.systemMedium, 9),
+            (FolderGrid.nine, WidgetFamily.systemLarge, 15),
         ] {
             let grid = grid as FolderGrid
             #expect(
@@ -58,22 +59,18 @@ struct DirectLaunchNestingTests {
         }
     }
 
-    /// The expansion lays out exactly the apps the door was hiding — no app lost,
-    /// none drawn twice — which is the property ``FolderExpansionLayout``
-    /// guarantees and this widget now depends on.
+    /// The door's *preview* still counts only what the door hides, which is the list
+/// it draws miniatures of.
     ///
-    /// Checked here against a grid of twelve in the small widget because that is
-    /// the case the door previews *and* pages: eight shown, four hidden, and the
-    /// four fit on one page beside the back cell.
-    @Test func theExpansionCoversEverythingBehindTheDoor() {
+    /// The door previews four of the hidden apps, so four is the number this pins.
+    /// Note this is deliberately **not** what the panel lays out: the panel is a view
+    /// of the whole configuration (see ``DirectLaunchPanelTests``), where the door's
+    /// miniature grid is a view of the overflow. Both numbers are correct for their
+    /// own surface, and the door's is `totalSlots - capacity`.
+    @Test func theDoorsPreviewCountsOnlyWhatItHides() {
         let grid = FolderGrid.nine
         let hidden = 12 - grid.capacity(for: .systemSmall)
         #expect(hidden == 4)
-
-        let layout = FolderExpansionLayout(family: .systemSmall, grid: grid, appCount: hidden)
-        #expect(layout.isPaged == false, "four hidden apps fit on one page beside 返回")
-        #expect(layout.pageCount == 1)
-        #expect(Array(layout.appIndices(onPage: 0)) == [0, 1, 2, 3])
     }
 
     /// Enough hidden apps to page, and the pages still cover all of them.
