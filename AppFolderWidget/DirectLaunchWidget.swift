@@ -55,14 +55,12 @@ struct DirectLaunchWidget: Widget {
     /// more of its height on margin than a square does, leaving three rows in what
     /// is left. Not offering the shape removed the cause.
     ///
-    /// What changed is what the extra area is *for*. The panel is the reason to be
-    /// large: it lays every configured app out at a fixed cell count
-    /// (``panelGrid``), so the icons are the same size in a large widget as in a
-    /// small one and the extra width buys **more apps per page** instead of bigger
-    /// ones. The collapsed grid still fills whatever shape it is given, and a
-    /// medium collapsed grid is still a cramped one — that trade is knowingly
-    /// accepted here, and this is the place to revisit it if a real Home Screen
-    /// says otherwise.
+    /// What changed is what the extra area is *for*. A larger widget simply shows
+    /// more apps, open or collapsed: 8 in a 九宫格 small widget and 3 in a 四宫格,
+    /// then 9 at medium and 15 at large — see ``FolderGrid/cellCount(for:)``. The
+    /// collapsed grid still fills whatever shape it is given, and a medium collapsed
+    /// grid is still a cramped one — that trade is knowingly accepted here, and this
+    /// is the place to revisit it if a real Home Screen says otherwise.
     ///
     /// `systemExtraLarge` is excluded rather than forgotten: it is an iPad-only
     /// family, and this app is iPhone-only (`UISupportedInterfaceOrientations`,
@@ -587,9 +585,9 @@ private struct DirectLaunchView: View {
 /// family, a grid and a count. "No app is lost and none is drawn twice" is a
 /// property of the layout rather than of any one widget, so it is read from there
 /// instead of reimplemented, and there is only one copy to get wrong. The panel
-/// uses the type's default of reserving the way back, and its shape is the one
-/// resolved from the room the widget was given rather than the user's 九宫格
-/// setting.
+/// uses the type's default of reserving the way back, and it lays ``panelLayout``
+/// out over the **same** shape the collapsed grid drew — the user's 九宫格/四宫格
+/// included — so opening a folder changes the contents and nothing else.
 ///
 /// The app cell is the part that cannot be shared: a slot carries a
 /// `SystemShortcut` and opens through ``RunSystemShortcutIntent``, with no URL
@@ -598,103 +596,34 @@ struct DirectLaunchPanelView: View {
     let entry: DirectLaunchEntry
     let family: WidgetFamily
 
-    /// The shape the panel lays out, fitted to the room it was actually given.
+    /// The shape the panel lays out — the same one the collapsed grid drew.
     ///
-    /// ## Why this is measured rather than tabulated per family
+    /// ## Why the panel does not choose its own shape
     ///
-    /// The same reason the collapsed grid's table is a table and not a guess: a
-    /// hand-written "three rows for Medium" is what shipped **11.4 pt icons** on a
-    /// medium widget, because a widget's margin is a share of its *width* and a
-    /// short wide rectangle spends more of its height on margin than a square does.
-    /// A second hand-written table would be a second chance to make that mistake,
-    /// and the panel is the case where the mistake would cost the most — its whole
-    /// reason to exist at Large is that the icons there are not cramped.
+    /// It used to. The panel sized itself from the room it was given: keep the cell
+    /// the collapsed small grid draws (about 37 pt), then take as many whole rows
+    /// and columns as fit, on the reasoning that the panel's job is to show as much
+    /// of the configuration as possible. What that produced is the bug this fixes —
+    /// on a **四宫格** small widget the collapsed grid is a 2 × 2 the user chose and
+    /// the door opened onto a **3 × 3**. The frame around the apps changed shape, the
+    /// icons shrank, and the tap read as the widget being replaced rather than opened.
     ///
-    /// So the panel asks the geometry what it can afford: keep the cell size the
-    /// collapsed small grid already draws, and take as many whole rows and columns
-    /// as the rectangle allows. ``FolderGridMetrics/cell(in:columns:rows:)`` answers
-    /// that question for a candidate shape, and the candidates are tried densest
-    /// first so a wide widget gets columns before rows.
+    /// So the panel takes the collapsed grid's own shape, from the same ``FolderGrid``
+    /// the user picked. Opening then keeps everything still — the same cells at the
+    /// same icon size, 九宫格 or 四宫格 — and only the *contents* change, which is what
+    /// opening a folder does on iOS. It also means the panel can never disagree with
+    /// the grid it came from, and the per-family shape search (and the fallback floor
+    /// it needed) is gone with it.
     ///
-    /// ## Why this is not the user's 九宫格/四宫格 setting
-    ///
-    /// That setting is about the *collapsed* grid: how many apps sit on the Home
-    /// Screen before a door appears. The panel is a different surface with a
-    /// different job — show as much of the configuration as fits — and reusing the
-    /// setting would make a 四宫格 folder's panel four cells with a vast empty
-    /// rectangle under it.
-    ///
-    /// A small widget resolves to 3 × 3, the shape it already drew, so nothing about
-    /// the small panel is new — the same cells, now holding the overflow instead of
-    /// the eight apps already on the Home Screen.
-    private func panelGrid(in size: CGSize) -> (columns: Int, rows: Int) {
-        // The size the collapsed small grid draws at the default setting, which the
-        // tests pin at about 37 pt. The panel holds itself to that so a bigger
-        // widget buys apps rather than bigger icons.
-        let target: CGFloat = 37
-        let gapShare = FolderGridMetrics.standardGapShare
-        let marginShare = FolderGridMetrics.standardMarginShare
-
-        // Dense enough to hit the target, and — separately — the best on offer when
-        // none does. Falling back to a hardcoded shape would be falling back to the
-        // wrong one: the small widget is *narrower than the target allows on some
-        // devices* (a non-Max iPhone's ~158 pt slot puts a 3 × 3 at ~34 pt), and a
-        // `1 × 1` seed would collapse the panel to a single cell where the collapsed
-        // grid the user just tapped draws nine. So the panel falls back to the
-        // shape the collapsed grid draws — a square that fills the room — rather
-        // than to a corner of it.
-        var best: (columns: Int, rows: Int)?
-        var fill = (columns: 3, rows: 3)
-
-        for columns in 2...8 {
-            for rows in 1...8 {
-                let cell = FolderGridMetrics.cell(
-                    in: size, columns: columns, rows: rows,
-                    gapShare: gapShare, marginShare: marginShare
-                )
-                guard cell > 0 else { continue }
-                let area = columns * rows
-                if cell >= target, area > (best.map { $0.columns * $0.rows } ?? 0) {
-                    best = (columns, rows)
-                }
-                // The densest shape whose *cells* clear the panel's own margin, so
-                // the fallback fills the rectangle instead of shrinking into it.
-                if cell >= Self.fallbackCellFloor, area > fill.columns * fill.rows {
-                    fill = (columns, rows)
-                }
-            }
-        }
-        return best ?? fill
-    }
-
-    /// The smallest a cell may be and still count as a usable panel cell when no
-    /// shape reaches ``target`` — about 22 pt, the point below which an icon is no
-    /// longer comfortably tappable. Small widgets on every device clear it; it
-    /// exists so a pathological size still resolves to *something* rather than to
-    /// the `3 × 3` default.
-    private static let fallbackCellFloor: CGFloat = 22
-
-    /// The apps the door was hiding, laid out over the whole widget and paged, with
-    /// cell 0 reserved for the way back.
-    ///
-    /// ## Cells come from the shape, apps page; the panel does not grow
-    ///
-    /// The shape is `columns × rows`, resolved from the room the widget has. That is
-    /// the cell count, whatever the overflow is: nine apps behind the door on a
-    /// nine-cell panel put eight on the first page and one on the second, exactly as a
-    /// system folder does. Growing the grid to fit the apps instead would add a
-    /// fourth row to a 3 × 3 the moment the ninth app arrived.
-    ///
-    /// The count is floored at two — not at the shape — for the one case the shape
-    /// cannot cover: ``panelGrid(in:)`` answers `1 × 1` while it still has no room to
-    /// measure, and with a single cell the way back would fill the panel and no app
-    /// could ever be drawn.
-    private func layout(in size: CGSize) -> FolderExpansionLayout {
-        let shape = panelGrid(in: size)
-        return FolderExpansionLayout(
+    /// The cost is density: a medium panel now holds nine apps a page rather than
+    /// eleven, so the largest overflows page a little more. That is the same trade the
+    /// collapsed grid already made; the alternative was two different shapes for one
+    /// group, depending on whether it was open.
+    private var panelLayout: FolderExpansionLayout {
+        FolderExpansionLayout(
             family: family,
-            columns: shape.columns,
-            cellCount: max(shape.columns * shape.rows, 2),
+            columns: entry.style.grid.columns(for: family),
+            cellCount: entry.style.grid.cellCount(for: family),
             appCount: panelSlots.count,
             reservesBackCell: true
         )
@@ -724,12 +653,11 @@ struct DirectLaunchPanelView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            // The shape is chosen from the room the widget actually has — see
-            // ``panelGrid(in:)`` — so it is resolved here, where `proxy.size` is
-            // known, rather than read off a per-family table. The page is clamped
-            // through the same resolved layout, since `pageSize` — and so the page
-            // count — is a property of the shape rather than of the family.
-            let layout = layout(in: proxy.size)
+            // The same shape the collapsed grid drew, so the panel is the grid with
+            // different contents rather than a new arrangement — see
+            // ``panelLayout``. The page is clamped through the resolved layout,
+            // since `pageSize` is a property of the shape.
+            let layout = panelLayout
             let page = layout.clampedPage(entry.expandedPage)
             // Sized for the *cell count*, not the app count on this page, so pages
             // are pixel-identical and the icons do not resize as the user pages.

@@ -38,12 +38,45 @@ import WidgetKit
 struct DirectLaunchPanelTests {
     private static let counts = [0, 1, 3, 8, 9, 10, 18, 40]
 
-    /// A 3 × 3 small panel, built the way ``DirectLaunchPanelView`` builds it: nine
-    /// cells, floored at two only for the un-measured `1 × 1` case.
+    /// A 3 × 3 panel — the shape the widget uses for a 九宫格 small folder, since
+    /// the panel now draws the folded grid's own shape. See
+    /// ``thePanelKeepsTheFoldedGridsShape()`` for the other three.
     private func panel(_ count: Int) -> FolderExpansionLayout {
         FolderExpansionLayout(
             family: .systemSmall, columns: 3, cellCount: 9, appCount: count, reservesBackCell: true
         )
+    }
+
+    /// The panel draws the shape of the grid the door was opened from, for every
+    /// grid and family — that is what keeps opening a folder from changing its
+    /// shape.
+    ///
+    /// The bug this pins is the 四宫格 one: its collapsed grid is a 2 × 2, and the
+    /// panel used to size itself from the room instead, coming back as a **3 × 3**.
+    /// The shapes below are the four a widget can actually produce, and each must
+    /// lay out with a way back in cell 0 and one fewer app than cells on a page.
+    @Test func thePanelKeepsTheFoldedGridsShape() {
+        let shapes: [(grid: FolderGrid, family: WidgetFamily, columns: Int, cells: Int)] = [
+            (.nine, .systemSmall, 3, 9),
+            (.four, .systemSmall, 2, 4),
+            (.nine, .systemMedium, 5, 10),
+            (.nine, .systemLarge, 4, 16),
+        ]
+        for (grid, family, columns, cells) in shapes {
+            // The shape the panel is handed is the folder's own.
+            #expect(grid.columns(for: family) == columns)
+            #expect(grid.cellCount(for: family) == cells)
+
+            // And it lays out as a panel: 返回 in cell 0, `cells - 1` apps a page.
+            let layout = FolderExpansionLayout(
+                family: family, columns: columns, cellCount: cells,
+                appCount: cells - 1, reservesBackCell: true
+            )
+            #expect(layout.role(forCell: 0, onPage: 0) == .back, "\(grid) \(family)")
+            #expect(layout.pageSize == cells - 1, "\(grid) \(family)")
+            #expect(layout.pageCount == 1, "\(grid) \(family)")
+            #expect(layout.role(forCell: cells - 1, onPage: 0) == .app(cells - 2), "\(grid) \(family)")
+        }
     }
 
     // MARK: - The way back
@@ -82,9 +115,10 @@ struct DirectLaunchPanelTests {
         #expect(layout.role(forCell: 4, onPage: 0) == .empty)
     }
 
-    /// The floor is two, not the shape: a caller with no room to measure still gets a
-/// panel where an app can appear beside the way back, and the shape governs
-/// everywhere else.
+    /// The floor is two, not the shape: a caller that hands over a single-cell grid
+    /// still gets a panel where an app can appear beside the way back. No widget
+    /// produces that — the smallest real panel is a 四宫格's four cells — so this
+    /// guards the type rather than a shipping case.
     @Test func theCellCountFloorIsTwo() {
         let unmeasured = FolderExpansionLayout(
             family: .systemSmall, columns: 1, cellCount: 2, appCount: 1, reservesBackCell: true
