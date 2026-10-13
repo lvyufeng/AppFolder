@@ -44,36 +44,50 @@ import WidgetKit
 /// that machinery rather than reimplementing it. See ``DirectLaunchPanelView``
 /// for what is shared and what could not be.
 struct DirectLaunchWidget: Widget {
-    /// Every shape the direct-launch widget is offered in.
+    /// Every shape the direct-launch widget is offered in: the small square, and on
+    /// iOS 27 the extra-large portrait one.
     ///
-    /// ## Why the larger sizes came back
+    /// ## Why the middle sizes are not offered
     ///
-    /// They were removed when the *collapsed* grid was the whole product: measured,
-    /// a nine-slot medium grid came out with **11.4 pt icons** at the default size
-    /// setting — unreadable and too small to hit — because ``FolderGridMetrics``
-    /// takes its margin as a share of the widget's *width*, and 349 × 166 spends
-    /// more of its height on margin than a square does, leaving three rows in what
-    /// is left. Not offering the shape removed the cause.
+    /// Medium and large were offered, reshaped once, and are withdrawn again — on a
+    /// real Home Screen their **icon size does not hold up**:
     ///
-    /// What changed is what the extra area is *for*. A larger widget simply shows
-    /// more apps, open or collapsed: 8 in a 九宫格 small widget and 3 in a 四宫格,
-    /// then 9 at medium and 15 at large — see ``FolderGrid/cellCount(for:)``. The
-    /// collapsed grid still fills whatever shape it is given, and a medium collapsed
-    /// grid is still a cramped one — that trade is knowingly accepted here, and this
-    /// is the place to revisit it if a real Home Screen says otherwise.
+    /// * A medium widget is 349 × 166, and ``FolderGridMetrics`` takes the outer
+    ///   margin as a share of the widget's **width**. On a short, wide rectangle
+    ///   that spends the *height*: 24.6 pt above and below at the default setting —
+    ///   nearly a third of the widget — and 37 pt at 小, where the icons come out at
+    ///   42 pt. It reads as a small cluster floating in a wide box.
+    /// * Large (349 × 360) is closer to square, so its margin survives, but a 4 × 4
+    ///   grid at 小 draws **22.9 pt gaps between 51.6 pt icons** — a ratio of 44% —
+    ///   because the gap is a share of the shorter side and a large widget's shorter
+    ///   side is its width.
+    ///
+    /// Both are one root cause in different clothes: the layout was designed around a
+    /// square, and the margin and gap shares have no defensible meaning on a
+    /// rectangle. Rather than keep patching them per family, the shapes that do not
+    /// hold up are simply not offered. The small widget is the square every number in
+    /// the layout was measured against.
     ///
     /// `systemExtraLarge` is excluded rather than forgotten: it is an iPad-only
     /// family, and this app is iPhone-only (`UISupportedInterfaceOrientations`,
-    /// portrait, iPhone). `systemExtraLargePortrait` is the iOS 27 square-ish
-    /// family and *is* offered — it is the biggest panel available on a phone.
+    /// portrait, iPhone). `systemExtraLargePortrait` — the iOS 27 square-ish
+    /// whole-page family — is still offered; it is the one larger shape whose size
+    /// was never measured against a real Home Screen, so it is the one to check
+    /// before trusting it.
     ///
-    /// Widgets already placed at the old sizes keep working; the system does not
-    /// evict them, and there is no API to enumerate what is already there.
+    /// ## Widgets already placed at a withheld size
+    ///
+    /// They keep working: the system does not evict a widget whose family has left
+    /// this list, and there is no API to enumerate what is already placed. That is
+    /// why ``FolderGrid`` still describes the 5 × 2 and 4 × 4 shapes at all — an
+    /// existing medium or large widget still draws with them.
     private static var families: [WidgetFamily] {
         if #available(iOS 27.0, *) {
-            return [.systemSmall, .systemMedium, .systemLarge, .systemExtraLargePortrait]
+            return [.systemSmall, .systemExtraLargePortrait]
         }
-        return [.systemSmall, .systemMedium, .systemLarge]
+        // Unreachable as built — the extension deploys to iOS 27 — but the check
+        // costs nothing and keeps the list honest if the floor ever moves.
+        return [.systemSmall]
     }
 
     var body: some WidgetConfiguration {
@@ -86,27 +100,9 @@ struct DirectLaunchWidget: Widget {
         }
         .configurationDisplayName("直接启动")
         .description("每个格子一个 App，点一下直接打开，不经过 AppFolder。")
-        // Every family that has a shape this layout was built for.
-        //
-        // The two wider ones were withheld once, and the reason was real: with the
-        // margin and the gap taken as shares of the widget's *width*, a 349 × 166
-        // medium spent 37 pt of its 166 pt height on margin and ran out of room for
-        // three rows — measured, a nine-slot grid came out with **11.4 pt icons**.
-        // The clamp in ``FolderGridMetrics/legibleMarginShare`` is what made them
-        // offerable, and it was checked at all three icon-size settings rather than
-        // only at 大, which is where the first fix had left 中 at 22.7 pt.
-        //
-        // Legible was not the same as *proportioned*, though, and it took drawing
-        // the frames to notice: three columns of a height-sized cell came to 94 pt
-        // of a 349 pt width — 27%, with 127 pt of empty plate on each side. Medium
-        // is now 5 × 2 and large 4 × 4 (``FolderGrid/columns(for:)``), which measure
-        // 227 pt and 232 pt wide and give 41 pt and 48.5 pt icons instead of 28 and
-        // 68. Large also showed *fewer* apps than medium until it changed, which is
-        // the wrong way round for a launcher.
-        //
-        // Widgets placed on a Home Screen at the old sizes keep working — the system
-        // does not evict them — but no new one can be added at them. There is no API
-        // to enumerate what is already there, so that is the whole of the handling.
+        // Only the shapes that hold up — see ``families`` for why medium and large
+        // are not among them. Stated here because this is the only place the system
+        // reads it.
         .supportedFamilies(Self.families)
         // The grid insets itself (``FolderGridMetrics/margin``), so the system's
         // own 18 pt content margin would be a second inset on top of it — the

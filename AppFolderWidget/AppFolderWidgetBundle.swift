@@ -31,19 +31,11 @@ import WidgetKit
 /// This file records it so the next person reading the bundle does not have to
 /// open the widget to learn it.
 ///
-/// 中 and 大 used to be omitted here, and this comment used to say so. They were
-/// re-admitted once ``FolderGridMetrics`` could size a non-square widget without
-/// shrinking the icons: the margin and the gap are shares of the widget, and
-/// taking them from the *width* of a 349 × 166 widget left no room for three rows
-/// — measured at 11.4 pt. The clamp that followed is the reason the families can
-/// be offered at all, so if one of them is ever withdrawn again, the geometry is
-/// the place to look rather than this list.
-///
-/// Legible was not the same as proportioned, and it took drawing the frames to
-/// see the difference: a legible medium grid still used only 27% of its width.
-/// Medium is now 5 × 2 rather than 3 × 3 — see ``FolderGrid/columns(for:)`` for
-/// the measurement — which is a change to the *shape* of that family and not to
-/// the list of them.
+/// It is small, and on iOS 27 also extra-large portrait. The middle sizes were
+/// offered twice and withdrawn twice: their margin and gap are shares of a
+/// rectangle, where those shares only mean what they were chosen for on a square —
+/// see ``DirectLaunchWidget`` for the measurements that took them out. If one is
+/// ever offered again, the geometry is the place to look rather than this list.
 @main
 struct AppFolderWidgetBundle: WidgetBundle {
     var body: some Widget {
