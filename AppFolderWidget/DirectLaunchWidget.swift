@@ -3,81 +3,25 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-/// The widget whose tiles open another app in one tap, with no hop.
-///
-/// ## What it does that ``AppFolderWidget`` cannot
-///
-/// A tile in ``AppFolderWidget`` reaches its target through a URL scheme and a
-/// visible bounce through AppFolder, or through a universal link the target may
-/// not publish. This one reaches it through `RunSystemShortcutIntent`, which the
-/// *system* resolves: the target is chosen by the user when they configure the
-/// widget, so it can be any installed app at all — including one with no scheme
-/// and no universal link. Nothing flashes in between; see
-/// ``QuickLaunchIntent`` for the API and why it works.
-///
-/// ## Why it is a separate widget and not a mode of the other
-///
-/// Because it is the only arrangement the platform permits. A `SystemShortcut`
-/// is opaque and has no public initializer, so it cannot be written into
-/// `library.json` and cannot be assembled by AppFolder's own folder editor — the
-/// slots exist only as parameters of *this* widget's configuration, set by the
-/// user in the Edit Widget sheet. A folder's grid, by contrast, is built in the
-/// app and saved. The two are different data sources, and trying to make one
-/// drive the other is fighting the API rather than using it.
-///
-/// ## The icon, and where it comes from
-///
-/// The system gives back a display *name* and nothing else — no icon, no bundle
-/// id. So each name is resolved to an App Store id (``AppCatalog/match(name:)``)
-/// and its artwork downloaded into the App Group by ``DirectLaunchIcons``, where
-/// the render below can read it synchronously. The name is resolved at timeline
-/// time and never at draw time: a widget's body cannot wait on the network.
-///
-/// ## The extra slot, and why it is a door
-///
-/// A grid of nine draws eight apps and one door; a 四宫格 in the small widget
-/// draws three and a door. That is not five missing apps — it is
-/// ``FolderGrid/capacity(for:)``, which is one less than the cell count *always*,
-/// whether or not anything has overflowed, so that adding a ninth app to an
-/// eight-app grid rearranges nothing. Tapping the door opens the panel in place,
-/// with no app launched, exactly as ``AppFolderWidget`` does — this widget reuses
-/// that machinery rather than reimplementing it. See ``DirectLaunchPanelView``
-/// for what is shared and what could not be.
+/// Leaves the host's independently requested glass visible in the default Home
+/// Screen appearance. Custom solid and gradient plates live in the content layer.
+/// The host request below uses an unpublished API; App Store readiness is pending.
+extension View {
+    func appFolderWidgetContainerBackground() -> some View {
+        containerBackground(for: .widget) {
+            Color.clear
+        }
+    }
+}
+
+/// Opens the system actions selected in Edit Widget without routing through the app.
+/// Saved groups arrange named references into folders; the system retains the actual
+/// actions. The default layout instead reserves its last cell for an overflow folder.
+/// Artwork is resolved by the timeline provider before the widget renders.
 struct DirectLaunchWidget: Widget {
-    /// Every shape the widget is offered in: the small square, and nothing else.
-    ///
-    /// ## Why only the small size is offered
-    ///
-    /// Every larger family was tried on a real Home Screen, and none of them holds
-    /// up — all for one root cause. ``FolderGridMetrics`` takes its outer margin and
-    /// its gap as shares of *one edge* of the widget, and those shares only mean what
-    /// they were chosen for on a square:
-    ///
-    /// * **Medium** (349 × 166) is short and wide, so a width-based margin spends the
-    ///   *height*: 24.6 pt above and below at the default setting — nearly a third of
-    ///   the widget — and 37 pt at 小, where the icons come out at 42 pt. It reads as
-    ///   a small cluster floating in a wide box.
-    /// * **Large** (349 × 360) is nearly square, so its margin survives, but a 4 × 4
-    ///   grid at 小 draws **22.9 pt gaps between 51.6 pt icons** — a ratio of 44% —
-    ///   because the gap is a share of the shorter side.
-    /// * **Extra large portrait** was never measured at all: its real size is
-    ///   unknown, no shape was ever chosen against it, and the 4 × 3 rule it falls
-    ///   back on fills barely half the height.
-    ///
-    /// Rather than keep patching the geometry per family, only the shape the layout
-    /// was actually designed and measured against is offered. The small widget is
-    /// that square, and every number in it is checked on a device.
-    ///
-    /// (`systemExtraLarge` is excluded for a different reason: it is an iPad-only
-    /// family, and this app is iPhone-only — see `UISupportedInterfaceOrientations`.)
-    ///
-    /// ## Widgets already placed at a withheld size
-    ///
-    /// They keep working: the system does not evict a widget whose family has left
-    /// this list, and there is no API to enumerate what is already placed. That is
-    /// why ``FolderGrid`` still describes the 5 × 2, 4 × 4 and 4 × 3 shapes at all —
-    /// an existing medium, large or extra-large widget still draws with them.
-    private static let families: [WidgetFamily] = [.systemSmall]
+    private static let families: [WidgetFamily] = [
+        .systemSmall, .systemMedium, .systemLarge, .systemExtraLargePortrait
+    ]
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
@@ -88,29 +32,16 @@ struct DirectLaunchWidget: Widget {
             DirectLaunchView(entry: entry)
         }
         .configurationDisplayName("直接启动")
-        .description("每个格子一个 App，点一下直接打开，不经过 AppFolder。")
-        // Only the shape that holds up — see ``families`` for why the larger ones
-        // are not offered. Stated here because this is the only place the system
-        // reads it.
+        .description("把常用 App、动作、联系人和网站排在一起，点按打开。")
         .supportedFamilies(Self.families)
-        // The grid insets itself (``FolderGridMetrics/margin``), so the system's
-        // own 18 pt content margin would be a second inset on top of it — the
-        // icons would sit in a grid noticeably smaller than the widget and than
-        // the folder widget beside it. Same call, same reason as ``AppFolderWidget``.
+        // FolderGridMetrics supplies the content margins for each family.
         .contentMarginsDisabled()
-        // Same reason as ``AppFolderWidget``: this layout is not built around a
-        // plate the system supplies, so the system is free to drop it where one is
-        // not wanted.
+        // Let the system remove or replace the declared background as appropriate.
         .containerBackgroundRemovable(true)
-        // Asks the host for the system's Liquid Glass plate, exactly as
-        // ``AppFolderWidget`` does. Without this the widget gets the ordinary flat
-        // background and the two widgets do not match on the same Home Screen.
-        //
-        // Glass is not drawn here and cannot be: it is a grant from the system, and
-        // this call is the request. It compiles only because
-        // `Scripts/widgetkit-overlay.sh` publishes the declaration ahead of this
-        // target's Swift compile — see that script for why an ordinary `import
-        // WidgetKit` cannot see it.
+        // Restore the previously verified per-widget glass request. This is
+        // independent of the user's global Clear/Tinted Home Screen setting.
+        // Scripts/widgetkit-overlay.sh imports the OS's real declaration; this
+        // unpublished API remains a separate App Store compatibility issue.
         .preferredBackgroundStyle(.blur)
     }
 }
@@ -126,11 +57,13 @@ struct DirectLaunchSlot: Identifiable {
     let id: Int
     let name: String
     let appStoreID: Int?
+    var country: String? = nil
     let symbolName: String?
+    var customIcons: CustomIconVariants? = nil
 }
 
 struct DirectLaunchEntry: TimelineEntry {
-    let date: Date
+    var date: Date
     /// The resolved slots, in the order the user configured them.
     let slots: [DirectLaunchSlot]
     /// The shortcuts themselves, which only the buttons may touch.
@@ -195,10 +128,32 @@ struct DirectLaunchEntry: TimelineEntry {
     ///
     /// Defaulted so the placeholder and tests need not supply it.
     var iconRevision: String = ""
+
+    /// Missing artwork or a temporary lookup failure needs a later retry.
+    var needsArtworkRetry: Bool = false
+
+    var selectedGroupID: UUID? = nil
+    var savedGroup: SavedGroup? = nil
+    /// Root configuration identifies this widget and its binding report. The
+    /// displayed style may instead come from the currently open folder.
+    var rootStyle: FolderStyle? = nil
+    var savedGroupLayout: SavedGroupPageLayout? = nil
+    var groupNavigation: SavedGroupNavigation.Snapshot = .init()
+    /// Only folders on the current page retain custom artwork. The saved tree
+    /// contains small immutable references, never the photo bytes themselves.
+    var tileArtwork: [UUID: CustomIconVariants] = [:]
+    var artworkPixelSize: Int = 256
+    var dateCalendar: Calendar = .current
+
+    var containsDateIcon: Bool {
+        slots.contains { $0.customIcons?.containsDate == true }
+            || tileArtwork.values.contains { $0.containsDate }
+    }
 }
 
 struct DirectLaunchProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> DirectLaunchEntry {
+        DirectLaunchIcons.diagnose("geometry placeholder family=\(context.family.rawValue) size=\(context.displaySize.width)x\(context.displaySize.height)")
         let slots = [
             DirectLaunchSlot(id: 0, name: "微信", appStoreID: 414478124, symbolName: nil),
             DirectLaunchSlot(id: 1, name: "相机", appStoreID: nil, symbolName: "camera.fill"),
@@ -218,18 +173,27 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: QuickLaunchIntent, in context: Context) async -> DirectLaunchEntry {
-        await entry(for: configuration, family: context.family)
+        DirectLaunchIcons.diagnose("geometry snapshot family=\(context.family.rawValue) size=\(context.displaySize.width)x\(context.displaySize.height)")
+        return await entry(for: configuration, family: context.family, recordsBindingReport: false)
     }
 
     func timeline(for configuration: QuickLaunchIntent, in context: Context) async -> Timeline<DirectLaunchEntry> {
-        // `never`: the slots only change when the user edits the widget, which
-        // WidgetKit reloads on its own, and the entries carry no time-varying
-        // content. A refresh policy here would spend widget budget re-reading a
-        // configuration that cannot have changed.
-        Timeline(entries: [await entry(for: configuration, family: context.family)], policy: .never)
+        DirectLaunchIcons.diagnose("geometry timeline family=\(context.family.rawValue) size=\(context.displaySize.width)x\(context.displaySize.height)")
+        let entry = await entry(for: configuration, family: context.family, recordsBindingReport: true)
+        let plan = DateIconTimelinePlan(now: entry.date, containsDateIcon: entry.containsDateIcon,
+                                        needsArtworkRetry: entry.needsArtworkRetry, calendar: entry.dateCalendar)
+        // Reuse resolved actions, navigation and bounded artwork. Future dates
+        // must not perform lookups, write observations or advance navigation.
+        let entries = plan.dates.map { date in
+            var copy = entry
+            copy.date = date
+            return copy
+        }
+        return Timeline(entries: entries, policy: plan.reloadDate.map { .after($0) } ?? .never)
     }
 
-    private func entry(for configuration: QuickLaunchIntent, family: WidgetFamily) async -> DirectLaunchEntry {
+    private func entry(for configuration: QuickLaunchIntent, family: WidgetFamily,
+                       recordsBindingReport: Bool) async -> DirectLaunchEntry {
         // The app asks for any expansion to be dropped when it comes to the
         // foreground, and it says so through the shared defaults — see
         // ``WidgetState/requestCollapse()`` for why the request is a counter and
@@ -240,11 +204,18 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
         // This used to live in the folder widget's provider and moved here when
         // that widget was deleted: it is the only timeline provider left, so if it
         // does not apply the request, nothing does.
-        WidgetState.applyCollapseRequest(WidgetState.collapseRequest)
+        if WidgetState.applyCollapseRequest(WidgetState.collapseRequest) {
+            SavedGroupNavigation.reset()
+        }
 
         let shortcuts = configuration.slots
-        let grid = configuration.style.grid
-        let capacity = grid.capacity(for: family)
+        let selectedGroupID = configuration.savedGroup?.id
+        let savedGroup = selectedGroupID.flatMap { SavedGroupStore.group(id: $0) }
+        // Identity stays rooted in the widget configuration, even while a child
+        // folder supplies a different grid. Otherwise entering that folder would
+        // change the navigation key and immediately send the user back home.
+        let rootStyle = savedGroup?.effectiveStyle(useGroupAppearance: configuration.useGroupAppearance,
+                                                   widgetStyle: configuration.style) ?? configuration.style
 
         // The key is computed from the names the *system* gave, in configuration
         // order, and the same names are visible to the render — which is what lets
@@ -253,19 +224,103 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
         // list, so removing an app does not leave the key describing a grid that
         // no longer exists.
         let names = shortcuts.map { String(localized: $0.displayRepresentation.title) }
-        let key = WidgetState.directLaunchExpansionKey(slotNames: names)
+        let baseKey = WidgetState.directLaunchExpansionKey(slotNames: names, grid: rootStyle.grid,
+                                                           family: family, density: rootStyle.density)
+        let key = savedGroup?.navigationKey(baseKey: baseKey, useGroupAppearance: configuration.useGroupAppearance)
+            ?? (baseKey + (selectedGroupID.map { "|group:\($0.uuidString)|missing" } ?? ""))
+        let groupNavigation = SavedGroupNavigation.state(for: key)
+        let groupLayout = savedGroup.map {
+            SavedGroupPageLayout(group: $0, path: groupNavigation.path, page: groupNavigation.page,
+                                 family: family, useGroupAppearance: configuration.useGroupAppearance,
+                                 widgetStyle: configuration.style)
+        }
+        let style = groupLayout?.style ?? rootStyle
+        let grid = style.grid
+        let capacity = groupLayout?.page.capacity ?? grid.capacity(for: family, density: style.density)
+        let artworkPixelSize = WidgetArtworkResolution.maximumPixelSize(
+            cellCount: groupLayout?.page.capacity ?? grid.cellCount(for: family, density: style.density))
 
         // Only a grid that has a door can be opened, and the test for that is the
         // same ``FolderGrid/nestedCell(for:tileCount:)`` the collapsed grid uses
         // to decide the last cell *is* a door. A grid that fits has nothing to
         // expand, and expanding it anyway would draw a lone 返回 cell where the
         // user's apps used to be.
-        let hasOverflow = grid.nestedCell(for: family, tileCount: names.count) != nil
-        let isExpanded = hasOverflow && WidgetState.directLaunchKey == key
+        let hasOverflow = grid.nestedCell(for: family, tileCount: names.count, density: style.density) != nil
+        let isExpanded = selectedGroupID == nil && hasOverflow && WidgetState.directLaunchKey == key
+        let visibleArtwork: Set<Int>
+        var fullSizeArtwork = Set<Int>()
+        var tileArtwork: [UUID: CustomIconVariants] = [:]
+        var needsCoverArtworkRetry = false
+        if let groupLayout {
+            let page = groupLayout.page
+            let binding = SavedGroupBinding(actionNames: names)
+            // Only the selected four or nine leaves of visible folder miniatures
+            // need pixels. Offscreen pages never retain full-size artwork.
+            var visibleNames: [String] = []
+            func loadArtwork(_ item: GroupItem, maxSide: Int) {
+                guard let reference = item.artworkReference else { return }
+                let artwork = FolderCoverAssetStore.variants(for: reference, maxSide: maxSide)
+                tileArtwork[item.id] = artwork
+                // A layout can change between reading the group and its assets.
+                // Keep a usable fallback and schedule the existing slow retry.
+                needsCoverArtworkRetry = needsCoverArtworkRetry || reference.hasMissingArtwork(in: artwork)
+            }
+            for item in page.visibleItems {
+                switch item.kind {
+                case .folder:
+                    loadArtwork(item, maxSide: artworkPixelSize)
+                    // Dark-only or missing covers still need the contents mini.
+                    if tileArtwork[item.id]?.standard == nil {
+                        for leaf in item.previewLeafItems {
+                            if leaf.kind == .action { visibleNames.append(leaf.name) }
+                            else if leaf.kind == .website || leaf.kind == .contact { loadArtwork(leaf, maxSide: 32) }
+                        }
+                    }
+                case .website, .contact:
+                    loadArtwork(item, maxSide: artworkPixelSize)
+                case .action:
+                    visibleNames.append(item.name)
+                    if case .matched(let index) = binding.resolve(item.name) { fullSizeArtwork.insert(index) }
+                case .spacer:
+                    break
+                }
+            }
+            visibleArtwork = Set(visibleNames.compactMap { name in
+                if case .matched(let index) = binding.resolve(name) { return index }
+                return nil
+            })
+        } else if selectedGroupID != nil {
+            visibleArtwork = []
+        } else {
+            visibleArtwork = DirectLaunchArtworkSelection.visibleArtworkIndices(
+                slotCount: names.count, family: family, grid: grid,
+                isExpanded: isExpanded, page: WidgetState.expandedPage, density: style.density
+            )
+        }
+
+        if selectedGroupID == nil {
+            fullSizeArtwork = DirectLaunchArtworkSelection.fullSizeArtworkIndices(
+                slotCount: names.count, family: family, grid: grid,
+                isExpanded: isExpanded, page: WidgetState.expandedPage, density: style.density
+            )
+        }
 
         // One instant for the whole build: it stamps the observed-slot records and
         // the entry together, so a single timeline is internally consistent.
         let now = Date()
+        if recordsBindingReport {
+            // Candidate discovery must not wait for App Store artwork. Keep any
+            // previously resolved image metadata until the final enrichment.
+            DirectLaunchOverrides.noteConfiguredNames(names, observedAt: now)
+        }
+        // Gallery snapshots are not checks. This only records a timeline's name
+        // matching, not the widget's continued presence on the Home Screen.
+        if recordsBindingReport, let savedGroup,
+           let report = SavedGroupBindingReport(group: savedGroup, configurationKey: key,
+                                                grid: rootStyle.grid, familyRawValue: family.rawValue,
+                                                actionNames: names, checkedAt: now, density: rootStyle.density) {
+            SavedGroupBindingReportStore.record(report)
+        }
 
         // The whole build runs inside a network budget. The provider is the only
         // caller that knows where a build starts and ends, which is why the budget
@@ -276,8 +331,30 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
 
             var slots: [DirectLaunchSlot] = []
             var observed: [DirectLaunchOverrides.SlotRecord] = []
+            var needsArtworkRetry = needsCoverArtworkRetry
+            let priorObserved = Dictionary(uniqueKeysWithValues: DirectLaunchOverrides.observedSlots.map { ($0.id, $0) })
             for (index, shortcut) in shortcuts.enumerated() {
                 let name = String(localized: shortcut.displayRepresentation.title)
+
+                if selectedGroupID != nil && !visibleArtwork.contains(index) {
+                    let prior = priorObserved[name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
+                    slots.append(.init(id: index, name: name, appStoreID: prior?.appStoreID, symbolName: nil))
+                    observed.append(.init(name: name, appStoreID: prior?.appStoreID,
+                                          source: prior?.source ?? "none", updatedAt: now))
+                    continue
+                }
+
+                let customIcons = CustomIconStore.variants(name: name)
+                let retainedCustomIcons = visibleArtwork.contains(index)
+                    ? customIcons?.thumbnail(maxSide: fullSizeArtwork.contains(index) ? artworkPixelSize : 32) : nil
+                // A standard custom icon also supplies the dark fallback. A dark-only
+                // override still needs automatic artwork for the light appearance.
+                if customIcons?.standard != nil {
+                    slots.append(DirectLaunchSlot(id: index, name: name, appStoreID: nil,
+                                                  symbolName: nil, customIcons: retainedCustomIcons))
+                    observed.append(.init(name: name, appStoreID: nil, source: "custom", updatedAt: now))
+                    continue
+                }
 
                 // Resolved here, not at draw time: a widget's body cannot wait on the
                 // network, so everything a slot needs must already be on disk by the
@@ -290,16 +367,14 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
                 // consulted, so pinning such a name did nothing. Precedence belongs in
                 // one place, and that place is the resolver.
                 let resolved = await DirectLaunchIcons.resolve(name: name)
-                // Whether the bytes are on disk, read as **data** — not decoded into a
-                // `UIImage`. This used to call the icon cache, which decodes; the decode
-                // was kept only to answer this one log field, and it ran for every
-                // configured slot (up to 100), each retained in a process-wide cache with
-                // no eviction. The slot the view actually draws still decodes lazily, so
-                // scoping the decode to what is drawn costs nothing on screen. `cachedIcon`
-                // reads the same file without the decode, so the log stays truthful.
+                // Validated cached artwork counts as available. A bounded ImageIO
+                // decode rejects corrupt files without retaining a UIImage for
+                // every configured action in the extension's render cache.
                 let iconOnDisk = resolved.appStoreID.map { id in
-                    DirectLaunchIcons.cachedIcon(appStoreID: id) != nil
+                    DirectLaunchIcons.cachedIcon(appStoreID: id, country: resolved.country) != nil
                 } ?? false
+                needsArtworkRetry = needsArtworkRetry || resolved.shouldRetry
+                    || (resolved.appStoreID != nil && !iconOnDisk)
                 DirectLaunchIcons.diagnose(
                     "slot \(index) name=«\(name)» id=\(resolved.appStoreID.map(String.init) ?? "nil") "
                     + "symbol=\(resolved.symbolName ?? "nil") source=\(resolved.source.rawValue) "
@@ -310,7 +385,9 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
                         id: index,
                         name: resolved.name,
                         appStoreID: resolved.appStoreID,
-                        symbolName: resolved.symbolName
+                        country: resolved.country,
+                        symbolName: resolved.symbolName,
+                        customIcons: retainedCustomIcons
                     )
                 )
                 observed.append(
@@ -329,24 +406,31 @@ struct DirectLaunchProvider: AppIntentTimelineProvider {
                 "-- timeline done, \(slots.count) slot(s), capacity \(capacity), expanded \(isExpanded) --"
             )
 
-            // Tell the app which slots are on a widget. It cannot find out any other
-            // way — the configuration lives in the system, and the app can neither read
-            // it nor enumerate the Home Screen — so this is what fills the "修正图标"
-            // screen. Merged, not replaced: there can be more than one widget, and this
-            // build only knows its own. See ``DirectLaunchOverrides/noteObservedSlots(_:)``.
-            DirectLaunchOverrides.noteObservedSlots(observed)
+            // Record names and matches observed by this timeline for "修正图标".
+            // These observations are not an inventory of current Home Screen widgets.
+            // Merge rather than replace: this provider invocation only sees its own
+            // configuration. See ``DirectLaunchOverrides/noteObservedSlots(_:)``.
+            if recordsBindingReport { DirectLaunchOverrides.noteObservedSlots(observed) }
 
             return DirectLaunchEntry(
                 date: .now,
                 slots: slots,
                 shortcuts: shortcuts,
-                style: configuration.style,
+                style: style,
                 totalSlots: slots.count,
                 isExpanded: isExpanded,
                 expandedPage: WidgetState.expandedPage,
                 expansionKey: key,
                 capacity: capacity,
-                iconRevision: DirectLaunchOverrides.revision
+                iconRevision: DirectLaunchOverrides.revision + CustomIconStore.revision,
+                needsArtworkRetry: needsArtworkRetry,
+                selectedGroupID: selectedGroupID,
+                savedGroup: savedGroup,
+                rootStyle: rootStyle,
+                savedGroupLayout: groupLayout,
+                groupNavigation: groupNavigation,
+                tileArtwork: tileArtwork,
+                artworkPixelSize: artworkPixelSize
             )
         }
     }
@@ -363,7 +447,9 @@ private struct DirectLaunchView: View {
 
     var body: some View {
         Group {
-            if entry.isExpanded {
+            if entry.selectedGroupID != nil {
+                SavedGroupWidgetView(entry: entry, family: family)
+            } else if entry.isExpanded {
                 // Opened by tapping the door — see ``ToggleDirectLaunchIntent``.
                 // Drawn from the same rectangle, so this is a redraw rather than a
                 // presentation; nothing left the Home Screen to get here.
@@ -372,6 +458,8 @@ private struct DirectLaunchView: View {
                 collapsed
             }
         }
+        .environment(\.dateIconContent, entry.containsDateIcon
+                     ? DateIconContent(date: entry.date, calendar: entry.dateCalendar) : nil)
     }
 
     private var collapsed: some View {
@@ -389,21 +477,14 @@ private struct DirectLaunchView: View {
                 collapsedGrid
             }
         }
-        // The plate, drawn in the **content layer** and above the glass. Same call,
-        // same layer, same reason as ``AppFolderWidget``: 自动 paints nothing and
-        // the system's plate shows through, while 纯色 and 渐变 cover it and are
-        // therefore exactly the colour asked for.
+        // Explicit solid and gradient choices remain above the adaptive base.
+        // Automatic leaves that base visible and follows the system appearance.
         .background {
             if let fill = entry.style.plateFill {
                 Rectangle().fill(fill)
             }
         }
-        // Required on iOS 17+: without it the system refuses to lay the widget out
-        // and shows "Please adopt containerBackground API" in its place. `clear`
-        // because this widget paints no plate of its own — the system's is the one
-        // that should show through, which is also what makes the tiles react to the
-        // user's 图标外观 setting.
-        .containerBackground(for: .widget) { Color.clear }
+        .appFolderWidgetContainerBackground()
     }
 
     /// The grid the user configured.
@@ -417,20 +498,16 @@ private struct DirectLaunchView: View {
 
         return GeometryReader { proxy in
             let metrics = FolderGridMetrics(
-                tileCount: hasDoor ? entry.capacity + 1 : max(entry.slots.count, 1),
+                tileCount: entry.style.grid.cellCount(for: family, density: entry.style.density),
                 columns: columns,
                 in: proxy.size,
                 showsTitles: entry.style.showsTitles,
-                iconScale: entry.style.iconScale
+                iconScale: entry.style.iconScale, family: family, density: entry.style.density
             )
 
-            // `.top` belongs on the *stack*, not only on the frame below: the shield
-            // already makes this ZStack fill the widget, so the frame's own alignment
-            // has nothing left to move and the default centre alignment wins. That is
-            // what put a short grid in the middle of the widget — three apps in a
-            // 九宫格 is a single row, and it floated with the slack split above and
-            // below it instead of starting at the top, where the reading order does.
-            ZStack(alignment: .top) {
+            // Keep a full grid shape even when few actions are configured. Larger
+            // families center the complete rectangle; empty cells stay in place.
+            ZStack(alignment: family == .systemSmall ? .top : .center) {
                 // The widget's whole surface opens AppFolder by default, and the
                 // gaps in a short grid must not be taps that launch it — see
                 // ``TapShield``. Collapsed, a blank tap still does nothing.
@@ -451,17 +528,17 @@ private struct DirectLaunchView: View {
                                 let index = row * metrics.columns + column
                                 if hasDoor, index == entry.capacity {
                                     directLaunchDoor(metrics: metrics)
-                                        .frame(width: metrics.iconSide, height: metrics.cellHeight)
+                                        .frame(width: metrics.cellWidth, height: metrics.cellHeight)
                                 } else if entry.slots.indices.contains(index) {
                                     slot(at: index, metrics: metrics)
-                                        .frame(width: metrics.iconSide, height: metrics.cellHeight)
+                                        .frame(width: metrics.cellWidth, height: metrics.cellHeight)
                                 } else {
                                     // Empty cells exist only so the icons left-align
                                     // rather than centring. They need no tap handling
                                     // of their own — the shield behind the grid covers
                                     // them and the regions the grid cannot reach.
                                     Color.clear
-                                        .frame(width: metrics.iconSide, height: metrics.cellHeight)
+                                        .frame(width: metrics.cellWidth, height: metrics.cellHeight)
                                 }
                             }
                         }
@@ -469,14 +546,15 @@ private struct DirectLaunchView: View {
                 }
                 .padding(metrics.margin)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+            .frame(width: proxy.size.width, height: proxy.size.height,
+                   alignment: family == .systemSmall ? .top : .center)
         }
     }
 
     @ViewBuilder
     private func slot(at index: Int, metrics: FolderGridMetrics) -> some View {
         let slot = entry.slots[index]
-        let face = DirectLaunchFace(slot: slot, style: entry.style, metrics: metrics)
+        let face = DirectLaunchFace(slot: slot, style: entry.style, metrics: metrics, maxPixelSize: entry.artworkPixelSize)
             // The whole cell is the target, not just the artwork. With no button
             // style set, the tap area follows the drawn content, and a slot whose
             // icon has not resolved draws a mostly-empty rounded rect — the user
@@ -500,6 +578,8 @@ private struct DirectLaunchView: View {
                 face
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(Text(slot.name))
+            .accessibilityHint("运行此动作")
         }
     }
 
@@ -541,66 +621,18 @@ private struct DirectLaunchView: View {
         // the app tiles size their hit area.
         .buttonStyle(.plain)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("其他")
+        .accessibilityHint("展开文件夹")
     }
 
-    /// The shape ``FolderGrid/columns(for:)`` gives a grid of this size, and for the
-    /// same reason: the icons here are meant to be full size, and a wider grid than
-    /// the widget needs only shrinks them.
-    ///
-    /// The choice of 四宫格 over 九宫格 reaches the small widget only — that is the
-    /// folder's rule too, and reading it from the same type is what keeps the two
-    /// widgets identical rather than merely similar.
-    private var columns: Int { entry.style.grid.columns(for: family) }
+    /// Use the selected grid shape for the collapsed layout.
+    private var columns: Int { entry.style.grid.columns(for: family, density: entry.style.density) }
 }
 
-/// The panel: what the door was hiding, and a way forward when that is more than
-/// one page holds.
-///
-/// ## What makes this a panel and not another page of the grid
-///
-/// Tapping the door swaps the grid's *contents*: same cells, same rectangle, but
-/// drawn as a different surface — no plate of its own, so the **system's** glass
-/// shows through, and full-size faces where the door had been a miniature of them.
-/// See ``FolderStyle/usingSystemPlate`` for why the plate has to be dropped as a
-/// whole style rather than merely skipped, and for what that costs the 纯色/渐变
-/// setting.
-///
-/// The glass is the whole of the effect, and it is not painted here. A widget
-/// cannot paint its own — measured, `.ultraThinMaterial` and `.glassEffect` both
-/// come back flat — so the panel's glass is the widget's glass, and the only way to
-/// keep it is to draw nothing over it.
-///
-/// ## What it draws: the hidden apps, not the whole configuration
-///
-/// The apps the collapsed grid already draws are on the Home Screen behind this
-/// widget. Drawing them again filled the first page with what the user could
-/// already see — on a small widget, the *identical* eight faces plus a 更多 — so a
-/// tap on the door changed one cell and the apps the door was holding needed a
-/// second tap to reach. That is the bug this shape fixes: the panel lays out
-/// ``DirectLaunchEntry/hiddenSlots``, so its first page **is** what the door
-/// promised.
-///
-/// ## Why there is a 返回 cell again
-///
-/// With only the overflow drawn, a list that fits can be short. A 返回 cell in
-/// cell 0 gives a short expansion an exit that is always in the same place, rather
-/// than relying on the user to find the blank space. The cost is one cell off each
-/// page — nine-slot grid, eight per page — which is exactly how a system folder
-/// reads.
-///
-/// ## Where the paging comes from
-///
-/// The arithmetic is ``FolderExpansionLayout`` — that type is pure and takes only a
-/// family, a grid and a count. "No app is lost and none is drawn twice" is a
-/// property of the layout rather than of any one widget, so it is read from there
-/// instead of reimplemented, and there is only one copy to get wrong. The panel
-/// uses the type's default of reserving the way back, and it lays ``panelLayout``
-/// out over the **same** shape the collapsed grid drew — the user's 九宫格/四宫格
-/// included — so opening a folder changes the contents and nothing else.
-///
-/// The app cell is the part that cannot be shared: a slot carries a
-/// `SystemShortcut` and opens through ``RunSystemShortcutIntent``, with no URL
-/// involved at all.
+/// Displays only the default layout's overflow actions, keeping the selected grid
+/// shape. FolderExpansionLayout reserves cells for back and page controls.
+/// The panel uses the adaptive system background and matching semantic label styles.
 struct DirectLaunchPanelView: View {
     let entry: DirectLaunchEntry
     let family: WidgetFamily
@@ -631,8 +663,8 @@ struct DirectLaunchPanelView: View {
     private var panelLayout: FolderExpansionLayout {
         FolderExpansionLayout(
             family: family,
-            columns: entry.style.grid.columns(for: family),
-            cellCount: entry.style.grid.cellCount(for: family),
+            columns: entry.style.grid.columns(for: family, density: entry.style.density),
+            cellCount: entry.style.grid.cellCount(for: family, density: entry.style.density),
             appCount: panelSlots.count,
             reservesBackCell: true
         )
@@ -678,13 +710,11 @@ struct DirectLaunchPanelView: View {
                 columns: layout.columns,
                 in: proxy.size,
                 showsTitles: style.showsTitles,
-                iconScale: style.iconScale
+                iconScale: style.iconScale, family: family, density: style.density
             )
 
-            // Same reason as the collapsed grid: the shield sizes this stack to the
-            // whole widget, so only an alignment on the stack itself can place a
-            // grid shorter than the widget at the top.
-            ZStack(alignment: .top) {
+            // Match the collapsed grid's shape and alignment across pages.
+            ZStack(alignment: family == .systemSmall ? .top : .center) {
                 // The exit. A tap anywhere that is not an app closes the panel, so
                 // the shield is the *whole* widget rather than the grid's bounds —
                 // hoisted out of the grid's `.background` so its area does not
@@ -694,26 +724,7 @@ struct DirectLaunchPanelView: View {
                 TapShield(intent: CollapseDirectLaunchIntent(key: entry.expansionKey))
                     .frame(width: proxy.size.width, height: proxy.size.height)
 
-                // What makes the panel read as a surface rather than as the grid
-                // showing different apps.
-                //
-                // ## Why this is safe on glass, and why it is not a plate
-                //
-                // The content layer sits **above** the system's glass, so anything
-                // drawn here covers the glass in proportion to its opacity. That is
-                // what ruled out a custom plate: a solid fill erases the glass
-                // (measured — a `backgroundStyle = 2` widget with a content fill
-                // shows glass only where the fill misses). What was never measured
-                // is a *low*-opacity fill over glass; the one semi-transparent
-                // reading on record was taken before this widget had any glass at
-                // all, composited onto an opaque white plate, so it says nothing
-                // about this case.
-                //
-                // A barely-there scrim is the deliberate bet: enough to separate the
-                // panel from the Home Screen behind it, not enough to grey the glass
-                // out. It is a fixed neutral rather than the user's tint on purpose —
-                // the panel is glass whatever appearance they picked, and tinting it
-                // would break that.
+                // A subtle scrim and border distinguish the expanded surface.
                 PanelSurface()
 
                 Grid(horizontalSpacing: metrics.spacing, verticalSpacing: metrics.spacing) {
@@ -728,13 +739,11 @@ struct DirectLaunchPanelView: View {
                 }
                 .padding(metrics.margin)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+            .frame(width: proxy.size.width, height: proxy.size.height,
+                   alignment: family == .systemSmall ? .top : .center)
         }
-        // No plate, deliberately. This is the glass, and anything painted over it —
-        // the user's 纯色/渐变 included — would cover the very thing the panel is
-        // for. See ``FolderStyle/usingSystemPlate`` for why dropping the fill is not
-        // enough on its own.
-        .containerBackground(for: .widget) { Color.clear }
+        // The overflow panel uses the automatic plate and semantic label colors.
+        .appFolderWidgetContainerBackground()
     }
 
     @ViewBuilder
@@ -749,35 +758,41 @@ struct DirectLaunchPanelView: View {
             DirectLaunchCellButton(
                 systemImage: "chevron.backward",
                 title: "返回",
+                accessibilityHint: "收起文件夹",
                 metrics: metrics,
                 style: style,
                 intent: ToggleDirectLaunchIntent(key: entry.expansionKey)
             )
+            .accessibilityValue(Text("第 \(page + 1) 页，共 \(layout.pageCount) 页"))
 
         case .next:
             DirectLaunchCellButton(
                 systemImage: "ellipsis",
                 title: "更多",
+                accessibilityHint: "显示下一页",
                 metrics: metrics,
                 style: style,
                 intent: AdvanceDirectLaunchPageIntent(key: entry.expansionKey, page: page)
             )
+            .accessibilityValue(Text("第 \(page + 1) 页，共 \(layout.pageCount) 页"))
 
         case .app(let index):
             if panelSlots.indices.contains(index) {
                 let slot = panelSlots[index]
                 Button(intent: RunSystemShortcutIntent(shortcut: entry.shortcuts[shortcutIndex(index)])) {
-                    DirectLaunchFace(slot: slot, style: style, metrics: metrics)
+                    DirectLaunchFace(slot: slot, style: style, metrics: metrics, maxPixelSize: entry.artworkPixelSize)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .frame(width: metrics.iconSide, height: metrics.cellHeight)
+                .frame(width: metrics.cellWidth, height: metrics.cellHeight)
+                .accessibilityLabel(Text(slot.name))
+                .accessibilityHint("运行此动作")
             } else {
-                Color.clear.frame(width: metrics.iconSide, height: metrics.cellHeight)
+                Color.clear.frame(width: metrics.cellWidth, height: metrics.cellHeight)
             }
 
         case .empty:
-            Color.clear.frame(width: metrics.iconSide, height: metrics.cellHeight)
+            Color.clear.frame(width: metrics.cellWidth, height: metrics.cellHeight)
         }
     }
 }
@@ -796,6 +811,7 @@ private struct DirectLaunchCellButton<Intent: AppIntent>: View {
     /// `LocalizedStringKey` so 「返回」/「更多」 come from the catalog rather than
     /// being rendered verbatim as `Text(String)` would.
     let title: LocalizedStringKey
+    let accessibilityHint: LocalizedStringKey
     let metrics: FolderGridMetrics
     let style: FolderStyle
     let intent: Intent
@@ -818,57 +834,27 @@ private struct DirectLaunchCellButton<Intent: AppIntent>: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                         .foregroundStyle(style.titleStyle)
-                        .frame(width: metrics.iconSide)
+                        .frame(width: metrics.cellWidth)
                 }
             }
+            .frame(width: metrics.cellWidth, height: metrics.cellHeight)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(width: metrics.iconSide, height: metrics.cellHeight)
+        .frame(width: metrics.cellWidth, height: metrics.cellHeight)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(title))
+        .accessibilityHint(Text(accessibilityHint))
     }
 }
 
-/// The faint tint and hairline that make the panel read as its own surface.
-///
-/// ## What it is for
-///
-/// Without it the panel and the collapsed grid are the same glass with a different
-/// set of apps in it, and on a small widget the first page of each shows *the same
-/// apps* — so a tap on the door changes one cell and nothing else, which the user
-/// reads as a tap that did nothing. The fix is not to draw more; it is to make the
-/// two states visibly separate surfaces.
-///
-/// ## Why it does not kill the glass
-///
-/// The content layer is above the system's glass, so a fill here covers the glass
-/// in proportion to its opacity — and at 100% it erases it outright, which is the
-/// measurement that ruled out a custom plate. At this opacity it only *tints* what
-/// is behind it, and the hairline paints a ring and leaves the whole interior
-/// alone. Both are deliberately small numbers, and the interior is deliberately
-/// unpainted: the middle of the panel is the glass, untouched.
-///
-/// It is a fixed neutral rather than the user's tint because the panel is glass
-/// whatever appearance they chose — see ``FolderStyle/usingSystemPlate``.
-///
-/// ## What to tune, and what would say it is wrong
-///
-/// ``scrimOpacity`` is the one number to move, and it is unmeasured: the only
-/// semi-transparent reading on record was taken on a widget with no glass at all.
-/// If the panel looks grey or flat, this is too high — the glass should still be
-/// a window onto the wallpaper, only dimmed. If the panel still reads as the grid,
-/// it is too low. The hairline is what keeps the "too low" case honest, since it
-/// separates the surfaces without dimming anything.
+/// A low-opacity tint and border distinguish the expanded default layout without
+/// replacing the system background. Semantic colors adapt to light and dark modes.
 private struct PanelSurface: View {
-    /// How much the panel dims what is behind it.
-    ///
-    /// Low by design. The task is separation from a bright wallpaper, not
-    /// legibility — the icons carry their own contrast — so this is set to the
-    /// smallest value that still reads as a tint rather than as nothing.
+    /// Keep the system appearance visible beneath the panel decoration.
     private var scrimOpacity: Double { 0.12 }
 
-    /// In dark mode the glass is already dark, so the same scrim does nothing
-    /// visible; a *light* wash separates the panel there. `primary` is the label
-    /// colour, so it is black in light mode and white in dark — one value that
-    /// means "the opposite of whatever is behind it".
+    /// A semantic tint maintains contrast against both light and dark backgrounds.
     private var scrimColor: Color {
         Color.primary.opacity(scrimOpacity)
     }
@@ -882,9 +868,7 @@ private struct PanelSurface: View {
             Rectangle()
                 .fill(scrimColor)
 
-            // The hairline shares a radius with the system's clip on purpose. A
-            // line a few points inside the glass edge reads as a cheap outline
-            // rather than as the panel's boundary.
+            // Match the system widget corner radius.
             RoundedRectangle(
                 cornerRadius: FolderGridMetrics.widgetCornerRadius,
                 style: .continuous
@@ -897,6 +881,7 @@ private struct PanelSurface: View {
         // The surface is decoration; it must not take a tap. The shield beneath it
         // is what handles a tap in the gaps.
         .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -941,6 +926,7 @@ private struct TapShield<Intent: AppIntent>: View {
             Color.clear.contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityHidden(true)
     }
 }
 
@@ -984,9 +970,11 @@ private struct DirectLaunchDoorLabel: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                     .foregroundStyle(style.titleStyle)
-                    .frame(width: metrics.iconSide)
+                    .frame(width: metrics.cellWidth)
             }
         }
+        .frame(width: metrics.cellWidth, height: metrics.cellHeight)
+        .contentShape(Rectangle())
     }
 
     /// One miniature, or a blank if fewer apps are hidden than this density draws.
@@ -998,7 +986,7 @@ private struct DirectLaunchDoorLabel: View {
     private func miniIcon(at index: Int) -> some View {
         let side = density.miniSide
         if hidden.indices.contains(index) {
-            DirectLaunchArtwork(slot: hidden[index], cornerRadius: side * 0.22)
+            DirectLaunchArtwork(slot: hidden[index], cornerRadius: side * 0.22, maxPixelSize: 32)
                 .frame(width: side, height: side)
         } else {
             Color.clear.frame(width: side, height: side)
@@ -1011,10 +999,11 @@ private struct DirectLaunchFace: View {
     let slot: DirectLaunchSlot
     let style: FolderStyle
     let metrics: FolderGridMetrics
+    var maxPixelSize: Int = 256
 
     var body: some View {
         VStack(spacing: metrics.titleSpacing) {
-            DirectLaunchArtwork(slot: slot, cornerRadius: metrics.cornerRadius)
+            DirectLaunchArtwork(slot: slot, cornerRadius: metrics.cornerRadius, maxPixelSize: maxPixelSize)
                 .frame(width: metrics.iconSide, height: metrics.iconSide)
 
             // The name is shown only when the grid asks for it, it shrinks rather
@@ -1027,9 +1016,14 @@ private struct DirectLaunchFace: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                     .foregroundStyle(style.titleStyle)
-                    .frame(width: metrics.iconSide)
+                    .frame(width: metrics.cellWidth)
             }
         }
+        .frame(width: metrics.cellWidth, height: metrics.cellHeight)
+        // Names remain available to VoiceOver when visual labels are switched off.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(slot.name))
+        .dateIconAccessibilityValue(slot.customIcons)
     }
 }
 
@@ -1044,15 +1038,24 @@ private struct DirectLaunchFace: View {
 /// It takes a ``DirectLaunchSlot`` rather than a tile, because that is what a grid
 /// has — see ``DirectLaunchIcons`` for why the system hands over a name and not an
 /// icon, and what turns that name into artwork.
-private struct DirectLaunchArtwork: View {
+struct DirectLaunchArtwork: View {
+    @Environment(\.colorScheme) private var colorScheme
     let slot: DirectLaunchSlot
     let cornerRadius: CGFloat
+    var maxPixelSize: Int = 256
 
     var body: some View {
         Group {
-            if let id = slot.appStoreID, let image = WidgetIconCache.shared.image(appStoreID: id) {
+            // WidgetKit renders both appearances from the same timeline entry.
+            // Tinted/clear widget rendering is independent of light/dark selection.
+            if let customIcon = slot.customIcons?.resolved(isDark: colorScheme == .dark) {
+                CustomIconArtwork(icon: customIcon, cornerRadius: cornerRadius, usesWidgetRendering: true,
+                                  maxPixelSize: maxPixelSize)
+            } else if let id = slot.appStoreID,
+                      let image = WidgetIconCache.shared.image(appStoreID: id, country: slot.country, maxPixelSize: maxPixelSize) {
                 Image(uiImage: image)
                     .resizable()
+                    .widgetAccentedRenderingMode(.fullColor)
                     .scaledToFit()
             } else if let symbolName = slot.symbolName {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -1068,6 +1071,7 @@ private struct DirectLaunchArtwork: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .accessibilityHidden(true)
     }
 }
 
@@ -1079,7 +1083,7 @@ private struct DirectLaunchArtwork: View {
 /// matter: where the setting is, and what to do once inside it.
 ///
 /// The colour comes from the style's own title treatment, like every other label,
-/// so it stays legible on the system's glass and on a 纯色/渐变 plate alike.
+/// so it stays legible on the adaptive system background and on a 纯色/渐变 plate alike.
 private struct DirectLaunchEmptyView: View {
     let style: FolderStyle
 
@@ -1087,6 +1091,7 @@ private struct DirectLaunchEmptyView: View {
         VStack(spacing: 6) {
             Image(systemName: "square.grid.2x2")
                 .font(.system(size: 26, weight: .regular))
+                .accessibilityHidden(true)
 
             Text("长按 → 编辑小组件")
                 .font(.footnote.weight(.semibold))
@@ -1097,5 +1102,6 @@ private struct DirectLaunchEmptyView: View {
         .multilineTextAlignment(.center)
         .foregroundStyle(style.titleStyle)
         .padding(12)
+        .accessibilityElement(children: .combine)
     }
 }

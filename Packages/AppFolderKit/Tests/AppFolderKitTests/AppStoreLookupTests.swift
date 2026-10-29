@@ -83,6 +83,13 @@ struct AppStoreLookupTests {
     ])
     func unreadablePayloadsAreEmpty(payload: Data) {
         #expect(AppStoreLookup.parse(payload).isEmpty)
+        #expect(AppStoreLookup.parseResponse(payload) == nil)
+    }
+
+    @Test("An empty search is a valid response, not a network failure")
+    func validEmptySearch() {
+        let payload = Data(#"{"resultCount":0,"results":[]}"#.utf8)
+        #expect(AppStoreLookup.parseResponse(payload) == [])
     }
 
     /// The 100px artwork is the only variant guaranteed to exist, so it is an

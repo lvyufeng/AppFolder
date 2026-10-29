@@ -2,12 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Not a permission and not a capability that grants data access: both
-	     processes only need to agree on one container path. It carries two
-	     things now — the app icon artwork the widget downloads, and the counter
-	     the app uses to ask the widget to drop an expansion. Without it the
-	     widget still works; it just cannot see the app's request. See
-	     `WidgetState.resolveStorage()`. -->
+	<!-- The app, widget and website share extension use this private container
+	     for saved layouts, their artwork, widget state and the website inbox.
+	     The share extension writes inbox records only; the app applies them to
+	     a group after the user reviews and saves that group's draft. -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.lvyufeng.appfolder</string>

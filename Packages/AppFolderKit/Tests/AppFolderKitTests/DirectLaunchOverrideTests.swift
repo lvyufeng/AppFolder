@@ -36,6 +36,47 @@ struct DirectLaunchOverrideTests {
         DirectLaunchOverrides.removeObservedSlots()
     }
 
+    @Test("Country-only edits refresh the mapping while legacy callers preserve an unchanged ID's source")
+    func selectedCountryPersistence() throws {
+        let name = "region test"
+        #expect(DirectLaunchOverrides.set(appStoreID: 123, name: name))
+        let oldRevision = DirectLaunchOverrides.revision
+        #expect(oldRevision == DirectLaunchIcons.stableHash("region test=123"))
+        let jp = try #require(DirectLaunchOverrides.Mapping(appStoreID: 123, country: "jp"))
+        #expect(DirectLaunchOverrides.set(mapping: jp, name: name))
+        #expect(DirectLaunchOverrides.mapping(name: " REGION TEST ") == jp)
+        #expect(DirectLaunchOverrides.all == [name: 123])
+        #expect(DirectLaunchOverrides.allMappings == [name: jp])
+        #expect(DirectLaunchOverrides.revision != oldRevision)
+        #expect(!DirectLaunchOverrides.set(appStoreID: 123, name: name))
+        #expect(DirectLaunchOverrides.mapping(name: name)?.country == "jp")
+        #expect(try DirectLaunchOverrides.backupRecords()[name] == jp)
+        #expect(DirectLaunchOverrides.set(appStoreID: 456, name: name))
+        #expect(DirectLaunchOverrides.mapping(name: name)?.country == nil)
+        #expect(DirectLaunchOverrides.set(mapping: nil, name: name))
+        #expect(!DirectLaunchOverrides.containsBackupRecord(name: name))
+    }
+
+    @Test("Editing one mapping retains unrelated unreadable records and explicit clearing removes only its target")
+    func retainsMalformedRecord() throws {
+        let key = "widget.directLaunchOverrides"
+        let malformed: [String: Any] = ["appStoreID": 777, "country": "zz"]
+        WidgetState.widgetDefaults.set(["broken": malformed, "legacy": 123], forKey: key)
+        let jp = try #require(DirectLaunchOverrides.Mapping(appStoreID: 456, country: "jp"))
+        #expect(DirectLaunchOverrides.mapping(name: "broken") == nil)
+        #expect(DirectLaunchOverrides.containsBackupRecord(name: "broken"))
+        #expect(DirectLaunchOverrides.set(mapping: jp, name: "new"))
+        let persisted = WidgetState.widgetDefaults.dictionary(forKey: key)
+        #expect((persisted?["broken"] as? [String: Any])?["country"] as? String == "zz")
+        #expect(DirectLaunchOverrides.appStoreID(name: "legacy") == 123)
+        #expect(throws: LibraryBackupError.exportFailed) { try DirectLaunchOverrides.backupRecords() }
+        #expect(DirectLaunchOverrides.set(mapping: nil, name: "broken"))
+        #expect(try DirectLaunchOverrides.backupRecords().count == 2)
+        WidgetState.widgetDefaults.set("invalid directory value", forKey: key)
+        #expect(!DirectLaunchOverrides.set(mapping: jp, name: "new"))
+        #expect(WidgetState.widgetDefaults.string(forKey: key) == "invalid directory value")
+    }
+
     // MARK: - Precedence
 
     /// The whole point: a pin beats the catalogue.
@@ -94,15 +135,48 @@ struct DirectLaunchOverrideTests {
     /// A name nothing knows and nobody pinned still reports the miss honestly,
     /// rather than being silently retried.
     ///
-    /// Written without depending on the marker file, for the reason above: on a Mac
-    /// the failure came from the search finding nothing, and on a device it may come
-    /// from the marker. Both are ``DirectLaunchIcons/Source/miss``, and that — not
-    /// which of the two produced it — is what the caller reads.
+    /// Supplies the store's answer directly, so this assertion also holds offline.
     @Test("Without a pin, an unresolvable name reports a miss")
     func missWithoutOverrideStillMisses() async {
-        let resolved = await DirectLaunchIcons.resolve(name: "不存在的应用名zzz测试")
+        let resolved = await DirectLaunchIcons.resolve(name: "不存在的应用名zzz测试") { _ in
+            .noMatch
+        }
         #expect(resolved.source == .miss)
         #expect(resolved.appStoreID == nil)
+        #expect(!resolved.shouldRetry)
+    }
+
+    @Test("A temporary network failure remains retryable")
+    func unreachableDoesNotBecomeMiss() async {
+        let name = "offline-test-\(UUID().uuidString)"
+        let resolved = await DirectLaunchIcons.resolve(name: name) { _ in .unreachable }
+        #expect(resolved.source == .none)
+        #expect(resolved.appStoreID == nil)
+        #expect(resolved.shouldRetry)
+        #expect(!DirectLaunchIcons.hasMiss(name: name))
+
+        let retried = await DirectLaunchIcons.resolve(name: name) { _ in .noMatch }
+        #expect(retried.source == .miss)
+    }
+
+    @Test("An unreachable fallback storefront must not become a permanent miss")
+    func partialStorefrontFailureRemainsRetryable() async {
+        let result = await DirectLaunchIcons.searchAppStoreID(name: "storefront-test") { url, _ in
+            let country = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "country" }?.value
+            return country == "cn" ? .unreachable : .noMatch
+        }
+        #expect(result == .unreachable)
+    }
+
+    @Test("A matching fallback storefront can recover from a primary failure")
+    func fallbackCanRecover() async {
+        let result = await DirectLaunchIcons.searchAppStoreID(name: "storefront-test") { url, _ in
+            let country = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "country" }?.value
+            return country == "cn" ? .found(123) : .unreachable
+        }
+        #expect(result == .found(123))
     }
 
     // MARK: - Keys
@@ -175,6 +249,74 @@ struct DirectLaunchOverrideTests {
         )
     }
 
+    @Test("Configured names are readable before any artwork result exists")
+    func configuredNamesArriveImmediately() {
+        let startedAt = Date(timeIntervalSince1970: 100)
+        DirectLaunchOverrides.noteConfiguredNames(["Maps", "New action"], observedAt: startedAt)
+
+        let pending = DirectLaunchOverrides.observedSlots
+        #expect(Set(pending.map(\.name)) == ["Maps", "New action"])
+        #expect(pending.allSatisfy { $0.appStoreID == nil && $0.source == "none" && $0.updatedAt == startedAt })
+    }
+
+    @Test("Early names preserve known artwork and other widgets while a lookup is pending")
+    func configuredNamesPreserveArtwork() throws {
+        DirectLaunchOverrides.noteObservedSlots([
+            record("Maps", id: 123, at: 100),
+            .init(name: "Custom", appStoreID: nil, source: "custom", updatedAt: Date(timeIntervalSince1970: 100)),
+            record("Other widget", id: 456, at: 100)
+        ])
+        DirectLaunchOverrides.noteConfiguredNames([" MAPS ", "Custom", "New action"],
+                                                 observedAt: Date(timeIntervalSince1970: 200))
+        let pending = Dictionary(uniqueKeysWithValues: DirectLaunchOverrides.observedSlots.map { ($0.id, $0) })
+        #expect(pending.count == 4)
+        let maps = try #require(pending["maps"])
+        #expect(maps.name == "MAPS" && maps.appStoreID == 123 && maps.source == "search")
+        #expect(pending["custom"]?.source == "custom")
+        #expect(pending["other widget"]?.appStoreID == 456)
+        #expect(pending["other widget"]?.updatedAt == Date(timeIntervalSince1970: 100))
+
+        // A stale timeline beginning late cannot age a fresher observation back.
+        DirectLaunchOverrides.noteConfiguredNames(["Maps"], observedAt: Date(timeIntervalSince1970: 50))
+        #expect(DirectLaunchOverrides.observedSlots.first { $0.id == "maps" } == maps)
+    }
+
+    @Test("Final artwork enriches the same early names at the timeline's original timestamp")
+    func configuredNamesAreEnriched() {
+        let startedAt = Date(timeIntervalSince1970: 100)
+        DirectLaunchOverrides.noteObservedSlots([record("Existing", id: 12, at: 50)])
+        DirectLaunchOverrides.noteConfiguredNames(["Existing", "New action"], observedAt: startedAt)
+        DirectLaunchOverrides.noteObservedSlots([
+            record("Existing", id: 34, at: 100),
+            .init(name: "New action", appStoreID: 56, source: "catalogue", updatedAt: startedAt)
+        ])
+
+        let enriched = Dictionary(uniqueKeysWithValues: DirectLaunchOverrides.observedSlots.map { ($0.id, $0) })
+        #expect(enriched.count == 2)
+        #expect(enriched["existing"]?.appStoreID == 34)
+        #expect(enriched["new action"]?.appStoreID == 56)
+        #expect(enriched["new action"]?.source == "catalogue")
+        #expect(enriched.values.allSatisfy { $0.updatedAt == startedAt })
+    }
+
+    @Test("Early and final observations reject invalid names and deduplicate normalized names")
+    func configuredNamesValidateAndDeduplicate() {
+        let longest = String(repeating: "é", count: 512)
+        let invalid = ["", "   ", "\n", "Line\nBreak", "Null\u{0}Name", longest + "é"]
+        DirectLaunchOverrides.noteConfiguredNames(invalid + ["  Maps  ", "maps", "MAPS", longest],
+                                                 observedAt: Date(timeIntervalSince1970: 100))
+        #expect(Set(DirectLaunchOverrides.observedSlots.map(\.name)) == ["Maps", longest])
+
+        DirectLaunchOverrides.noteObservedSlots(
+            invalid.map { record($0, id: 999, at: 200) }
+                + [record(" Maps ", id: 123, at: 200), record("maps", id: 123, at: 200)]
+        )
+        let final = DirectLaunchOverrides.observedSlots
+        #expect(final.count == 2)
+        #expect(final.first { $0.id == "maps" }?.appStoreID == 123)
+        #expect(final.contains { $0.name == longest && $0.appStoreID == nil })
+    }
+
     /// Two widgets each report their own slots, and the stored list is their union
     /// — not whichever reported last. Keyed by name so a name on both collapses to
     /// one row the user can act on.
@@ -223,8 +365,39 @@ struct DirectLaunchOverrideTests {
         DirectLaunchOverrides.noteObservedSlots(incoming)
 
         let stored = DirectLaunchOverrides.observedSlots
-        #expect(stored.count <= limit)
+        #expect(stored.count == limit)
         #expect(stored.contains { $0.name == "OldPinned" }, "a pinned row must not be aged out")
+        let expectedNames = Set(["OldPinned"] + (11..<(limit + 10)).map { "App\($0)" })
+        #expect(Set(stored.map(\.name)) == expectedNames,
+                "the oldest unpinned rows must be removed while recent apps stay editable")
+    }
+
+    @Test("A full 100-action widget keeps every action available for correction")
+    func fullWidgetObservationSurvives() {
+        let incoming = (0..<100).map {
+            record("Action\($0)", id: $0 + 1, at: 100)
+        }
+        DirectLaunchOverrides.noteObservedSlots(incoming)
+
+        #expect(Set(DirectLaunchOverrides.observedSlots) == Set(incoming))
+    }
+
+    @Test("A newly configured app displaces the oldest remembered app at capacity")
+    func newestObservedSlotSurvivesPruning() {
+        let limit = DirectLaunchOverrides.observedSlotLimit
+        DirectLaunchOverrides.noteObservedSlots((0..<limit).map {
+            record("App\($0)", id: $0, at: TimeInterval($0))
+        })
+
+        DirectLaunchOverrides.noteObservedSlots([
+            record("New app", id: 999, at: TimeInterval(limit)),
+        ])
+
+        let stored = DirectLaunchOverrides.observedSlots
+        #expect(stored.count == limit)
+        #expect(stored.first?.name == "New app")
+        #expect(!stored.contains { $0.name == "App0" })
+        #expect(stored.contains { $0.name == "App1" })
     }
 
     /// Ordering is newest-first, which is what the app lists.

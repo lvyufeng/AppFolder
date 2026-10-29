@@ -271,4 +271,23 @@ struct DirectLaunchMatchTests {
             )
         }
     }
+
+    @Test("Malformed system-app responses remain retryable")
+    func malformedSystemResponseIsNotAbsence() async {
+        let result = await DirectLaunchIcons.systemAppID(name: "System Test", englishName: nil) { _ in
+            Data("not JSON".utf8)
+        }
+        #expect(result == .unreachable)
+    }
+
+    @Test("One failed system storefront cannot confirm absence")
+    func systemStorefrontFailureRemainsRetryable() async {
+        let result = await DirectLaunchIcons.systemAppID(name: "System Test", englishName: nil) { url in
+            let country = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "country" }?.value
+            return country == "cn" ? nil : Data(#"{"results":[]}"#.utf8)
+        }
+        #expect(result == .unreachable)
+    }
+
 }

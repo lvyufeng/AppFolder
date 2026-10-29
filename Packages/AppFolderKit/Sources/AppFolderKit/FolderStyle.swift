@@ -1,53 +1,19 @@
 import Foundation
 import SwiftUI
 
-/// How a folder's widget fills the plate its icons sit on.
-///
-/// Three cases, and the missing fourth is the interesting one. There is no
-/// `transparent`, because an app cannot make a widget's plate see-through: the
-/// plate is drawn by the system around a snapshot that was already composited
-/// onto an opaque sheet. That was measured seven ways — four fills in the
-/// widget's own content, three in `containerBackground` — and not one of them
-/// let the wallpaper through. The numbers are in
-/// `docs/research/04-实现笔记.md`.
-///
-/// So the honest set is these three, and ``automatic`` is the one that matters:
-/// it declines to paint, which leaves the plate to the system. That is also the
-/// whole of the reference product's glass story. WidgetLoft's Style picker is
-/// Solid / Gradient / Transparent, its App Store copy says "Glass *look* or your
-/// own color", and its "Transparent" is the same thing as this case. Nothing has
-/// to be switched on, cropped or enabled; a widget that paints nothing gets
-/// whatever the system puts there, at whatever 图标外观 (默认 / 浅色 / 深色 /
-/// 透明) the user has chosen.
-///
-/// What the app *cannot* do is make a plate of its own see-through, and an
-/// earlier version of this comment overstated that into "you have to go and
-/// switch the system to 透明", which the user rightly pushed back on. The
-/// distinction that survives measurement: we choose between *the system's
-/// plate* and *one we paint*, not between opaque and transparent.
-///
-/// The UI name and the stored name have drifted apart on purpose. On disk this
-/// case is still `automatic`, because that is what libraries already written
-/// hold; in the picker it reads 透明, because that is what the reference product
-/// calls the same option and a user comparing the two pickers should not have to
-/// work out that they are the same thing.
+/// The content plate behind a folder's icons. Automatic leaves the widget's
+/// independent glass surface visible without requiring a global Clear Home
+/// Screen appearance. Solid and gradient paint above that base.
+/// The stored raw values remain stable across appearance changes.
 public enum FolderPlate: String, Codable, Sendable, CaseIterable {
-    /// Draw nothing and let the system put its own plate under the widget.
-    ///
-    /// This is the only arrangement that reacts to the user's 图标外观 setting at
-    /// all — including the 透明 one, where the system drops the plate and the
-    /// wallpaper shows through.
+    /// Show the widget's glass surface without a custom content-layer fill.
     case automatic
     /// One flat colour, ``FolderTint``.
     case solid
     /// A two-stop gradient derived from ``FolderTint``.
     case gradient
 
-    /// What a folder draws when the user has not chosen anything.
-    ///
-    /// Not a colour, deliberately: the app shipped with no plate of its own for
-    /// its whole life before this enum, and matching that keeps a library that
-    /// was written before the field existed rendering exactly as it did.
+    /// Preserve the stored default and the widget's independent glass surface.
     public static let `default`: FolderPlate = .automatic
 
     /// Whether this plate needs a colour to draw at all.
@@ -64,29 +30,17 @@ public enum FolderPlate: String, Codable, Sendable, CaseIterable {
 
     public var localizedName: String {
         switch self {
-        case .automatic: "透明"
+        case .automatic: "自动"
         case .solid: "纯色"
         case .gradient: "渐变"
         }
     }
 
-    /// A one-line explanation for the editor, in the same spirit as
-    /// the launch-strategy explanation: a setting the user cannot see the
-    /// effect of from inside the app has to say what it will do.
-    ///
-    /// Written from measurements, not from the API's names. An earlier draft
-    /// promised that the system's plate "本身就是液态玻璃，会跟着壁纸变"; a
-    /// screenshot of three widgets on one Home Screen does not support that —
-    /// Apple's own Maps and Calendar widgets measure the same flat `#FFFFFF` ours
-    /// does, while the iOS folders and the Dock beside them transmit. So this
-    /// says what the app does (paints nothing), what that gets the user (the
-    /// system's treatment, at whatever 图标外观 they chose), and what the app
-    /// cannot do (paint its own see-through plate), without promising a material
-    /// it does not control.
+    /// Describe what the appearance setting can control.
     public var localizedExplanation: String {
         switch self {
         case .automatic:
-            "不自己画底板，整块交给系统。桌面上那块板是系统画的，跟着「图标外观」（默认 / 浅色 / 深色 / 透明）走——切到透明档时它会被撤掉，壁纸就透出来了。App 自己画的半透明色做不到这件事：它会被系统先合到那块板上，合出来是一块灰。"
+            "小组件使用独立玻璃底板，无需把整个主屏幕切换为透明外观。"
         case .solid:
             "用下面选的颜色铺满小组件底板。"
         case .gradient:
@@ -119,7 +73,9 @@ public struct FolderTint: Sendable, Equatable, Hashable {
     public init?(hex: String) {
         var value = hex.trimmingCharacters(in: .whitespaces)
         if value.hasPrefix("#") { value.removeFirst() }
-        guard value.count == 6, let rgb = UInt32(value, radix: 16) else { return nil }
+        guard value.utf8.count == 6,
+              value.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) }),
+              let rgb = UInt32(value, radix: 16) else { return nil }
         self.init(
             red: Double((rgb >> 16) & 0xFF) / 255,
             green: Double((rgb >> 8) & 0xFF) / 255,
@@ -137,7 +93,7 @@ public struct FolderTint: Sendable, Equatable, Hashable {
 
     /// What a folder with no colour of its own uses once one is needed.
     ///
-    /// Reachable in practice: a folder saved while the plate was 透明 has an
+    /// Reachable in practice: a folder saved while the plate was automatic has an
     /// empty `colorHex`, and switching it to 纯色 has to produce *something*.
     /// ``FolderStyle/init(plate:tint:showsTitles:)`` substitutes this, so a plate
     /// is never invisible because a colour was missing.
@@ -225,49 +181,51 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
     /// default.
     public var showsTitles: Bool
     /// How much of the grid goes to icons rather than to the gaps between them,
-    /// 0…1. See ``FolderGridMetrics/gapShare(forIconScale:)``.
+    /// 0…1. With explicit spacing or margin, it scales artwork inside fixed
+    /// cells. See ``FolderGridMetrics/gapShare(forIconScale:)`` for automatic geometry.
     public var iconScale: Double
     /// Whether the small widget shows a 3 × 3 or a 2 × 2 grid. See ``FolderGrid``.
     public var grid: FolderGrid
+    /// A larger-family density; small widgets continue to use `grid`.
+    public var density: FolderDensity
+    public var backButtonStyle: FolderBackButtonStyle
+    public var spacing: Int?
+    public var margin: Int?
+    public var titleTint: FolderTint?
+    public var titleOutlineTint: FolderTint?
+    public var titleOutlineWidth: SavedGroupTitleOutlineWidth
 
     public init(
         plate: FolderPlate = .default,
         tint: FolderTint = .defaultTint,
         showsTitles: Bool = false,
         iconScale: Double = FolderGridMetrics.defaultIconScale,
-        grid: FolderGrid = .default
+        grid: FolderGrid = .default,
+        density: FolderDensity = .standard,
+        backButtonStyle: FolderBackButtonStyle = .chevronUp,
+        spacing: Int? = nil,
+        margin: Int? = nil,
+        titleTint: FolderTint? = nil,
+        titleOutlineTint: FolderTint? = nil,
+        titleOutlineWidth: SavedGroupTitleOutlineWidth = .thin
     ) {
         self.plate = plate
         self.tint = tint
         self.showsTitles = showsTitles
         self.iconScale = iconScale
         self.grid = grid
+        self.density = density
+        self.backButtonStyle = backButtonStyle
+        self.spacing = spacing
+        self.margin = margin
+        self.titleTint = titleTint
+        self.titleOutlineTint = titleOutlineTint
+        self.titleOutlineWidth = titleOutlineWidth
     }
 
-    /// The same style, but on the system's plate instead of the user's.
-    ///
-    /// ## Why a whole style, and not just "skip the fill"
-    ///
-    /// The direct-launch panel is glass, and the only glass there is belongs to the
-    /// system — a widget cannot paint its own (measured: in-widget
-    /// `.ultraThinMaterial` and `.glassEffect` both come back as flat colour). So
-    /// the panel draws no plate and lets the system's show through. That means
-    /// simply *not* painting ``plateFill``.
-    ///
-    /// But ``titleStyle`` is decided from ``plate``, not from what was painted —
-    /// so a panel that skipped the fill while still carrying `plate == .solid`
-    /// would colour its labels for a plate that is no longer there, and a dark
-    /// tint would put white text on the system's near-white glass in light mode.
-    /// The two decisions have to move together, which is what this does: taking the
-    /// plate to ``FolderPlate/automatic`` drops the fill *and* switches the labels
-    /// to the hierarchical style the system plate wants.
-    ///
-    /// ## What it costs
-    ///
-    /// On the panel, the user's 纯色 / 渐变 choice stops applying — the panel is
-    /// glass whatever they picked. That is the point of the panel, but it is worth
-    /// naming: it is a screen where an appearance setting is deliberately ignored,
-    /// not an oversight. Geometry and titles are untouched; only the plate moves.
+    /// Use the automatic background and matching semantic labels for the default
+    /// overflow panel. Solid and gradient content fills do not apply to that panel;
+    /// its geometry, selected grid, and title visibility stay unchanged.
     public var usingSystemPlate: FolderStyle {
         var copy = self
         copy.plate = .automatic
@@ -299,6 +257,24 @@ public struct FolderStyle: Sendable, Equatable, Hashable {
         case .automatic: AnyShapeStyle(HierarchicalShapeStyle.secondary)
         case .solid, .gradient:
             AnyShapeStyle(tint.isLight ? Color.black.opacity(0.72) : Color.white.opacity(0.94))
+        }
+    }
+
+    /// Only item names use a custom title color. Navigation glyphs, canvas
+    /// placeholders and other chrome retain the existing `titleStyle`.
+    public var labelStyle: AnyShapeStyle {
+        if let titleTint { AnyShapeStyle(titleTint.color) }
+        else { titleStyle }
+    }
+
+    /// A resolvable color for explicitly styled Core Text labels. The default
+    /// SwiftUI Text branch continues to use the semantic `labelStyle` above.
+    public var labelColor: Color {
+        if let titleTint { return titleTint.color }
+        switch plate {
+        case .automatic: return .secondary
+        case .solid, .gradient:
+            return tint.isLight ? Color.black.opacity(0.72) : Color.white.opacity(0.94)
         }
     }
 }

@@ -47,11 +47,19 @@ import SwiftUI
 @available(iOS 27.0, *)
 struct QuickLaunchIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "直接启动"
-    static let description: IntentDescription = "选择要直开的 App，并设置这个小组件的外观。"
+    static let description: IntentDescription = "选择系统动作或已保存分组，并设置这个小组件的外观。"
 
     /// The actions the user configured, one per grid slot.
     @Parameter(title: "动作")
     var shortcuts: [SystemShortcut]?
+
+    /// Layout is ours; the actual launch actions remain owned by the system.
+    @Parameter(title: "分组布局")
+    var savedGroup: SavedGroupEntity?
+
+    /// Opt in so existing widget configurations retain their own appearance.
+    @Parameter(title: "使用分组外观", default: false)
+    var useGroupAppearance: Bool
 
     // MARK: - Appearance
     //
@@ -62,6 +70,9 @@ struct QuickLaunchIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "网格", default: .nine)
     var grid: LaunchGrid
+
+    @Parameter(title: "布局密度", default: .standard)
+    var density: LaunchDensity
 
     @Parameter(title: "显示图标名称", default: false)
     var showsTitles: Bool
@@ -75,26 +86,129 @@ struct QuickLaunchIntent: WidgetConfigurationIntent {
     @Parameter(title: "图标大小", default: .medium)
     var iconSize: LaunchIconSize
 
-    /// The configured actions in order, up to a guard.
-    ///
-    /// Not capped at what a grid can *show*. It used to be — at twelve, on the
-    /// reasoning that twelve was the largest grid any family draws — and that was
-    /// a silent lie: a user who configured twenty actions got eight drawn and
-    /// twelve apps that were nowhere — and the door then said so with a `+4` that
-    /// counted only some of them. A count the user acts on is worse than no count
-    /// if it under-reports, so the cap went. Nothing past the door's capacity is
-    /// unreachable now: it pages. See
-    /// ``FolderExpansionLayout``.
-    ///
-    /// The bound that remains is a guard against a runaway parameter, not a limit
-    /// anyone will meet — the same hundred a 大文件夹 is drawn to hold.
-    var slots: [SystemShortcut] {
-        Array((shortcuts ?? []).prefix(Self.maximumSlots))
+    /// Hide choices that cannot affect this widget. Action selection and the
+    /// group selector remain available in every branch.
+    static var parameterSummary: some ParameterSummary {
+        When(\.$savedGroup, .hasAnyValue) {
+            When(\.$useGroupAppearance, .equalTo, true) {
+                Summary {
+                    \.$savedGroup
+                    \.$useGroupAppearance
+                    \.$shortcuts
+                }
+            } otherwise: {
+                Switch(.widgetFamily) {
+                    Case(.systemSmall) {
+                        When(\.$plate, .equalTo, LaunchPlate.automatic) {
+                            Summary {
+                                \.$savedGroup
+                                \.$useGroupAppearance
+                                \.$shortcuts
+                                \.$grid
+                                \.$showsTitles
+                                \.$plate
+                                \.$iconSize
+                            }
+                        } otherwise: {
+                            Summary {
+                                \.$savedGroup
+                                \.$useGroupAppearance
+                                \.$shortcuts
+                                \.$grid
+                                \.$showsTitles
+                                \.$plate
+                                \.$tint
+                                \.$iconSize
+                            }
+                        }
+                    }
+                    DefaultCase {
+                        When(\.$plate, .equalTo, LaunchPlate.automatic) {
+                            Summary {
+                                \.$savedGroup
+                                \.$useGroupAppearance
+                                \.$shortcuts
+                                \.$density
+                                \.$showsTitles
+                                \.$plate
+                                \.$iconSize
+                            }
+                        } otherwise: {
+                            Summary {
+                                \.$savedGroup
+                                \.$useGroupAppearance
+                                \.$shortcuts
+                                \.$density
+                                \.$showsTitles
+                                \.$plate
+                                \.$tint
+                                \.$iconSize
+                            }
+                        }
+                    }
+                }
+            }
+        } otherwise: {
+            Switch(.widgetFamily) {
+                Case(.systemSmall) {
+                    When(\.$plate, .equalTo, LaunchPlate.automatic) {
+                        Summary {
+                            \.$savedGroup
+                            \.$shortcuts
+                            \.$grid
+                            \.$showsTitles
+                            \.$plate
+                            \.$iconSize
+                        }
+                    } otherwise: {
+                        Summary {
+                            \.$savedGroup
+                            \.$shortcuts
+                            \.$grid
+                            \.$showsTitles
+                            \.$plate
+                            \.$tint
+                            \.$iconSize
+                        }
+                    }
+                }
+                DefaultCase {
+                    When(\.$plate, .equalTo, LaunchPlate.automatic) {
+                        Summary {
+                            \.$savedGroup
+                            \.$shortcuts
+                            \.$density
+                            \.$showsTitles
+                            \.$plate
+                            \.$iconSize
+                        }
+                    } otherwise: {
+                        Summary {
+                            \.$savedGroup
+                            \.$shortcuts
+                            \.$density
+                            \.$showsTitles
+                            \.$plate
+                            \.$tint
+                            \.$iconSize
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    /// A backstop, not a capacity. See ``slots`` for why this is not the number a
-    /// grid can show.
-    static let maximumSlots = 100
+    /// Every configured action in the system's original order.
+    ///
+    /// Grid capacity limits a page, not the configuration. Saved groups can use
+    /// any configured action, and binding must see the entire list to detect
+    /// duplicate names. Truncating it would mark later actions as missing and
+    /// could make an ambiguous name look unique. Preserve these indices alongside
+    /// the provider's resolved slots; only artwork loading and rendering may be
+    /// limited to what the current page displays.
+    var slots: [SystemShortcut] {
+        shortcuts ?? []
+    }
 
     /// The folder style these choices add up to.
     ///
@@ -108,7 +222,8 @@ struct QuickLaunchIntent: WidgetConfigurationIntent {
             tint: FolderTint(hex: tint.hex) ?? .defaultTint,
             showsTitles: showsTitles,
             iconScale: iconSize.scale,
-            grid: grid.grid
+            grid: grid.grid,
+            density: density.density
         )
     }
 
@@ -119,13 +234,41 @@ struct QuickLaunchIntent: WidgetConfigurationIntent {
     }
 }
 
+@available(iOS 27.0, *)
+struct SavedGroupEntity: AppEntity {
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "分组布局")
+    static let defaultQuery = SavedGroupQuery()
+
+    let id: UUID
+    let name: String
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
+}
+
+@available(iOS 27.0, *)
+struct SavedGroupQuery: EntityStringQuery {
+    func entities(for identifiers: [UUID]) async throws -> [SavedGroupEntity] {
+        identifiers.map { id in
+            // Keep a deleted selection explicit, so it cannot silently become
+            // the ordinary grid and launch actions in an unexpected arrangement.
+            SavedGroupEntity(id: id, name: SavedGroupStore.group(id: id)?.name ?? String(localized: "分组不可用"))
+        }
+    }
+
+    func suggestedEntities() async throws -> [SavedGroupEntity] {
+        SavedGroupStore.all.map { SavedGroupEntity(id: $0.id, name: $0.name) }
+    }
+
+    func entities(matching string: String) async throws -> [SavedGroupEntity] {
+        SavedGroupStore.all.filter { $0.name.localizedStandardContains(string) }
+            .map { SavedGroupEntity(id: $0.id, name: $0.name) }
+    }
+}
+
 // MARK: - Appearance choices
 
 /// 四宫格 / 九宫格 — the same two arrangements a folder offers.
 ///
-/// The folder editor describes 四宫格 as reaching the small widget only, medium and
-/// large keeping three columns either way. That is still true here: this parameter
-/// decides the column count only where ``FolderGrid/columns(for:)`` lets it.
+/// This choice applies to small widgets. Medium uses 5×2 and large uses 4×4.
 @available(iOS 27.0, *)
 enum LaunchGrid: String, AppEnum {
     case nine
@@ -145,11 +288,25 @@ enum LaunchGrid: String, AppEnum {
     }
 }
 
-/// 自动 / 纯色 / 渐变 — a folder's three plates, by the same names.
-///
-/// `automatic` is the one that keeps the system's Liquid Glass and reacts to the
-/// user's 图标外观; the other two paint a colour and therefore cover it. That trade
-/// is the folder's too, and ``FolderPlate`` already explains it.
+enum LaunchDensity: String, AppEnum {
+    case standard, spacious, dense
+
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "布局密度")
+    static let caseDisplayRepresentations: [LaunchDensity: DisplayRepresentation] = [
+        .standard: "标准", .spacious: "大图标", .dense: "密集"
+    ]
+
+    var density: FolderDensity {
+        switch self {
+        case .standard: .standard
+        case .spacious: .spacious
+        case .dense: .dense
+        }
+    }
+}
+
+/// Automatic leaves the independently requested widget glass visible. Solid and
+/// gradient keep their explicit content-layer fills above that background.
 @available(iOS 27.0, *)
 enum LaunchPlate: String, AppEnum {
     case automatic

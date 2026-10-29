@@ -92,7 +92,7 @@ public struct ToggleDirectLaunchIntent: AppIntent {
             // look at the group, not whatever page it was left on.
             WidgetState.expandedPage = 0
         }
-        WidgetCenter.shared.reloadAllTimelines()
+        WidgetCenter.shared.reloadTimelines(ofKind: AppFolderShared.directLaunchWidgetKind)
         return .result()
     }
 }
@@ -140,7 +140,7 @@ public struct CollapseDirectLaunchIntent: AppIntent {
         // must not eat the grant a real collapse will need.
         guard WidgetState.directLaunchKey == key else { return .result() }
         WidgetState.collapse()
-        WidgetCenter.shared.reloadAllTimelines()
+        WidgetCenter.shared.reloadTimelines(ofKind: AppFolderShared.directLaunchWidgetKind)
         return .result()
     }
 }
@@ -188,7 +188,7 @@ public struct AdvanceDirectLaunchPageIntent: AppIntent {
         // move a page belonging to it.
         guard WidgetState.directLaunchKey == key else { return .result() }
         WidgetState.expandedPage = page + 1
-        WidgetCenter.shared.reloadAllTimelines()
+        WidgetCenter.shared.reloadTimelines(ofKind: AppFolderShared.directLaunchWidgetKind)
         return .result()
     }
 }

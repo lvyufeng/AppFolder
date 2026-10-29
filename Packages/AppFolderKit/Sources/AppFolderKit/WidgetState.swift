@@ -1,20 +1,13 @@
 import Foundation
+import WidgetKit
 
 /// Transient widget-display state, kept where both processes can see it.
 ///
-/// ## The one case where an accessor deliberately lies
-///
-/// When the App Group is unreachable *from the extension* there is no domain both
-/// processes can share, and the type is readable-only rather than
-/// writable-and-private: see ``resolveStorage()``. In that state ``directLaunchKey``
-/// reports `nil` to an extension, because answering from a private domain would
-/// claim an expansion the app could never clear. The cost is that the widget does
-/// not expand; the alternative cost was a widget stuck expanded with no way back
-/// except the back cell.
-///
-/// Deliberately *not* part of a stored, backup-able model: this changes on every tap and
-/// must never end up in a user's backup, whereas the library changes rarely and
-/// is exactly what should be exported.
+/// Both the app and extension require the App Group container and its writable
+/// defaults suite. A suite that only round-trips inside one process is not enough:
+/// unsigned installations can create private defaults under the group name even
+/// though no shared container exists. When unavailable, reads return empty state
+/// and writes are discarded, so the app cannot claim a change reached its widget.
 ///
 /// ## Which grid is expanded, and which page of it
 ///
@@ -62,7 +55,7 @@ public enum WidgetState {
 
     /// The defaults this state lives in.
     ///
-    /// Backup, resolved once per process, because the entitlement it depends on
+    /// Resolved once per process, because the entitlement it depends on
     /// cannot change while a process is running.
     ///
     /// `UserDefaults` is documented as thread-safe, so sharing one instance
@@ -76,7 +69,7 @@ public enum WidgetState {
     /// The same defaults, for another type that needs to share this storage.
     ///
     /// Internal rather than public on purpose: the storage *resolution* carries the
-    /// subtle argument for why an extension must never fall back to `.standard`,
+    /// requirement that neither process may fall back to `.standard`,
     /// and a second copy of it would drift. ``DirectLaunchOverrides`` is the public
     /// face of the second thing that lives here — durable user configuration
     /// rather than the transient render state the rest of this type holds — and it
@@ -90,34 +83,12 @@ public enum WidgetState {
     /// worse than one not written: it would look like it worked.
     static var widgetStateIsAvailable: Bool { storage.isAvailable }
 
-    /// Whether state written here can be read back at all in this process.
+    /// Whether this installation can access an App Group container and round-trip
+    /// the defaults suite shared by the app and widget. This says nothing about
+    /// another process's current state or when WidgetKit will grant a reload.
     ///
-    /// False only when even `UserDefaults.standard` refuses a round trip, which is
-    /// the signal for a caller to fall back to a route that does not need stored
-    /// state — a door that cannot open in place is better drawn as something that
-    /// visibly does nothing than as a control that fails silently.
-    ///
-    /// Read this as "the in-process round trip works", *not* as "the App Group
-    /// is healthy". A widget's intent runs in the widget extension's process, so
-    /// the write and the read that matters are the same process's memory; that
-    /// is the property this measures. Whether the value survives the extension
-    /// being torn down and rebuilt is a stronger claim the App Group has to
-    /// earn, and it is why the widget can expand correctly today even though the
-    /// App Group on this device is not reachable from the app.
-    ///
-    /// ## Why this is a computed property and not a stored `let`
-    ///
-    /// It was `static let isAvailable = probeSucceeded` reading a separate
-    /// `static var` that the probe set — and that was a real bug, not a style
-    /// slip. Swift initializes stored statics lazily and in the order they are
-    /// touched, so the first access to `isAvailable` read `probeSucceeded`
-    /// *before* the probe had ever run, and got its default of `false`.
-    /// The door then took the `Link` branch permanently, and the expansion this
-    /// whole type exists for could never happen.
-    ///
-    /// Folding the answer into the lazily-initialized storage makes the two
-    /// impossible to disagree, because there is only one initialization left to
-    /// order.
+    /// The answer and defaults come from one lazily initialized value, so an early
+    /// availability read cannot observe a flag before the storage probe runs.
     public static var isAvailable: Bool { storage.isAvailable }
 
     /// The direct-launch grid currently expanded in the widget, if any.
@@ -165,6 +136,16 @@ public enum WidgetState {
         DirectLaunchIcons.stableHash(slotNames.joined(separator: "\u{1F}"))
     }
 
+    /// Navigation belongs to a layout as well as its actions. Same-name medium
+    /// and large widgets must not inherit each other's page or expanded state.
+    public static func directLaunchExpansionKey(slotNames: [String], grid: FolderGrid,
+                                                 family: WidgetFamily, density: FolderDensity = .standard) -> String {
+        let density = density.effective(for: family)
+        let key = directLaunchExpansionKey(slotNames: slotNames)
+            + "|layout:1|\(grid.rawValue)|\(family.rawValue)|\(grid.columns(for: family, density: density))x\(grid.cellCount(for: family, density: density))"
+        return density == .standard ? key : key + "|density:\(density.rawValue)"
+    }
+
     /// Collapses the open grid and returns it to the first page.
     ///
     /// Both keys, always, because they are one piece of state: a stored page with
@@ -198,7 +179,7 @@ public enum WidgetState {
     /// argument that the two processes do not always resolve the defaults to the
     /// same domain, and a cross-process write cannot land in a per-process
     /// fallback. That argument still holds, and this is the answer to it rather
-    /// than a contradiction of it: the fallback for an *extension* in
+    /// than a contradiction of it: the fallback for either process in
     /// ``resolveStorage()`` is ``UnreadableDefaults``, so a widget whose App Group
     /// is unreachable never expands in the first place — its
     /// ``directLaunchKey`` is always `nil`, and there is nothing for this request
@@ -263,21 +244,16 @@ public enum WidgetState {
     /// One value rather than two, so the defaults in use and the answer about
     /// whether they work cannot be initialized in the wrong order — see
     /// ``isAvailable`` for the bug that came of keeping them apart.
-    private struct Storage {
+    struct Storage {
         let defaults: UserDefaults
         let isAvailable: Bool
     }
 
-    /// A `UserDefaults` that refuses everything without crashing.
-    ///
-    /// Do not use `.standard` here. In the *app* process `.standard` is a real,
-    /// private, writable domain, and handing it to an extension that cannot share
-    /// it is precisely the bug: the extension would expand into a place the app
-    /// cannot reach to collapse. `.volatile` is per-process and unreachable from
-    /// anywhere else by definition, so it is the honest stand-in for "no shared
-    /// domain" — writes are accepted and silently discarded from the point of
-    /// view of every other process, which is the actual situation.
+    /// No private fallback: both processes see empty state when sharing fails.
+    /// The accessors used by widget state and icon overrides never fall through
+    /// to UserDefaults.standard or another process-local preferences domain.
     private final class UnreadableDefaults: UserDefaults {
+        override func object(forKey defaultName: String) -> Any? { nil }
         override func set(_ value: Any?, forKey defaultName: String) {}
         override func removeObject(forKey defaultName: String) {}
         override func string(forKey defaultName: String) -> String? { nil }
@@ -293,95 +269,52 @@ public enum WidgetState {
         override func data(forKey defaultName: String) -> Data? { nil }
     }
 
-    /// Picks the defaults to use, and reports whether they can round-trip.
-    ///
-    /// The App Group suite on a successful round trip, then `.standard` inside an
-    /// extension, and otherwise a domain nobody else can read.
-    ///
-    /// ## Why the extension is not allowed to fall back to `.standard`
-    ///
-    /// It used to be, and the reasoning was that one process is one domain, so
-    /// the intent's write and the render's read always agree. True as far as it
-    /// goes — and it stops one step short, because the widget is not the only
-    /// writer. The *app* also writes this state: opening AppFolder collapses
-    /// whatever was expanded, so the Home Screen is not left showing a page the
-    /// user has moved on from.
-    ///
-    /// A cross-process write cannot land in a per-process fallback. If the
-    /// extension put the expansion in `.standard`, the app's `collapse()` would
-    /// write `nil` into the app's own plist and the widget would never see it —
-    /// the widget would stay expanded forever, and the only way out would be to
-    /// tap the back cell. So the fallback is not merely weaker for cross-process
-    /// state, it is silently wrong, and being wrong is worse than being
-    /// unavailable: an unavailable domain does not expand at all, which is a
-    /// widget that behaves normally rather than one stuck open.
-    ///
-    /// ## And why the app is not either
-    ///
-    /// The same argument in the other direction. It used to be true on this very
-    /// device that the app could not reach the group while the extension could,
-    /// which is why an earlier version of this comment said so — but that is no
-    /// longer the case and the comment was left behind by the fix. Measured from
-    /// the device's App Group plist:
-    ///
-    /// * `widget.collapseRequest => 9` is present in
-    ///   `group.com.lvyufeng.appfolder.plist`. The app is the only writer of that
-    ///   counter, so the app is writing into the group.
-    /// * The app's *own* `Library/Preferences/com.lvyufeng.appfolder.plist` holds
-    ///   no `widget.*` keys at all, so the app is not quietly resolving this state
-    ///   to `.standard` either.
-    ///
-    /// That matters beyond this type: it is the evidence that the group is a
-    /// working two-way channel on this build, which is what lets
-    /// ``DirectLaunchOverrides`` store a user setting in the group defaults and
-    /// have the widget actually see it. If a future signing change removes the
-    /// entitlement, the app falls back to `.standard` — the state described above —
-    /// and the override list would read as empty in the widget rather than as
-    /// wrong. Check the group plist before believing otherwise.
-    ///
-    /// The probe is a write and a read-back rather than a check that the suite
-    /// exists: `UserDefaults(suiteName:)` returns an object for a suite the
-    /// process cannot actually write to, and a `nil` check would then promise
-    /// storage that silently drops every value.
-    ///
-    /// Synchronous and cheap by design — a widget has a tight render budget and
-    /// no second process to wait on.
+    /// The shipping iOS app and extension must first have a real App Group
+    /// container. UserDefaults(suiteName:) can still succeed without that
+    /// entitlement, and its in-process write/read does not prove sharing.
     private static func resolveStorage() -> Storage {
-        if let shared = UserDefaults(suiteName: AppFolderShared.appGroupIdentifier),
-           roundTrips(shared) {
-            return Storage(defaults: shared, isAvailable: true)
-        }
-
-        // The widget extension is the side that cannot afford a wrong answer: a
-        // testable answer is worth more to it than a writable one it cannot share.
-        if isExtension {
-            return Storage(defaults: UnreadableDefaults(), isAvailable: false)
-        }
-
-        return Storage(defaults: UserDefaults.standard, isAvailable: true)
+        #if os(iOS)
+        return sharedStorage(
+            groupContainer: FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: AppFolderShared.appGroupIdentifier
+            ),
+            makeDefaults: { UserDefaults(suiteName: AppFolderShared.appGroupIdentifier) }
+        )
+        #else
+        // macOS is only the package's host-side test target, never the shipping
+        // app. Its local defaults preserve those tests without weakening iOS's
+        // entitlement check. Tests of the actual selection rule inject their own
+        // defaults through sharedStorage below.
+        let local = UserDefaults.standard
+        return roundTrips(local)
+            ? Storage(defaults: local, isAvailable: true)
+            : unavailableStorage()
+        #endif
     }
 
-    /// Whether a `UserDefaults` accepts a value and gives it back.
+    /// The same selection rule for app and extension, with injectable inputs so
+    /// missing entitlements and unwritable suites can be tested without signing.
+    static func sharedStorage(
+        groupContainer: URL?,
+        makeDefaults: () -> UserDefaults?
+    ) -> Storage {
+        guard groupContainer != nil,
+              let shared = makeDefaults(), roundTrips(shared)
+        else { return unavailableStorage() }
+        return Storage(defaults: shared, isAvailable: true)
+    }
+
+    private static func unavailableStorage() -> Storage {
+        Storage(defaults: UnreadableDefaults(), isAvailable: false)
+    }
+
+    /// Use a unique probe key so app/extension startup cannot overwrite each
+    /// other's token. Always clean it up, including a failed read-back.
     private static func roundTrips(_ defaults: UserDefaults) -> Bool {
         let token = UUID().uuidString
-        defaults.set(token, forKey: Key.probe)
-        guard defaults.string(forKey: Key.probe) == token else { return false }
-        defaults.removeObject(forKey: Key.probe)
-        return true
-    }
-
-    /// Whether this process is an app extension rather than the app itself.
-    ///
-    /// Read from the bundle's own `Info.plist` key, which is what an extension
-    /// always has and an app never does. Asking the *main* bundle would answer
-    /// for the app in both cases, since `Bundle.main` in an extension is the
-    /// extension — so this deliberately reads `Bundle.main` and not a bundle
-    /// looked up by identifier.
-    ///
-    /// Documented by Apple as present for every app extension, and checked here
-    /// rather than inferred from the process name or the presence of a
-    /// `UIApplication` subclass, both of which are conventions rather than API.
-    static var isExtension: Bool {
-        Bundle.main.object(forInfoDictionaryKey: "NSExtension") != nil
+        let probe = "\(Key.probe).\(token)"
+        defaults.set(token, forKey: probe)
+        defer { defaults.removeObject(forKey: probe) }
+        return defaults.string(forKey: probe) == token
     }
 }

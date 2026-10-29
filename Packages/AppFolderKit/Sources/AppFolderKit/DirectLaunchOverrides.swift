@@ -18,7 +18,7 @@ import Foundation
 /// real app's, so it looks like a working tile — which is exactly why the user
 /// has to be able to say otherwise.
 ///
-/// So this is a plain user-editable map, name → App Store id. When it has an
+/// So this is a user-editable map, name → App Store id and optional source country. When it has an
 /// entry, ``DirectLaunchIcons/resolve(name:)`` takes it before anything else.
 ///
 /// ## Why it is a separate type rather than another ``WidgetState`` accessor
@@ -44,137 +44,182 @@ import Foundation
 public enum DirectLaunchOverrides {
     // MARK: - Overrides
 
-    /// The map the app writes and the widget reads: normalised name → App Store id.
+    /// Artwork identity and its chosen lookup source. The source never changes
+    /// the system action that launches when the user taps a widget tile.
+    public struct Mapping: Codable, Sendable, Equatable {
+        public let appStoreID: Int
+        /// Nil preserves the legacy US-then-China lookup policy.
+        public let country: String?
+
+        public init?(appStoreID: Int, country: String? = nil) {
+            guard appStoreID > 0 else { return nil }
+            if let country {
+                guard let normalized = AppStoreCountry.normalized(country) else { return nil }
+                self.country = normalized
+            } else { self.country = nil }
+            self.appStoreID = appStoreID
+        }
+
+        private enum CodingKeys: String, CodingKey { case appStoreID, country }
+        private struct AnyKey: CodingKey {
+            let stringValue: String
+            var intValue: Int? { nil }
+            init?(stringValue: String) { self.stringValue = stringValue }
+            init?(intValue: Int) { return nil }
+        }
+        public init(from decoder: any Decoder) throws {
+            let keys = Set(try decoder.container(keyedBy: AnyKey.self).allKeys.map(\.stringValue))
+            guard keys.isSubset(of: ["appStoreID", "country"]) else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                                                        debugDescription: "Unknown artwork mapping fields"))
+            }
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            let id = try values.decode(Int.self, forKey: .appStoreID)
+            let country = try values.decodeIfPresent(String.self, forKey: .country)
+            guard country == nil || AppStoreCountry.normalized(country!) == country,
+                  let mapping = Self(appStoreID: id, country: country) else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                                                        debugDescription: "Invalid App Store artwork mapping"))
+            }
+            self = mapping
+        }
+    }
+
+    /// A single app-written property-list value. Numeric legacy records remain
+    /// readable; a selected country is stored beside its ID in the same record.
     private static let iconOverridesKey = "widget.directLaunchOverrides"
 
-    /// The normalised form of a slot name, which is the map's key.
-    ///
-    /// The same trim-and-lowercase every other name comparison in
-    /// ``DirectLaunchIcons`` uses, and for the same reason: the string comes from
-    /// the system and the user types their own, so they differ in case and spacing
-    /// more often than in words. Deliberately not public — a caller should not be
-    /// able to build a key that ``DirectLaunchIcons`` would not agree with.
     static func key(_ name: String) -> String {
         name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    /// The id the user chose for this slot name, or `nil` to resolve automatically.
-    public static func appStoreID(name: String) -> Int? {
+    public static func mapping(name: String) -> Mapping? {
         let needle = key(name)
-        guard !needle.isEmpty else { return nil }
-        return overrides()[needle]
+        guard !needle.isEmpty, let value = rawOverrides()[needle] else { return nil }
+        return decodeStoredMapping(value)
     }
 
-    /// Every override, keyed the way ``key(_:)`` produces.
-    public static var all: [String: Int] {
-        overrides()
+    public static var allMappings: [String: Mapping] {
+        rawOverrides().compactMapValues(decodeStoredMapping)
     }
 
-    /// Whether the user has pinned this name to an app.
-    public static func hasOverride(name: String) -> Bool {
-        appStoreID(name: name) != nil
+    /// Compatibility readers expose the same App Store IDs as before.
+    public static func appStoreID(name: String) -> Int? { mapping(name: name)?.appStoreID }
+    public static var all: [String: Int] { allMappings.mapValues(\.appStoreID) }
+
+    static func backupRecords() throws -> [String: Mapping] {
+        try validatedBackupMappings(WidgetState.widgetDefaults.object(forKey: iconOverridesKey))
     }
 
-    /// Points a slot name at an app, or clears it back to automatic.
-    ///
-    /// - Parameter appStoreID: `nil` removes the entry rather than storing it,
-    ///   because "resolve this automatically" is the absence of a choice, not a
-    ///   choice of nothing.
-    /// - Returns: whether anything changed, so the caller only asks WidgetKit to
-    ///   reload when the answer actually moved. A no-op edit should not spend a
-    ///   reload — they are throttled, and spending one on a non-change would delay
-    ///   the next real one.
-    ///
-    ///   `false` also covers "this could not be recorded at all" — see below.
+    /// Export fails on an invalid record instead of silently omitting its source.
+    static func validatedBackupMappings(_ object: Any?) throws -> [String: Mapping] {
+        guard let object else { return [:] }
+        guard let values = object as? [String: Any], values.count <= LibraryBackup.maximumMappings else {
+            throw LibraryBackupError.exportFailed
+        }
+        var result: [String: Mapping] = [:]
+        for (name, value) in values {
+            guard LibraryBackup.validName(name), let mapping = decodeStoredMapping(value) else {
+                throw LibraryBackupError.exportFailed
+            }
+            result[name] = mapping
+        }
+        return result
+    }
+
+    /// Even an unreadable existing record protects its name during import.
+    static func containsBackupRecord(name: String) -> Bool { rawOverrides()[key(name)] != nil }
+
+    public static func hasOverride(name: String) -> Bool { mapping(name: name) != nil }
+
+    /// Returns whether a durable selection changed. As before, false can mean
+    /// no change or failure; callers verify the complete mapping after writing.
     @discardableResult
-    public static func set(appStoreID: Int?, name: String) -> Bool {
+    public static func set(mapping: Mapping?, name: String) -> Bool {
         let needle = key(name)
-        guard !needle.isEmpty else { return false }
-
-        // Refuse rather than write into a domain nobody else can see.
-        //
-        // Without this the write still *succeeds* locally — ``WidgetState`` backs an
-        // unreachable App Group with `.volatile`, which accepts and discards — so
-        // this returned `true`, the caller dismissed its sheet and told the user the
-        // icon was fixed, and the widget reloaded to draw the old one. The user's
-        // answer was thrown away with no way to tell, on the one screen in the app
-        // whose entire purpose is to make an answer stick.
-        //
-        // Reporting failure is the lesser evil: the caller can say so, and the edit
-        // is not half-applied somewhere invisible. ``noteObservedSlots(_:)`` below
-        // already guards its write the same way and for the same reason.
-        guard WidgetState.widgetStateIsAvailable else { return false }
-
-        var map = overrides()
-        let previous = map[needle]
-        guard previous != appStoreID else { return false }
-
-        if let appStoreID {
-            map[needle] = appStoreID
+        guard LibraryBackup.validName(name), !needle.isEmpty, WidgetState.widgetStateIsAvailable else { return false }
+        // Preserve unrelated raw records, including unreadable ones. A user edit
+        // must not turn the tolerant display reader into a destructive rewrite.
+        guard let map = rawOverridesForWrite() else { return false }
+        var next = map
+        if let mapping {
+            guard map[needle].flatMap(decodeStoredMapping) != mapping else { return false }
+            guard next[needle] != nil || next.count < LibraryBackup.maximumMappings else { return false }
+            if let country = mapping.country {
+                next[needle] = ["appStoreID": mapping.appStoreID, "country": country]
+            } else {
+                next[needle] = mapping.appStoreID
+            }
         } else {
-            map.removeValue(forKey: needle)
+            guard next.removeValue(forKey: needle) != nil else { return false }
         }
-        write(map)
-
-        // Setting an override also forgets any miss recorded for this name. Step 0
-        // of `resolve` already wins over a miss, so this is belt-and-braces — but
-        // it means *removing* the override falls back to a fresh search rather than
-        // to a "the store has never heard of this" written under an older rule.
-        if appStoreID != nil {
-            DirectLaunchIcons.clearMiss(name: name)
-        }
+        WidgetState.widgetDefaults.set(next, forKey: iconOverridesKey)
+        guard self.mapping(name: name) == mapping,
+              mapping != nil || !containsBackupRecord(name: name) else { return false }
+        if mapping != nil { DirectLaunchIcons.clearMiss(name: name) }
         return true
     }
 
-    /// Forgets every override. The escape hatch, and what the tests reset through.
+    /// Legacy callers retaining an unchanged ID also retain its selected source.
+    /// A different ID has no known source, so it uses the legacy lookup policy.
+    @discardableResult
+    public static func set(appStoreID: Int?, name: String) -> Bool {
+        guard let appStoreID else { return set(mapping: nil, name: name) }
+        let country = mapping(name: name).flatMap { $0.appStoreID == appStoreID ? $0.country : nil }
+        guard let value = Mapping(appStoreID: appStoreID, country: country) else { return false }
+        return set(mapping: value, name: name)
+    }
+
     public static func removeAll() {
         WidgetState.widgetDefaults.removeObject(forKey: iconOverridesKey)
     }
 
-    /// A token that changes on every mutation.
-    ///
-    /// Folded into the timeline entry so a requested reload is provably a
-    /// *different* entry. WidgetKit is free to serve byte-identical content from
-    /// its cache, and the classic failure is calling `reloadAllTimelines()` and
-    /// seeing no change because nothing in the entry moved. This is the field that
-    /// moves.
-    ///
-    /// Built from ``DirectLaunchIcons/stableHash(_:)`` over a sorted rendering of
-    /// the map rather than from `Dictionary.hashValue`, which is seeded per process
-    /// and would give the same map different tokens in the app and the widget. The
-    /// same stable hash is what keys the icon and miss caches, so there is one
-    /// notion of "the same string" in this package rather than two.
+    /// A source-only change refreshes widget artwork; legacy nil-source maps
+    /// retain the same revision bytes used by earlier versions.
     public static var revision: String {
-        let rendered = overrides()
-            .sorted { $0.key < $1.key }
-            .map { "\($0.key)=\($0.value)" }
-            .joined(separator: "\u{1F}")
+        let rendered = allMappings.sorted { $0.key < $1.key }.map {
+            "\($0.key)=\($0.value.appStoreID)" + ($0.value.country.map { "@" + $0 } ?? "")
+        }.joined(separator: "\u{1F}")
         return DirectLaunchIcons.stableHash(rendered)
     }
 
-    private static func overrides() -> [String: Int] {
-        guard let blob = WidgetState.widgetDefaults.dictionary(forKey: iconOverridesKey) else {
-            return [:]
-        }
-        // Stored as a property list dictionary, so the values come back as `NSNumber`
-        // rather than `Int`. Casting through `NSNumber` rather than `as? Int` because
-        // the latter is not guaranteed to bridge from an `NSNumber` in every case.
-        return blob.compactMapValues { ($0 as? NSNumber)?.intValue }
+    private static func rawOverrides() -> [String: Any] {
+        WidgetState.widgetDefaults.dictionary(forKey: iconOverridesKey) ?? [:]
     }
 
-    private static func write(_ map: [String: Int]) {
-        WidgetState.widgetDefaults.set(map, forKey: iconOverridesKey)
+    private static func rawOverridesForWrite() -> [String: Any]? {
+        guard let value = WidgetState.widgetDefaults.object(forKey: iconOverridesKey) else { return [:] }
+        return value as? [String: Any]
+    }
+
+    private static func positiveID(_ value: Any) -> Int? {
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+              number.intValue > 0, number == NSNumber(value: number.intValue) else { return nil }
+        return number.intValue
+    }
+
+    private static func decodeStoredMapping(_ value: Any) -> Mapping? {
+        if let id = positiveID(value) { return Mapping(appStoreID: id) }
+        guard let fields = value as? [String: Any],
+              Set(fields.keys).isSubset(of: ["appStoreID", "country"]),
+              let rawID = fields["appStoreID"], let id = positiveID(rawID) else { return nil }
+        if let rawCountry = fields["country"] {
+            guard let country = rawCountry as? String,
+                  AppStoreCountry.normalized(country) == country else { return nil }
+            return Mapping(appStoreID: id, country: country)
+        }
+        return Mapping(appStoreID: id)
     }
 
     // MARK: - Observed slots
 
-    /// What the widget most recently drew, so the app can list it.
+    /// Action names reported by real widget timelines, so the app can list them.
     ///
     /// The app cannot enumerate the Home Screen, and a widget's configuration is a
     /// set of `SystemShortcut`s the system holds and will not hand over — so the
     /// only way the app can learn what is on a widget is for the widget to say so.
-    /// That is what this is, and it is why the app's list is empty until a timeline
-    /// has been built at least once.
+    /// Names are recorded before artwork lookup, so a slow lookup cannot delay
+    /// the app's candidate list. Gallery snapshots do not report configuration.
     private static let observedSlotsKey = "widget.directLaunchSlots"
 
     /// A cap on the remembered list.
@@ -183,7 +228,9 @@ public enum DirectLaunchOverrides {
     /// bound it would grow for the life of the install. A record the user has
     /// pinned is never dropped for age, because it is still the only thing tying
     /// that override to a visible row — see ``merge(_:into:)``.
-    static let observedSlotLimit = 64
+    // A single widget can contain 100 actions. Leave room for multiple widgets
+    // without pruning a full configuration from the correction screen.
+    static let observedSlotLimit = 256
 
     /// One slot the widget drew.
     ///
@@ -217,6 +264,25 @@ public enum DirectLaunchOverrides {
         records().sorted { $0.updatedAt > $1.updatedAt }
     }
 
+    /// Publish a real timeline's configured names before awaiting artwork.
+    /// Existing artwork metadata remains intact until the completed lookup
+    /// enriches it through `noteObservedSlots`; new names start without artwork.
+    public static func noteConfiguredNames(_ names: [String], observedAt: Date = Date()) {
+        guard WidgetState.widgetStateIsAvailable else { return }
+        let existing = Dictionary(records().map { ($0.id, $0) }, uniquingKeysWith: {
+            $0.updatedAt > $1.updatedAt ? $0 : $1
+        })
+        var seen = Set<String>()
+        let incoming = names.compactMap { name -> SlotRecord? in
+            guard let name = observedName(name), seen.insert(key(name)).inserted else { return nil }
+            let previous = existing[key(name)]
+            return SlotRecord(name: name, appStoreID: previous?.appStoreID,
+                              source: previous?.source ?? DirectLaunchIcons.Source.none.rawValue,
+                              updatedAt: observedAt)
+        }
+        noteObservedSlots(incoming)
+    }
+
     /// Records the slots from one timeline build, merged into what is already known.
     ///
     /// A merge rather than a replace, because there can be more than one widget and
@@ -230,11 +296,24 @@ public enum DirectLaunchOverrides {
     /// changed, so a steady-state reload writes nothing at all.
     public static func noteObservedSlots(_ incoming: [SlotRecord]) {
         guard WidgetState.widgetStateIsAvailable else { return }
+        let incoming = incoming.compactMap { record -> SlotRecord? in
+            guard let name = observedName(record.name) else { return nil }
+            return SlotRecord(name: name, appStoreID: record.appStoreID,
+                              source: record.source, updatedAt: record.updatedAt)
+        }
         guard !incoming.isEmpty else { return }
 
-        let merged = merge(incoming, into: records())
-        guard merged != records() else { return }
+        let existing = records()
+        let merged = merge(incoming, into: existing)
+        guard merged != existing else { return }
         writeRecords(merged)
+    }
+
+    private static func observedName(_ name: String) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.utf8.count <= 1_024,
+              !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
+        return trimmed
     }
 
     /// Folds one build's records into the stored list.
@@ -259,7 +338,12 @@ public enum DirectLaunchOverrides {
         // Over the cap: drop the oldest that the user has *not* pinned. A pinned
         // record is the only thing that puts its override on screen, so dropping it
         // would silently orphan a setting the user can then no longer find.
-        result.sort { $0.updatedAt > $1.updatedAt }
+        // Visit oldest first: the rows removed here are the historical names,
+        // never the apps from the user's newest widget configuration.
+        result.sort {
+            if $0.updatedAt != $1.updatedAt { return $0.updatedAt < $1.updatedAt }
+            return $0.id < $1.id
+        }
         var kept: [SlotRecord] = []
         var over = result.count - observedSlotLimit
         for record in result {

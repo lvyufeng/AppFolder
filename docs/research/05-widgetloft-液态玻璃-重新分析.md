@@ -1,19 +1,31 @@
 # WidgetLoft 液态玻璃：重新分析
 
+> 实现纠正（2026-10-29）：此前上架准备将已验证的独立玻璃替换为普通底色，违背了用户一直要求的默认主屏行为。当前恢复原 `preferredBackgroundStyle(.blur)`、SDK overlay 和透明容器背景，保留新增分组及其他功能；本轮模拟器 Debug 与 iPhone Release 构建通过；Test 默认主屏已确认大小组件独立玻璃恢复，截图 `/tmp/appfolder-restored-independent-glass.png`。未公开接口的 App Store 兼容性单独保留为未解决项，不能通过删掉所需功能来宣布完成。公开 `glassEffect` 六组 probe 已构建，但尚未放置到真实桌面测试，不能作为已完成的正／负结论。
+
 日期：2026-10-01。目标：从原始证据重新定位 **默认主屏幕外观下、逐小组件的 Liquid Glass**，不继承以前的机制结论。
 
 ## 固定前提与证据边界
 
 用户已经明确确认：WidgetLoft 在默认主屏幕外观下就支持液态玻璃，不需要开启系统全局 Clear。这个观察是分析前提，不再要求用户重复确认。
 
-**本轮终次结果：独立第三方测试 widget 已通过 `.preferredBackgroundStyle(.blur)` 在默认外观下复现系统玻璃；随后验证了内容层实心填充会把它盖掉。A=0 白板、B=2 玻璃、C=2+内容层实心色只在填充边缘透出玻璃，真实主屏对照截图与成功 UI/timeline 证据见第 7 节第六、七段。同一调用现已接进仓库源码，模拟器与真机切片均可独立构建，见第八段。**竞品实际调用方式、真机与审核可用性仍未验证。
+**当时的终次结果（历史实验）：独立第三方测试 widget 通过 `.preferredBackgroundStyle(.blur)` 在默认外观下复现系统玻璃；随后验证了内容层实心填充会把它盖掉。A=0 白板、B=2 玻璃、C=2+内容层实心色只在填充边缘透出玻璃，真实主屏对照截图与成功 UI/timeline 证据见第 7 节第六、七段。当时同一调用曾接进仓库并完成模拟器与真机切片构建，见第八段；此接入在上架准备中被错误移除，现已完整恢复，当前实现见页首更新。**竞品实际调用方式、真机与审核可用性未由这些实验验证。
 
-本轮没有修改 AppFolder 应用源代码、真实 SDK、真机、原有模拟器或它们的已安装应用；没有手改描述符数据库、全局 Clear 或主屏外观。后续运行对照只在新建的独立模拟器上构建、安装、启动临时测试 app，通过正常图库 UI 添加测试 widget；文件与产物放在独立临时目录。本文是研究记录，不是已经修好的功能声明。
+最初研究实验没有修改 AppFolder 应用源代码、真实 SDK、真机、原有模拟器或它们的已安装应用；没有手改描述符数据库、全局 Clear 或主屏外观。当时的运行对照只在新建的独立模拟器上构建、安装、启动临时测试 app，通过正常图库 UI 添加测试 widget；文件与产物放在独立临时目录。这段描述仅适用于最初实验；后续源码恢复与 Test 模拟器验收见下节。
 
 必须分别回答两个问题：
 
 1. **系统有没有逐小组件选择玻璃底板的路径？** 可用本地系统二进制、编译和以后受控运行实验回答。
 2. **WidgetLoft 实际使用哪一条路径？** 需要竞品实际配置、调用链、描述符或渲染归档；截图相似和本方实验不能代替这些证据。
+
+## 2026-10-29 恢复回退后的当前验证
+
+恢复范围只有原 overlay、Widget target 导入／构建阶段、逐组件 `.preferredBackgroundStyle(.blur)` 请求及透明容器背景。所有现有分组、网站、联系人、图标、日期、密度与备份功能保留。小组件和 App 内分组预览去掉固定标题／页码顶栏；导航图标进入网格，父页定位使用实际内容范围。
+
+Test 模拟器通过系统 UI 确认主屏「默认」被选中，未切换透明／色调。现有大号与小号保存分组均恢复独立玻璃；小号下一页／上一页、进入子文件夹／返回根层已实际点按并查看结果。大号最终导航点按时界面输入再次报 `noWindowsAvailable`，因此不把它记为已验证；本轮也未验证默认溢出面板。截图和详细证据为 `/tmp/appfolder-restored-independent-glass.png`、`/tmp/appfolder-restored-glass-verification.json`。
+
+Debug 与 iPhone Release 构建通过，无警告／错误；完整共享测试 555 项／68 套通过（`/tmp/appfolder-restored-glass-full-tests-final.log`）。首轮受限环境的文件协调读取失败在解除测试环境限制后单项及全套均消失，未因此修改实现。27 个已有 App Group 文件中只有运行导航偏好与绑定报告更新，其他 25 个文件 SHA 未变；没有新建 ActionLibrary 数据，没有真机操作、录像或上架提交。
+
+当前玻璃来自已恢复的未公开接口。功能恢复不代表 App Store 兼容性解决。公开 API 六组测试工程保留在 `/tmp/appfolder-public-glass-probe`，仅完成构建及宿主启动；未添加测试组件，不能用于判断公开玻璃在真实桌面的成败。测试 App 已从 Test 模拟器移除。
 
 ## 1. 已独立复核的竞品第一方证据
 
@@ -108,13 +120,13 @@ CHUISSolariumEffectView
 
 `widgetloft-probe.sh` 的复制失败、空目录、图片数量都不能区分系统 plate 与其他实现。该脚本本轮未执行。没有可信的竞品容器导出，更没有验真的竞品 `.appex`、descriptor 或渲染归档。
 
-## 4. AppFolder 当前能确定的缺口与不能确定的缺口
+## 4. 原始实验时的缺口（历史记录，生产调用现已恢复）
 
-当前源码已经有 `containerBackground(for: .widget) { Color.clear }` 与 `containerBackgroundRemovable(true)`。因此不能继续建议“补这两个调用”作为已定位修复。
+当时源码已经有 `containerBackground(for: .widget) { Color.clear }` 与 `containerBackgroundRemovable(true)`。因此“补这两个调用”并不是当时定位出的修复；当前也仍保留它们。
 
-真实配置没有调用 `preferredBackgroundStyle`；`glassEffect` 位于独立 preview，不等于 live widget 使用它。内容层是否存在实体填充取决于实际 entry.style，尚未取得实际 entry/归档，不能排除遮挡。
+当时检查的真实配置尚未调用 `preferredBackgroundStyle`；独立 preview 中的 `glassEffect` 不代表 live widget 使用它。这个调用缺口已经补齐，并在错误回退后恢复：当前 `DirectLaunchWidget` 使用 `.preferredBackgroundStyle(.blur)` 和透明容器背景，默认主屏无需开启全局 Clear/Tinted。纯色或渐变内容底板仍会按用户选择覆盖玻璃。
 
-**有代码与终次对照支撑的缺口**：生产 AppFolder 没有提交逐 widget 的背景 preference；最小测试的 A 同样不提交，保持 opaque，B 提交 `.blur` 后注册为 2 并在 simulator 默认主屏显示玻璃。生产代码尚未接入。**尚未证明的部分**：WidgetLoft 实际是否使用同一入口，以及真机／iOS 26 上的运行与材质条件。
+**原始实验结论**：当时生产 AppFolder 未提交逐 widget 的背景 preference；最小测试 A 同样不提交，保持 opaque，B 提交 `.blur` 后注册为 2 并在 simulator 默认主屏显示玻璃。后续生产接入及错误回退后的恢复见页首与第八段，不能再将“生产代码尚未接入”作为当前结论。**仍未解决或验证的部分**：未公开接口的 App Store 兼容性、WidgetLoft 实际是否使用同一入口，以及真机／iOS 26 上的运行与材质条件。
 
 公开 `glassEffect` 在当前 SDK 可编译，不能由此直接推出 WidgetKit archive 能采样主屏壁纸；同样不能笼统宣称被禁止。
 
@@ -281,7 +293,9 @@ headless Flash 本轮约 63.06 秒；实际 UI case 37.017 秒，runner 43.38 �
 
 **此次完成的结论**：在 simulator iOS 27.0 / 默认主屏外观下，第三方最小 widget 能通过真实的 configuration-level `.preferredBackgroundStyle(.blur)` 路径请求系统玻璃底板，正确注册 `backgroundStyle=2` 并实际显示；不需要修改全局 Clear 或缓存。这提供了与 WidgetLoft 用户确认行为一致的可复现机制，推翻“第三方无法申请／必须特殊系统 grant／API 一概被忽略”的旧否定。
 
-**尚未完成的结论**：没有直接读取 WidgetLoft 原版 `.appex`／descriptor，所以不能断言竞品实际使用这一 API；没有实测真机或 iOS 26；入口依然未公开，普通 SDK import 无法直接调用，需要本轮声明接口桥，不能保证审核允许。实际宿主的 policy/draw/filterStyle 或 Solarium 对象实例没有动态采集，静态条件链与观察到的 native 输出应分别记述。生产 AppFolder 已在源码接入此 modifier，构建方式见第八段；真机当前安装的仍是用临时副本构建的产物，不是仓库这一版，二者尚未同步。
+**当时未完成的结论与安装状态（历史记录）**：没有直接读取 WidgetLoft 原版 `.appex`／descriptor，所以不能断言竞品实际使用这一 API；没有实测真机或 iOS 26；入口未公开，普通 SDK import 无法直接调用，当时需要声明接口桥，不能保证审核允许。实际宿主的 policy/draw/filterStyle 或 Solarium 对象实例没有动态采集，静态条件链与观察到的 native 输出应分别记述。当时 AppFolder 曾在源码接入此 modifier，构建方式见第八段；当时真机仍安装临时副本的构建产物，尚未与该仓库版本同步。
+
+> 已撤销的错误改动（2026-10-29，历史记录）：上架准备曾移除上述 modifier、WidgetKit overlay、专用构建脚本和模块搜索路径，改为普通外观显示系统底色、仅依赖 Clear/Tinted 显示玻璃。这违背了默认主屏下小组件独立玻璃的既有要求，该改动已撤销。当前已恢复原调用、overlay、构建配置与透明容器；不能把这段历史记录当成当前实现或再次移除它们的依据。App Store 兼容性仍是单独的未解决项，当前构建与实测边界见 [README](../../README.md)。
 
 ### 第七段：内容层实心填充会盖掉玻璃（阶段 C）
 
@@ -305,9 +319,9 @@ C 的 descriptor 与 B 完全同值（`2`），说明玻璃底板确实存在；
 - 本轮多次 UI 失败都发生在导航阶段（gallery 入口、卡片滑动坐标），与 widget 机制无关；成功那次只在翻页逐页查找 App 图标后长按进入编辑模式。这些失败运行各自独立保存在 `Visual/PlateRun…/`，未覆盖。
 - widget 源与原始扩展二进制全程未变；未改 SDK、AppFolder 仓库源、缓存或全局外观。
 
-### 第八段：接口桥接进仓库，模拟器与真机两种切片都自洽
+### 第八段：接口桥接进仓库，两种切片自洽（原始接入记录，当前已恢复）
 
-第七段之前，`.preferredBackgroundStyle(.blur)` 只存在于仓库外的一份临时副本里。这一段把它接进仓库，让仓库自己就能编出这一行，而不是依赖一份没人能复现的产物。
+第七段之前，`.preferredBackgroundStyle(.blur)` 只存在于仓库外的一份临时副本里。这一段记录当时如何将它接进仓库，使仓库能够独立构建该实验；以下脚本和模块导入机制在错误回退后已恢复，当前构建参数为 `$(inherited) -I $(TARGET_TEMP_DIR)`。本节的实验产物仅证明当时的构建，当前版本的构建与实测边界见页首及 README。
 
 做法是给 `AppFolderWidget` target 加一个跑在 Swift 编译之前的 run script（`Scripts/widgetkit-overlay.sh`），脚本把 SDK 自带的 `WidgetKit.swiftinterface` 原文复制一份、在末尾补上两段只有形状没有实现的声明（`WidgetBackgroundStyle` 枚举与 `preferredBackgroundStyle`），用 `swift-frontend -compile-module-from-interface` 编成模块放进 `TARGET_TEMP_DIR`；target 上的 `OTHER_SWIFT_FLAGS = "-I $(TARGET_TEMP_DIR)"` 让它排在这个模块前面，源码于是可以直接写这一行。脚本没有改动任何 SDK 文件，产物里这两个符号仍是 undefined external，运行时从系统 `WidgetKit` 装载。
 

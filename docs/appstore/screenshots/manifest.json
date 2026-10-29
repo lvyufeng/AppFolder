@@ -1,0 +1,16 @@
+{
+  "status": "candidate; not uploaded or submitted",
+  "image": "zh-Hans/01-home.png",
+  "capture": "AppFolder app Home screen on AppFolder Test simulator",
+  "device": "iPhone 18 Pro simulator, iOS 27.0",
+  "pixelWidth": 1206,
+  "pixelHeight": 2622,
+  "hasAlpha": false,
+  "processing": "Removed fully opaque alpha channel; RGB pixels unchanged",
+  "language": "zh-Hans",
+  "sha256": "14f99decf98c2f717e019d4be766904dfc24ca800b375116adf53ac625a03c8f",
+  "privacy": "Local example artwork; no saved group contents, contacts, URLs or physical-device screen shown",
+  "visuallyReviewed": true,
+  "scope": "App tutorial sample, not a claim of Home Screen WidgetKit runtime verification",
+  "reviewPending": "Final submission build, complete screenshot set and current App Store Connect upload state remain unverified"
+}

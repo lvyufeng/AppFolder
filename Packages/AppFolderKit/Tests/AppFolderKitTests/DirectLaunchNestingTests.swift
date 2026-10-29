@@ -89,6 +89,17 @@ struct DirectLaunchNestingTests {
 
     // MARK: - The expansion key
 
+    @Test func equalActionsInDifferentLayoutsDoNotShareNavigation() {
+        let names = ["地图", "日历", "提醒事项"]
+        let small = WidgetState.directLaunchExpansionKey(slotNames: names, grid: .nine, family: .systemSmall)
+        let four = WidgetState.directLaunchExpansionKey(slotNames: names, grid: .four, family: .systemSmall)
+        let medium = WidgetState.directLaunchExpansionKey(slotNames: names, grid: .nine, family: .systemMedium)
+        let large = WidgetState.directLaunchExpansionKey(slotNames: names, grid: .nine, family: .systemLarge)
+        #expect(Set([small, four, medium, large]).count == 4)
+        #expect(medium == WidgetState.directLaunchExpansionKey(slotNames: names, grid: .nine, family: .systemMedium))
+        #expect(medium != WidgetState.directLaunchExpansionKey(slotNames: Array(names.reversed()), grid: .nine, family: .systemMedium))
+    }
+
     /// The key a grid is opened by is a function of its slots' names, in order,
     /// because a `SystemShortcut` gives the widget nothing else to identify it by.
     @Test func theSameSlotsProduceTheSameKey() {

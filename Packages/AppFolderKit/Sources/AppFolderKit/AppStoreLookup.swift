@@ -64,13 +64,9 @@ public struct AppStoreLookup: Sendable, Hashable, Identifiable {
 }
 
 extension AppStoreLookup {
-    /// The region to search in, when the caller has no better answer.
-    ///
-    /// Apple resolves some names differently by storefront — 抖音 is 抖音 in the
-    /// Chinese store and TikTok elsewhere — so the storefront is not cosmetic.
-    /// The app reads the real one from StoreKit and passes it in; this is the
-    /// fallback for a caller that cannot, and `cn` is the right guess for this
-    /// app's audience.
+    /// The original convenience default for callers that do not pass a country.
+    /// Passing nil omits the parameter: Apple's endpoint then defaults to US,
+    /// independently of the device region or Apple Account storefront.
     public static let defaultCountry = "cn"
 
     /// A placeholder for an app the user is describing by hand.
@@ -89,11 +85,9 @@ extension AppStoreLookup {
     /// keeps a search for "微信" from returning music and books.
     ///
     /// - Parameter country: a storefront code, or `nil` to omit the parameter and
-    ///   let the request resolve against the device's own store. `nil` is not the
-    ///   same as any code — the endpoint scopes results by storefront and an app
-    ///   not sold in the one that resolves comes back as an empty `results`, so a
-    ///   caller looking for an app it knows is installed here should try the
-    ///   device's store first and only then a specific country.
+    ///   use the endpoint's documented US default. Results are scoped to the
+    ///   requested storefront. An app not sold there can return an empty result;
+    ///   nil never reads the device region or Apple Account storefront.
     public static func searchURL(term: String, country: String? = defaultCountry, limit: Int = 12) -> URL? {
         let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -121,8 +115,7 @@ extension AppStoreLookup {
     /// and a track id alone cannot name a tile or fetch an icon.
     ///
     /// `country` is optional on purpose. Omitting it lets the request resolve
-    /// against the device's own storefront, which is right when the app is sold
-    /// there; passing the region parsed out of the link is right when it may not
+    /// against the endpoint's default US storefront; passing the region parsed out of the link is right when it may not
     /// be. The endpoint treats "no such app" and "not sold in this storefront"
     /// identically — a 200 with an empty `results` — so a caller that needs the
     /// app should be prepared to try more than one.
@@ -159,10 +152,16 @@ extension AppStoreLookup {
     /// required to build a tile, and a row that cannot become a tile is not worth
     /// showing: the user would tap it and get an app with no name and no artwork.
     public static func parse(_ data: Data) -> [AppStoreLookup] {
+        parseResponse(data) ?? []
+    }
+
+    /// An invalid response is different from a valid search with zero results.
+    /// Callers that cache misses must retry invalid responses after recovery.
+    public static func parseResponse(_ data: Data) -> [AppStoreLookup]? {
         guard
             let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let results = root["results"] as? [[String: Any]]
-        else { return [] }
+        else { return nil }
 
         return results.compactMap { row in
             guard

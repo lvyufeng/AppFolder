@@ -1,4 +1,6 @@
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 /// Resolves a direct-launch slot's app and fetches its artwork where the widget can read it.
 ///
@@ -62,7 +64,11 @@ public enum DirectLaunchIcons {
         // the widget's provider — the app's search screen, the tests — where the
         // network is deliberately unbounded. See ``Budget``.
         if let budget = Budget.current, !budget.claim() { return nil }
-        return try? await session.data(from: url).0
+        guard let (data, response) = try? await session.data(from: url),
+              let response = response as? HTTPURLResponse,
+              (200..<300).contains(response.statusCode)
+        else { return nil }
+        return data
     }
 
     // MARK: - The render-path budget
@@ -179,6 +185,8 @@ public enum DirectLaunchIcons {
     public struct Resolved: Sendable, Equatable {
         public let name: String
         public let appStoreID: Int?
+        /// The selected artwork storefront; nil retains the legacy US/CN lookup.
+        public var country: String? = nil
         public let symbolName: String?
         /// Which rule produced ``appStoreID``.
         ///
@@ -187,6 +195,8 @@ public enum DirectLaunchIcons {
         /// question that had to be reconstructed by hand every time an icon was
         /// wrong. See ``Source``.
         public let source: Source
+        /// Temporary lookup failures need a later timeline, unlike confirmed misses.
+        public var shouldRetry: Bool = false
     }
 
     /// How a slot's app was decided.
@@ -251,12 +261,21 @@ public enum DirectLaunchIcons {
     ///   name and not necessarily the storefront's.
     /// - Returns: the id and symbol to draw, after the artwork is on disk.
     public static func resolve(name: String) async -> Resolved {
+        await resolve(name: name, search: searchAppStoreID)
+    }
+
+    /// Keeps confirmed misses and temporary network failures independently testable.
+    static func resolve(
+        name: String,
+        search: (String) async -> SearchOutcome
+    ) async -> Resolved {
         // The user's answer first. `ensureIcon` reads from disk when the app has
         // already fetched the icon — which it does when the override is set — so
         // the common case here is one file read and no request.
-        if let id = DirectLaunchOverrides.appStoreID(name: name) {
-            _ = await ensureIcon(appStoreID: id)
-            return Resolved(name: name, appStoreID: id, symbolName: nil, source: .override)
+        if let mapping = DirectLaunchOverrides.mapping(name: name) {
+            _ = await ensureIcon(appStoreID: mapping.appStoreID, country: mapping.country)
+            return Resolved(name: name, appStoreID: mapping.appStoreID, country: mapping.country,
+                            symbolName: nil, source: .override)
         }
 
         // A name already given up on is not searched again. Checked *after* the
@@ -367,7 +386,8 @@ public enum DirectLaunchIcons {
                 case .unreachable:
                     // No answer at all. Leave the cache untouched so a later build —
                     // on a network that works — asks again.
-                    break
+                    return Resolved(name: name, appStoreID: nil, symbolName: known.symbolName,
+                                    source: .none, shouldRetry: true)
                 }
             }
             return Resolved(name: name, appStoreID: nil, symbolName: known.symbolName, source: .none)
@@ -382,7 +402,7 @@ public enum DirectLaunchIcons {
             return Resolved(name: name, appStoreID: remembered, symbolName: nil, source: .search)
         }
 
-        switch await searchAppStoreID(name: name) {
+        switch await search(name) {
         case .found(let id):
             // Icon first, cache second — see the note on ``ensureIcon(appStoreID:)``
             // for why the order cannot be the other way round.
@@ -405,7 +425,7 @@ public enum DirectLaunchIcons {
             // its placeholder forever, and since the timeline policy is `.never`
             // nothing would ever revisit it. This build draws the placeholder and
             // the next one asks again.
-            return Resolved(name: name, appStoreID: nil, symbolName: nil, source: .none)
+            return Resolved(name: name, appStoreID: nil, symbolName: nil, source: .none, shouldRetry: true)
         }
     }
 
@@ -444,10 +464,17 @@ public enum DirectLaunchIcons {
     ///   answer. The last must not be cached as though it were the second: the cache
     ///   is permanent and never expires the entry.
     static func systemAppID(name: String, englishName: String?) async -> SearchOutcome {
+        await systemAppID(name: name, englishName: englishName, load: request)
+    }
+
+    static func systemAppID(
+        name: String, englishName: String?, load: (URL) async -> Data?
+    ) async -> SearchOutcome {
         var tried: Set<String> = []
         // Whether any request came back at all. With neither name answered, an empty
         // store is only worth remembering if the store actually spoke.
         var reached = false
+        var unreachable = false
         for term in [name, englishName].compactMap({ $0 }) where tried.insert(term).inserted {
             // Every name this entry answers to, so a row matching either the
             // localised or the Latin one is accepted — see ``appleAppID(payload:terms:)``
@@ -455,18 +482,21 @@ public enum DirectLaunchIcons {
             let terms = Set([name, englishName].compactMap { $0 }.map {
                 $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             })
-            // The device's own storefront first, then `cn`, matching
-            // ``searchAppStoreID(name:)``: the first is where an installed app
-            // lives, and the second is the answer for a device whose storefront
-            // does not carry a Chinese system app's listing.
+            // The API's default US storefront first, then `cn`, matching
+            // ``searchAppStoreID(name:)``. These are search sources, not a
+            // statement about the user's account or installed apps.
             for country in [nil, "cn"] as [String?] {
                 guard let url = AppStoreLookup.searchURL(term: term, country: country, limit: 6) else { continue }
-                guard let payload = await request(url) else { continue }
+                guard let payload = await load(url),
+                      AppStoreLookup.parseResponse(payload) != nil else {
+                    unreachable = true
+                    continue
+                }
                 reached = true
                 if let id = appleAppID(payload: payload, terms: terms) { return .found(id) }
             }
         }
-        return reached ? .noMatch : .unreachable
+        return reached && !unreachable ? .noMatch : .unreachable
     }
 
     /// The row in a search response that is Apple's app *and* goes by one of the
@@ -552,7 +582,8 @@ public enum DirectLaunchIcons {
     /// file. The stale files are left behind rather than deleted — they are a few
     /// bytes each, and scanning the container root to remove them would run on the
     /// render path for no visible benefit.
-    private static let systemAppCacheGeneration = "v3"
+    // v4 also retries negative results written from incomplete storefront sweeps.
+    private static let systemAppCacheGeneration = "v4"
 
     private static func systemAppCacheURL(name: String) -> URL? {
         containerDirectory()?.appending(path: "system-\(systemAppCacheGeneration)-\(stableHash(name)).txt")
@@ -602,37 +633,44 @@ public enum DirectLaunchIcons {
 
     /// The App Store id for an app, by name — and, when there is none, *why*.
     ///
-    /// Two storefronts are tried, the device's own first and `cn` second. The
+    /// Two storefronts are tried, the API's default US first and `cn` second. The
     /// second is not a guess at the user's region — it is the answer for the case
     /// this widget exists to serve: a Chinese app whose *display* name is its
-    /// English one ("Alimail"), which the device's storefront does not match but a
+    /// English one ("Alimail"), which the default US search does not match but a
     /// Chinese storefront does.
     ///
     /// A name with no URL to search at all is ``SearchOutcome/noMatch`` rather than
     /// ``SearchOutcome/unreachable``: the term is empty or malformed, and no request
     /// would ever fix that, so it is as final as an empty result.
     static func searchAppStoreID(name: String) async -> SearchOutcome {
-        var reached = false
+        await searchAppStoreID(name: name, search: bestMatch)
+    }
 
-        if let deviceURL = AppStoreLookup.searchURL(term: name, country: nil, limit: 5) {
-            switch await bestMatch(url: deviceURL, name: name) {
+    static func searchAppStoreID(
+        name: String, search: (URL, String) async -> SearchOutcome
+    ) async -> SearchOutcome {
+        var reached = false
+        var unreachable = false
+
+        if let defaultURL = AppStoreLookup.searchURL(term: name, country: nil, limit: 5) {
+            switch await search(defaultURL, name) {
             case .found(let id): return .found(id)
             case .noMatch: reached = true
-            case .unreachable: break
+            case .unreachable: unreachable = true
             }
         }
 
         if let cnURL = AppStoreLookup.searchURL(term: name, country: "cn", limit: 5) {
-            switch await bestMatch(url: cnURL, name: name) {
+            switch await search(cnURL, name) {
             case .found(let id): return .found(id)
             case .noMatch: reached = true
-            case .unreachable: break
+            case .unreachable: unreachable = true
             }
         }
 
-        // "No match" if either storefront answered, so a real absence is still
-        // remembered; "unreachable" only when neither did.
-        return reached ? .noMatch : .unreachable
+        // One storefront's empty answer cannot prove absence from the other
+        // when that request failed. Keep that name retryable after recovery.
+        return reached && !unreachable ? .noMatch : .unreachable
     }
 
     /// Whether one storefront's answer contains the app asked about.
@@ -656,6 +694,7 @@ public enum DirectLaunchIcons {
     /// a permanent miss; see ``SearchOutcome``.
     static func bestMatch(url: URL, name: String) async -> SearchOutcome {
         guard let payload = await request(url) else { return .unreachable }
+        guard AppStoreLookup.parseResponse(payload) != nil else { return .unreachable }
         guard let id = bestMatch(payload: payload, name: name) else { return .noMatch }
         return .found(id)
     }
@@ -743,10 +782,24 @@ public enum DirectLaunchIcons {
     ///
     /// Idempotent and cheap when the bytes are already there — the disk read wins
     /// over the request — so calling it from both processes is safe.
-    public static func ensureIcon(appStoreID id: Int) async -> Data? {
-        if let cached = read(id: id) { return cached }
-        guard let data = await fetch(appStoreID: id) else { return nil }
-        write(id: id, data: data)
+    public static func ensureIcon(appStoreID id: Int, country: String? = nil) async -> Data? {
+        await ensureIcon(appStoreID: id, country: country, directory: containerDirectory(), load: request)
+    }
+
+    /// The production cache path with injectable storage and transport for recovery tests.
+    static func ensureIcon(
+        appStoreID id: Int,
+        country: String? = nil,
+        directory: URL?,
+        load: (URL) async -> Data?
+    ) async -> Data? {
+        guard let filename = fileName(appStoreID: id, country: country) else { return nil }
+        if let cached = cachedIcon(appStoreID: id, country: country, directory: directory) { return cached }
+        guard !Task.isCancelled, let data = await fetch(appStoreID: id, country: country, load: load),
+              !Task.isCancelled else { return nil }
+        if let directory {
+            try? data.write(to: directory.appending(path: filename), options: .atomic)
+        }
         return data
     }
 
@@ -756,8 +809,23 @@ public enum DirectLaunchIcons {
     /// benefit: the app shows the user the icon the widget will draw, and the only
     /// way to show *that* icon rather than a fresh download is to read the same
     /// file. Fetches nothing — a miss is a miss, not a request.
-    public static func cachedIcon(appStoreID id: Int) -> Data? {
-        read(id: id)
+    public static func cachedIcon(appStoreID id: Int, country: String? = nil) -> Data? {
+        cachedIcon(appStoreID: id, country: country, directory: containerDirectory())
+    }
+
+    static func cachedIcon(appStoreID id: Int, country: String? = nil, directory: URL?) -> Data? {
+        guard let filename = fileName(appStoreID: id, country: country), let directory else { return nil }
+        let file = directory.appending(path: filename)
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
+              let size = attributes[.size] as? NSNumber,
+              size.intValue > 0, size.intValue <= artworkByteLimit,
+              let data = try? Data(contentsOf: file),
+              artworkThumbnail(data) != nil
+        else { return nil }
+        // Keep valid artwork from older versions, including their 512px cache.
+        // Invalid bytes are a miss, so the timeline schedules recovery instead
+        // of deciding that a permanently blank tile already has its artwork.
+        return data
     }
 
     /// The store's answer for one of its own URLs, through this module's session.
@@ -796,6 +864,15 @@ public enum DirectLaunchIcons {
     /// ``WidgetIconCache`` agree on where a given app's artwork lives.
     public static func fileName(appStoreID: Int) -> String { "\(appStoreID).png" }
 
+    /// Explicit storefronts have independent cache files. Invalid inputs never
+    /// become file paths or silently fall back to another storefront's artwork.
+    public static func fileName(appStoreID: Int, country: String?) -> String? {
+        guard appStoreID > 0 else { return nil }
+        guard let country else { return fileName(appStoreID: appStoreID) }
+        guard let normalized = AppStoreCountry.normalized(country) else { return nil }
+        return "\(appStoreID)-\(normalized).png"
+    }
+
     // MARK: - Misses
 
     /// The marker file that records a name the store could not resolve.
@@ -810,7 +887,9 @@ public enum DirectLaunchIcons {
     /// nobody is asking any more — and left in place it would permanently hide apps
     /// the new rules can now find. Bump this whenever ``bestMatch(url:name:)`` or
     /// ``AppCatalog/match(name:)`` changes what they accept.
-    private static let missVersion = 3
+    // v4 retries markers that may have been produced by invalid responses or
+    // by a failed fallback storefront, rather than confirmed empty searches.
+    private static let missVersion = 4
 
     private static func missFileURL(name: String) -> URL? {
         containerDirectory()?.appending(path: "miss-v\(missVersion)-\(stableHash(name)).txt")
@@ -875,7 +954,7 @@ public enum DirectLaunchIcons {
     /// a stated maximum rather than an accidental one.
     private static let logByteLimit = 256 * 1024
 
-    /// Appends one line to a log in the App Group's `Library/Caches`.
+    /// Appends a debug-build-only log in the App Group's `Library/Caches`.
     ///
     /// For diagnosing a widget, and only that: a widget's console is not attached
     /// to anything a development host can read, so the one place a run can leave a
@@ -887,14 +966,15 @@ public enum DirectLaunchIcons {
     /// window into a process with no console, and it found the bug that made
     /// Calendar draw as a grey symbol. See ``logByteLimit`` for the one bound on
     /// it.
-    public static func diagnose(_ line: String) {
+    public static func diagnose(_ line: @autoclosure () -> String) {
+        #if DEBUG
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: AppFolderShared.appGroupIdentifier
         ) else { return }
         let directory = container.appending(path: "Library/Caches", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let file = directory.appending(path: "direct-launch.log")
-        let entry = Data(("[\(Date())] " + line + "\n").utf8)
+        let entry = Data(("[\(Date())] " + line() + "\n").utf8)
 
         // The whole rotation is done under one lock. Without it two threads racing
         // on a file at the limit could each *read* an over-limit size, and the
@@ -929,49 +1009,133 @@ public enum DirectLaunchIcons {
         } else {
             try? entry.write(to: file, options: .atomic)
         }
+        #endif
     }
 
     /// Serialises ``diagnose(_:)``'s rotation check and append. See the comment
     /// there for the race it closes.
     private static let logLock = NSLock()
 
-    // MARK: - Files
+    // MARK: - Artwork validation
 
-    private static func read(id: Int) -> Data? {
-        guard let directory = containerDirectory() else { return nil }
-        return try? Data(contentsOf: directory.appending(path: fileName(appStoreID: id)))
+    /// A 256px image is enough for the largest icon drawn in the small widget.
+    /// Decode from the source at this size rather than holding full-resolution
+    /// images in the memory-limited extension. Bounds are checked before decoding.
+    static let artworkPixelLimit = 256
+    static let artworkByteLimit = 10 * 1_024 * 1_024
+    static let artworkSourceSideLimit = 8_192
+    private static let artworkSourcePixelLimit = 16_777_216
+
+    static func artworkThumbnail(_ data: Data, maxPixelSize: Int = artworkPixelLimit) -> CGImage? {
+        let pixelLimit = min(max(1, maxPixelSize), artworkPixelLimit)
+        guard !data.isEmpty, data.count <= artworkByteLimit,
+              let source = CGImageSourceCreateWithData(data as CFData, [
+                kCGImageSourceShouldCache: false,
+              ] as CFDictionary),
+              CGImageSourceGetStatus(source) == .statusComplete,
+              hasCompleteImageContainer(data, type: CGImageSourceGetType(source) as String?),
+              CGImageSourceGetCount(source) == 1,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              (1...artworkSourceSideLimit).contains(width),
+              (1...artworkSourceSideLimit).contains(height),
+              width * height <= artworkSourcePixelLimit,
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: pixelLimit,
+                kCGImageSourceShouldCacheImmediately: true,
+              ] as CFDictionary),
+              CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete,
+              image.width <= pixelLimit, image.height <= pixelLimit
+        else { return nil }
+        return image
     }
 
-    private static func write(id: Int, data: Data) {
-        guard let directory = containerDirectory() else { return }
-        try? data.write(to: directory.appending(path: fileName(appStoreID: id)), options: .atomic)
+    /// ImageIO deliberately recovers partial images; it can report a truncated
+    /// PNG as complete and fill the missing pixels. Do not cache that recovery
+    /// as the final app icon. Check PNG chunk boundaries/checksums and the JPEG
+    /// end marker before asking the decoder for pixels.
+    static func hasCompleteImageContainer(_ data: Data, type: String?) -> Bool {
+        if type == UTType.jpeg.identifier {
+            return data.count >= 2 && data.suffix(2).elementsEqual([0xFF, 0xD9])
+        }
+        guard type == UTType.png.identifier else { return true }
+        return data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) in
+            func word(at offset: Int) -> UInt32 {
+                UInt32(bytes[offset]) << 24 | UInt32(bytes[offset + 1]) << 16
+                    | UInt32(bytes[offset + 2]) << 8 | UInt32(bytes[offset + 3])
+            }
+            var offset = 8 // PNG signature, already recognized by ImageIO.
+            while offset <= bytes.count - 12 {
+                let length = Int(word(at: offset))
+                guard length <= bytes.count - offset - 12 else { return false }
+                var checksum = UInt32.max
+                for index in (offset + 4)..<(offset + 8 + length) {
+                    checksum = pngCRCTable[Int((checksum ^ UInt32(bytes[index])) & 0xFF)] ^ (checksum >> 8)
+                }
+                guard checksum ^ UInt32.max == word(at: offset + 8 + length) else { return false }
+                let next = offset + length + 12
+                if word(at: offset + 4) == 0x49454E44 { // IEND
+                    return length == 0 && next == bytes.count
+                }
+                offset = next
+            }
+            return false
+        }
     }
 
-    /// The artwork for one id, one request per storefront tried.
-    ///
-    /// ## Why the storefront is now swept
-    ///
-    /// This used to ask with no `country`, letting the request resolve against the
-    /// device's own store. That is right for an app sold where the device is — but
-    /// ``searchAppStoreID(name:)`` finds ids on **two** storefronts and will happily
-    /// return one only `cn` lists, for a Chinese app whose display name is its
-    /// English one. The lookup endpoint treats "no such app" and "not sold in this
-    /// storefront" identically — a 200 with empty `results` — so on a non-cn device
-    /// that app's lookup came back empty, `nil` was returned, and **nothing was
-    /// written**: the slot drew its placeholder on every build, forever, for an app
-    /// the catalogue had just resolved correctly.
-    ///
-    /// So the device's own store is tried first, matching the search, and then `cn`
-    /// as the same deliberate second answer the search uses. The first non-empty
-    /// artwork wins, so an app sold in both is still served by the device's copy.
-    static func fetch(appStoreID id: Int) async -> Data? {
-        for country in [nil, "cn"] as [String?] {
+    private static let pngCRCTable: [UInt32] = (0..<256).map { byte in
+        var value = UInt32(byte)
+        for _ in 0..<8 {
+            value = value & 1 == 0 ? value >> 1 : 0xEDB88320 ^ (value >> 1)
+        }
+        return value
+    }
+
+    /// HTTP success is not image success: an error page or truncated download
+    /// must never become the durable cache entry. Re-encoding a decoded thumbnail
+    /// also strips source metadata and gives every new cache entry a bounded size.
+    static func normalizedArtwork(_ data: Data) -> Data? {
+        guard let image = artworkThumbnail(data) else { return nil }
+        let png = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            png, UTType.png.identifier as CFString, 1, nil
+        ) else { return nil }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return png as Data
+    }
+
+    /// Explicit choices query only their selected storefront and use a separate
+    /// cache. Legacy mappings and automatic matching retain the API's default
+    /// US storefront followed by China mainland. Neither path reads the user's
+    /// Apple Account storefront or changes the system action being launched.
+    static func fetch(appStoreID id: Int, country: String? = nil) async -> Data? {
+        await fetch(appStoreID: id, country: country, load: request)
+    }
+
+    static func fetch(appStoreID id: Int, country: String? = nil, load: (URL) async -> Data?) async -> Data? {
+        guard id > 0 else { return nil }
+        let countries: [String?]
+        if let country {
+            guard let normalized = AppStoreCountry.normalized(country) else { return nil }
+            countries = [normalized]
+        } else {
+            countries = [nil, "cn"]
+        }
+        for country in countries {
+            guard !Task.isCancelled else { return nil }
             guard let url = AppStoreLookup.lookupURL(ids: [id], country: country),
-                  let payload = await request(url),
-                  let artworkURL = AppStoreLookup.parse(payload).first?.artworkURL.flatMap(URL.init(string:)),
-                  let data = await request(artworkURL)
+                  let payload = await load(url),
+                  !Task.isCancelled,
+                  let artworkURL = AppStoreLookup.parse(payload).first(where: { $0.trackID == id })?.artworkURL.flatMap(URL.init(string:)),
+                  let data = await load(artworkURL),
+                  !Task.isCancelled,
+                  let artwork = normalizedArtwork(data)
             else { continue }
-            return data
+            return artwork
         }
         return nil
     }
